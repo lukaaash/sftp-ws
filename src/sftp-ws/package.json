@@ -1,0 +1,13 @@
+{
+  "name": "sftp-ws",
+  "version": "0.0.1",
+  "description": "SFTP.WS client and server library",
+  "main": "sftp.js",
+  "author": {
+    "name": "Lukas Pokorny",
+    "email": "lukas@nuane.com"
+  },
+  "dependencies": {
+    "ws": "^0.4.32"
+  }
+}
