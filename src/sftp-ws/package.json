@@ -9,5 +9,9 @@
   },
   "dependencies": {
     "ws": "^0.4.32"
+  },
+  "devDependencies": {
+    "gulp": "^3.8.10",
+    "gulp-tsc": "^0.9.2"
   }
 }
