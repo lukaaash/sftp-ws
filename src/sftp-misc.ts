@@ -393,7 +393,7 @@ export class SftpAttributes implements IStats {
         else
             date += " " + ("0" + modified.getUTCHours()).slice(-2) + ":" + ("0" + modified.getUTCMinutes()).slice(-2);
 
-        return perms + " user group " + this.nlink + " " + len + " " + date;
+        return perms + " " + this.nlink + " user group " + len + " " + date;
     }
 
 }
