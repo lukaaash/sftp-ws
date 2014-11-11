@@ -41,18 +41,17 @@
     <TypeScriptCompile Include="sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
-    <TypeScriptCompile Include="Scripts\typings\node\node.d.ts" />
-    <TypeScriptCompile Include="Scripts\typings\ws\ws.d.ts" />
+    <TypeScriptCompile Include="typings\node\node.d.ts" />
+    <TypeScriptCompile Include="typings\ws\ws.d.ts" />
     <TypeScriptCompile Include="sftp-misc.ts" />
     <TypeScriptCompile Include="sftp-packet.ts" />
     <TypeScriptCompile Include="sftp-server.ts" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="client\" />
-    <Folder Include="Scripts\" />
-    <Folder Include="Scripts\typings\" />
-    <Folder Include="Scripts\typings\node\" />
-    <Folder Include="Scripts\typings\ws\" />
+    <Folder Include="typings\" />
+    <Folder Include="typings\node\" />
+    <Folder Include="typings\ws\" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="client\SFTPv3.d.ts" />

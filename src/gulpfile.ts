@@ -6,7 +6,7 @@ var paths = {
     sources: ['**/*.ts', '!**/*.d.ts', '!main.ts', '!node_modules/**', '!gulpfile.*'],
     scripts: ['client/*.js'],
     html: ['app/index.html', '!app/test.html'],
-    out: '../../lib'
+    out: '../lib'
 };
 
 gulp.task('sources', () => {
