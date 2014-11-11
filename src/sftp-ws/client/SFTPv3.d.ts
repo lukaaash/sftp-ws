@@ -1,4 +1,6 @@
+/// <reference path="Stats.d.ts" />
 import events = require("events");
+import Stats = require("Stats");
 
 declare class SFTP extends events.EventEmitter {
 
@@ -9,24 +11,24 @@ declare class SFTP extends events.EventEmitter {
     end(): void;
 
     // core methods
-    open(path: string, flags: string, attrs, cb: Function);
-    close(handle: NodeBuffer, cb: Function);
-    read(handle: NodeBuffer, buffer, offset, length, position, cb: Function);
-    write(handle: NodeBuffer, buffer, offset, length, position, cb: Function);
-    unlink(filename, cb: Function);
-    rename(oldpath: string, newpath: string, cb: Function);
-    mkdir(path: string, attrs, cb: Function);
-    rmdir(path: string, cb: Function);
-    readdir(handle: NodeBuffer, cb: Function);
-    fstat(handle: NodeBuffer, cb: Function);
-    stat(path: string, cb: Function);
-    lstat(path: string, cb: Function);
-    opendir(path: string, cb: Function);
-    setstat(path: string, attrs, cb: Function);
-    fsetstat(handle: NodeBuffer, attrs, cb: Function);
-    readlink(path: string, cb: Function);
-    symlink(targetpath: string, linkpath: string, cb: Function);
-    realpath(path: string, cb: Function);
+    open(path: string, flags: string, attrs?: Stats, callback?: (err: Error, handle: any) => any): void;
+    close(handle: any, callback?: (err: Error) => any): void;
+    read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void;
+    write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void;
+    lstat(path: string, callback?: (err: Error, attrs: Stats) => any): void;
+    fstat(handle: any, callback?: (err: Error, attrs: Stats) => any): void;
+    setstat(path: string, attrs: Stats, callback?: (err: Error) => any): void;
+    fsetstat(handle: any, attrs: Stats, callback?: (err: Error) => any): void;
+    opendir(path: string, callback?: (err: Error, handle: any) => any): void;
+    readdir(handle: any, callback?: (err: Error, items: { filename: string; longname: string; stats?: Stats; }[]) => any): void;
+    unlink(path: string, callback?: (err: Error) => any): void;
+    mkdir(path: string, attrs?: Stats, callback?: (err: Error) => any): void;
+    rmdir(path: string, callback?: (err: Error) => any): void;
+    realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void;
+    stat(path: string, callback?: (err: Error, attrs: Stats) => any): void;
+    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
+    readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
+    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
 
     // wrapper methods
     open(path: string, flags: string, cb: Function);
