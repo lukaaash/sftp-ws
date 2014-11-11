@@ -4,10 +4,12 @@
 import packet = require("./sftp-packet");
 import misc = require("./sftp-misc");
 import fs = require("./sftp-fs");
+import api = require("./sftp-api");
 
 import SafeFilesystem = fs.SafeFilesystem;
-import IStats = fs.IStats;
-import IItem = fs.IItem;
+import IStats = api.IStats;
+import IItem = api.IItem;
+import ILogWriter = api.ILogWriter;
 
 import SftpPacket = packet.SftpPacket;
 import SftpItem = misc.SftpItem;
@@ -15,12 +17,6 @@ import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;
 import SftpFlags = misc.SftpFlags;
 
-export interface ILogWriter {
-    info(message?: any, ...optionalParams: any[]): void;
-    warn(message?: any, ...optionalParams: any[]): void;
-    error(message?: any, ...optionalParams: any[]): void;
-    log(message?: any, ...optionalParams: any[]): void;
-}
 
 export interface SftpServerOptions {
     fs: SafeFilesystem;
@@ -56,11 +52,25 @@ export class SftpServer {
         this.send(packet);
     }
 
-    private error(packet: SftpPacket, err: ErrnoException): void {
+    private error(packet: SftpPacket, code: number, message: string)
+    private error(packet: SftpPacket, err: ErrnoException)
+    private error(packet: SftpPacket, err: any, message?: string): void {
         if (typeof this.log === 'object' && typeof this.log.error === 'function')
             this.log.error(err);
 
-        SftpStatus.writeError(packet, err);
+        if (typeof err === 'object') {
+            SftpStatus.writeError(packet, err);
+        } else {
+            var code = err | 0;
+            if (code < 2 || code > 8)
+                code = SftpStatus.FAILURE;
+
+            message = "" + message;
+            if (message.length == 0)
+                message = "Error";
+
+            SftpStatus.write(packet, code, message);
+        }
         this.send(packet);
     }
 
@@ -130,6 +140,11 @@ export class SftpServer {
         request.id = id;
         reply.id = id;
 
+        if (length > 66000) {
+            this.error(reply, SftpStatus.BAD_MESSAGE, "Packet too long");
+            return;
+        }
+
         try {
             switch (command) {
                 case SftpPacket.INIT:
@@ -190,6 +205,8 @@ export class SftpServer {
                     var handle = request.readHandle();
                     var position = request.readInt64();
                     var count = request.readInt32();
+                    if (count > 0x8000)
+                        count = 0x8000;
 
                     reply.writeByte(SftpPacket.DATA);
                     reply.writeInt32(reply.id);
@@ -212,6 +229,7 @@ export class SftpServer {
                     var position = request.readInt64();
                     var count = request.readInt32();
                     var offset = request.offset;
+                    request.ignore(count);
 
                     fs.write(handle, reply.buffer, offset, count, position, err => this.finish(reply, err));
                     return;

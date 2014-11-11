@@ -36,6 +36,7 @@
   <ItemGroup>
     <TypeScriptCompile Include="gulpfile.ts" />
     <TypeScriptCompile Include="sftp-fs.ts" />
+    <TypeScriptCompile Include="sftp-api.ts" />
     <TypeScriptCompile Include="sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />

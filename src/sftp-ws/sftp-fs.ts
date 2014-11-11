@@ -1,53 +1,20 @@
 ﻿import fs = require("fs");
 import Path = require("path");
+import api = require("./sftp-api");
 
-export interface IStats {
-    mode?: number;
-    uid?: number;
-    gid?: number;
-    size?: number;
-    atime?: Date;
-    mtime?: Date;
-}
+import IFilesystem = api.IFilesystem;
+import IItem = api.IItem;
+import IStats = api.IStats;
 
-export interface IItem {
-    filename: string;
-    stats?: IStats;
-}
-
-export interface IFilesystem {
-    open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
-    close(handle: any, callback?: (err: Error) => any): void;
-    read(handle: any, buffer, offset, length, position, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void;
-    write(handle: any, buffer, offset, length, position, callback?: (err: Error) => any): void;
-    lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
-    fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void;
-    setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void;
-    fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void;
-    opendir(path: string, callback?: (err: Error, handle: any) => any): void;
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void;
-    unlink(path: string, callback?: (err: Error) => any): void;
-    mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void;
-    rmdir(path: string, callback?: (err: Error) => any): void;
-    realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void;
-    stat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
-    readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
-}
-
-
-class LocalError implements ErrnoException {
+class LocalError implements Error {
     name: string;
     message: string;
-    errno: number;
-    code: string;
+    isPublic: boolean;
 
-    constructor(message: string, errno?: number, code?: string) {
+    constructor(message: string, isPublic?: boolean) {
         this.name = "Error";
         this.message = message;
-        this.errno = errno;
-        this.code = code;
+        this.isPublic = (isPublic === true);
     }
 }
 
@@ -62,6 +29,7 @@ export class LocalFilesystem implements IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
         var mode = typeof attrs === 'object' ? attrs.mode : undefined;
         fs.open(path, flags, mode, (err, fd) => callback(err, fd));
+        //LATER: pay attemtion to attrs other than mode (low priority - many SFTP servers ignore these as well)
     }
 
     close(handle: any, callback?: (err: Error) => any): void {
@@ -69,14 +37,14 @@ export class LocalFilesystem implements IFilesystem {
         var err = null;
         if (Array.isArray(handle)) {
             if (handle.closed == true)
-                err = new LocalError("already closed");
+                err = new LocalError("Already closed", true);
             else
                 handle.closed = true;
         } else if (!isNaN(handle)) {
             fs.close(handle, callback);
             return;
         } else {
-            err = new LocalError("invalid handle");
+            err = new LocalError("Invalid handle", true);
         }
 
         if (typeof callback == 'function') {
@@ -87,18 +55,35 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
-        fs.read(handle, buffer, offset, length, position, callback);
+        var initialOffset = offset;
+        var totalBytes = 0;
+        var read = () => {
+            fs.read(handle, buffer, offset, length, position, (err, bytesRead, b) => {
+                if (typeof err === 'undefined' || err == null) {
+                    offset += bytesRead;
+                    length -= bytesRead;
+                    totalBytes += bytesRead;
+
+                    if (length > 0 && bytesRead > 0) {
+                        read();
+                        return;
+                    }
+                }
+
+                if (typeof callback === 'function')
+                    callback(err, totalBytes, buffer.slice(initialOffset, initialOffset + totalBytes));
+            });
+        };
+
+        read();
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
-        fs.write(handle, buffer, offset, length, position, (err, written, b) => {
-        });
-
         var write = () => {
-            fs.write(handle, buffer, offset, length, position, (err, written, b) => {
+            fs.write(handle, buffer, offset, length, position, (err, bytesWritten, b) => {
                 if (typeof err === 'undefined' || err == null) {
-                    offset += written;
-                    length -= written;
+                    offset += bytesWritten;
+                    length -= bytesWritten;
 
                     if (length > 0) {
                         write();
@@ -209,7 +194,7 @@ export class LocalFilesystem implements IFilesystem {
                 err = null;
             } else {
                 files = null;
-                err = new LocalError("unable to read directory");
+                err = new LocalError("Unable to read directory", true);
                 err.path = path;
             }
 
@@ -224,14 +209,14 @@ export class LocalFilesystem implements IFilesystem {
         var path = null;
         if (Array.isArray(handle)) {
             if (handle.closed == true) {
-                err = new LocalError("already closed");
+                err = new LocalError("Already closed", true);
             } else {
                 path = handle.path;
                 if (typeof path !== 'string')
-                    err = new LocalError("invalid handle");
+                    err = new LocalError("Invalid handle", true);
             }
         } else {
-            err = new LocalError("invalid handle");
+            err = new LocalError("Invalid handle", true);
         }
 
         var items = [];
@@ -281,6 +266,7 @@ export class LocalFilesystem implements IFilesystem {
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
         var mode = typeof attrs === 'object' ? attrs.mode : undefined;
         fs.mkdir(path, mode, callback);
+        //LATER: pay attemtion to attrs other than mode (low priority - many SFTP servers ignore these as well)
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {

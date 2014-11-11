@@ -1,11 +1,11 @@
 ﻿/// <reference path="sftp-packet.ts" />
 
 import packet = require("./sftp-packet");
-import fs = require("./sftp-fs");
+import api = require("./sftp-api");
 
 import SftpPacket = packet.SftpPacket;
-import IItem = fs.IItem;
-import IStats = fs.IStats;
+import IItem = api.IItem;
+import IStats = api.IStats;
 
 export class SftpFlags {
     
@@ -89,7 +89,10 @@ export class SftpStatus {
 
         switch (err.errno | 0) {
             default:
-                message = "Unknown error";
+                if (err["isPublic"] === true)
+                    message = err.message;
+                else
+                    message = "Unknown error";
                 break;
             case 1: // EOF
                 message = "End of file";
@@ -181,15 +184,6 @@ export class SftpStatus {
 
 }
 
-
-var POSIX_FIFO = 0x1000;
-var POSIX_CHARACTER_DEVICE = 0x2000;
-var POSIX_DIRECTORY = 0x4000;
-var POSIX_BLOCK_DEVICE = 0x6000;
-var POSIX_REGULAR_FILE = 0x8000;
-var POSIX_SYMLINK = 0xA000;
-var POSIX_SOCKET = 0XC000;
-
 export class SftpOptions {
     encoding: string;
     handle: NodeBuffer;
@@ -248,6 +242,14 @@ export class SftpAttributes implements IStats {
     static ACMODTIME = 0x00000008;
     static BASIC = 0x0000000F;
     static EXTENDED = 0x80000000;
+
+    static POSIX_FIFO = 0x1000;
+    static POSIX_CHARACTER_DEVICE = 0x2000;
+    static POSIX_DIRECTORY = 0x4000;
+    static POSIX_BLOCK_DEVICE = 0x6000;
+    static POSIX_REGULAR_FILE = 0x8000;
+    static POSIX_SYMLINK = 0xA000;
+    static POSIX_SOCKET = 0XC000;
 
     flags: number;
     size: number;
@@ -339,25 +341,25 @@ export class SftpAttributes implements IStats {
 
         var perms;
         switch (attrs & 0xE000) {
-            case POSIX_CHARACTER_DEVICE:
+            case SftpAttributes.POSIX_CHARACTER_DEVICE:
                 perms = "c";
                 break;
-            case POSIX_DIRECTORY:
+            case SftpAttributes.POSIX_DIRECTORY:
                 perms = "d";
                 break;
-            case POSIX_BLOCK_DEVICE:
+            case SftpAttributes.POSIX_BLOCK_DEVICE:
                 perms = "b";
                 break;
-            case POSIX_REGULAR_FILE:
+            case SftpAttributes.POSIX_REGULAR_FILE:
                 perms = "-";
                 break;
-            case POSIX_SYMLINK:
+            case SftpAttributes.POSIX_SYMLINK:
                 perms = "l";
                 break;
-            case POSIX_SOCKET:
+            case SftpAttributes.POSIX_SOCKET:
                 perms = "s";
                 break;
-            case POSIX_FIFO:
+            case SftpAttributes.POSIX_FIFO:
                 perms = "p";
                 break;
             default:

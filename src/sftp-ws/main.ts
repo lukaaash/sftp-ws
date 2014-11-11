@@ -32,6 +32,7 @@ client.on('ready', () => {
     client.readdir("/client", (err, list) => {
         console.log("client:", err);
         console.log("client:", list);
+        client.end();
     });
 
 });

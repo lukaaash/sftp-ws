@@ -9,7 +9,10 @@ import http = require("http");
 import stream = require("stream");
 import server = require("./sftp-server");
 import sfs = require("./sftp-fs");
+import api = require("./sftp-api");
 
+import IFilesystem = api.IFilesystem;
+import ILogWriter = api.ILogWriter;
 import SftpServer = server.SftpServer;
 import SafeFilesystem = sfs.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
@@ -52,18 +55,6 @@ module SFTP {
         }
     }
 
-    export interface ILogWriter extends server.ILogWriter {
-    }
-
-    export interface IName extends sfs.IItem {
-    }
-
-    export interface IAttributes extends sfs.IStats {
-    }
-
-    export interface IFilesystem extends sfs.IFilesystem {
-    }
-
     export class Client extends SftpClient implements IFilesystem {
 
         constructor(address: string) {
@@ -88,7 +79,7 @@ module SFTP {
                 if (flags.binary) {
                     packet = <NodeBuffer>data;
                 } else {
-                    console.log("Text packet received, but not supported yet.");
+                    console.error("Text packet received, but not supported yet.");
                     ws.close(1003); // unsupported data
                     return;
                 }
@@ -98,10 +89,7 @@ module SFTP {
         }
     }
 
-    export interface IServerOptions extends WebSocket.IServerOptions {
-        filesystem?: IFilesystem;
-        virtualRoot?: string;
-        log?: ILogWriter;
+    export interface IServerOptions extends api.IServerOptions, WebSocket.IServerOptions {
     }
 
     export class Server {
