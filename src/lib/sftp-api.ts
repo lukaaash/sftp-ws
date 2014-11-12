@@ -50,4 +50,10 @@ export interface IServerOptions {
     virtualRoot?: string;
     readOnly?: boolean;
     log?: ILogWriter;
+    noServer?: boolean;
+}
+
+export interface IServerSession {
+    process: (request: NodeBuffer) => void;
+    end: () => void;
 }

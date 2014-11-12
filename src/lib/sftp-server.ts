@@ -10,6 +10,7 @@ import SafeFilesystem = fs.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import ILogWriter = api.ILogWriter;
+import IServer = api.IServerSession;
 
 import SftpPacket = packet.SftpPacket;
 import SftpItem = misc.SftpItem;
@@ -24,7 +25,7 @@ export interface SftpServerOptions {
     log?: ILogWriter;
 }
 
-export class SftpServer {
+export class SftpServer implements IServer {
 
     private fs: SafeFilesystem;
     private sendData: (data: NodeBuffer) => void;
@@ -125,8 +126,16 @@ export class SftpServer {
         this.send(packet);
     }
 
+    end(): void {
+        this.fs.dispose();
+        delete this.fs;
+    }
+
     process(data: NodeBuffer): void {
         var fs = this.fs;
+        if (typeof fs === 'undefined')
+            throw new Error("Session has ended");
+
         var request = new SftpPacket(data);
         var reply = new SftpPacket(new Buffer(34000)); //TODO: cache buffers
         reply.reset();

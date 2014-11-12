@@ -92,6 +92,9 @@ module SFTP {
     export interface IServerOptions extends api.IServerOptions, WebSocket.IServerOptions {
     }
 
+    export interface IServerSession extends api.IServerSession {
+    }
+
     export class Server {
 
         private _wss: WebSocketServer;
@@ -103,10 +106,13 @@ module SFTP {
         constructor(options?: IServerOptions) {
             var serverOptions: WebSocket.IServerOptions = {};
 
+            var noServer = false;
+
             if (typeof options !== 'undefined') {
                 this._virtualRoot = options.virtualRoot;
                 this._fs = options.filesystem;
                 this._log = options.log;
+                noServer = options.noServer;
 
                 serverOptions.handleProtocols = this._handleProtocols;
 
@@ -143,9 +149,11 @@ module SFTP {
                 };
             }
 
-            this._wss = new WebSocketServer(serverOptions);
-            this._wss.on('connection', ws => this.accept(ws));
-            //this._wss.on('error', err => this.error(err)); //TODO
+            if (!noServer) {
+                this._wss = new WebSocketServer(serverOptions);
+                this._wss.on('connection', ws => this.accept(ws));
+                //this._wss.on('error', err => this.error(err)); //TODO
+            }
         }
 
         private _handleProtocols(protocols: string[], callback: (result: boolean, protocol?: string) => void): void {
@@ -162,8 +170,32 @@ module SFTP {
         }
 
         end() {
-            this._wss.close();
-            //TODO: dispose all instances of SafeFilesystem
+            if (typeof this._wss === 'object') {
+                // end all active sessions
+                this._wss.clients.forEach(ws => {
+                    var session = <SftpServer>(<any>ws).session;
+                    if (typeof session === 'object') {
+                        session.end();
+                        delete (<any>ws).session;
+                    }
+                });
+
+                // stop accepting connections
+                this._wss.close();
+            }
+        }
+
+        create(sendReply: (reply: NodeBuffer) => void): IServerSession {
+
+            var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
+
+            var session = new SftpServer({
+                fs: fs,
+                send: sendReply,
+                log: this._log,
+            });
+
+            return session;
         }
 
         accept(ws: WebSocket): void {
@@ -174,14 +206,12 @@ module SFTP {
 
             var options = { binary: true };
 
-            var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
-
             var close = (code: number) => {
-                fs.dispose();
+                session.end();
                 ws.close(code);
             };
 
-            var sendData = data => {
+            var sendReply = data => {
                 ws.send(data, options, err => {
                     if (typeof err !== 'undefined' && err != null) {
                         log.error("Error while sending:", err);
@@ -190,11 +220,8 @@ module SFTP {
                 });
             };
 
-            var sftp = new SftpServer({
-                fs: fs,
-                send: sendData,
-                log: log
-            });
+            var session = this.create(sendReply);
+            (<any>ws).session = session;
 
             ws.on('close', (code, message) => {
                 log.info("Connection closed:", code, message);
@@ -218,7 +245,7 @@ module SFTP {
                 }
 
                 try {
-                    sftp.process(request);
+                    session.process(request);
                 } catch (error) {
                     log.error("Error while processing packet.", error);
                     close(1011); // unexpected condition
