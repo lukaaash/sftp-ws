@@ -97,10 +97,11 @@ module SFTP {
         private _wss: WebSocketServer;
         private _virtualRoot: string;
         private _fs: IFilesystem;
+        private _readOnly: boolean;
         private _log: ILogWriter;
 
         constructor(options?: IServerOptions) {
-            var serverOptions: IServerOptions = {};
+            var serverOptions: WebSocket.IServerOptions = {};
 
             if (typeof options !== 'undefined') {
                 this._virtualRoot = options.virtualRoot;
@@ -114,6 +115,7 @@ module SFTP {
                         switch (option) {
                             case "filesystem":
                             case "virtualRoot":
+                            case "readOnly":
                             case "log":
                                 break;
                             default:
@@ -172,7 +174,7 @@ module SFTP {
 
             var options = { binary: true };
 
-            var fs = new SafeFilesystem(this._virtualRoot, this._fs);
+            var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
             var close = (code: number) => {
                 fs.dispose();

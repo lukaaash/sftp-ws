@@ -48,5 +48,6 @@ export interface ILogWriter {
 export interface IServerOptions {
     filesystem?: IFilesystem;
     virtualRoot?: string;
+    readOnly?: boolean;
     log?: ILogWriter;
 }

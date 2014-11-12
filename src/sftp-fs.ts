@@ -304,13 +304,15 @@ export class SafeFilesystem implements IFilesystem {
     private isWindows: boolean;
     private root: string;
     private handles: Array<any>;
+    private readOnly: boolean;
 
-    constructor(virtualRootPath: string, fs: IFilesystem) {
+    constructor(fs: IFilesystem, virtualRootPath: string, readOnly?: boolean) {
         this.isSafe = true;
         this.fs = fs;
         this.isWindows = (fs['isWindows'] === true);
         this.root = Path.normalize(virtualRootPath);
         this.handles = [];
+        this.readOnly = (readOnly == true);
     }
 
     dispose() {
@@ -422,7 +424,26 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
+    private reportReadOnly(callback?: (err: Error) => any) {
+        if (typeof callback === 'function') {
+            var err = new LocalError("Internal server error", true);
+
+            process.nextTick(() => {
+                callback(err);
+            });
+        }
+    }
+
+    private isReadOnly(): boolean {
+        return !(this.readOnly === false);
+    }
+
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
+        if (this.isReadOnly() && flags != "r") {
+            this.reportReadOnly();
+            return;
+        }
+
         path = this.toRealPath(path);
         this.fs.open(path, flags, attrs, (err, handle) => this.processCallbackHandle(err, handle, callback));
     }
@@ -442,6 +463,11 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     write(handle: any, buffer, offset, length, position, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         handle = this.toLocalHandle(handle);
         this.fs.write(handle, buffer, offset, length, position, callback);
     }
@@ -457,11 +483,21 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         path = this.toRealPath(path);
         this.fs.setstat(path, attrs, callback);
     }
 
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         handle = this.toLocalHandle(handle);
         this.fs.fsetstat(handle, attrs, callback);
     }
@@ -477,16 +513,31 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         path = this.toRealPath(path);
         this.fs.unlink(path, callback);
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         path = this.toRealPath(path);
         this.fs.mkdir(path, attrs, callback);
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         path = this.toRealPath(path);
         this.fs.rmdir(path, callback);
     }
@@ -502,6 +553,11 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         oldPath = this.toRealPath(oldPath);
         newPath = this.toRealPath(newPath);
         this.fs.rename(oldPath, newPath, callback);
@@ -513,6 +569,11 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly();
+            return;
+        }
+
         targetpath = this.toRealPath(targetpath);
         linkpath = this.toRealPath(linkpath);
         this.fs.symlink(targetpath, linkpath, callback);
