@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "sftp-ws", "sftp-ws\sftp-ws.njsproj", "{534896ED-D8EB-43E7-93E1-30E80471977E}"
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "sftp-ws", "src\sftp-ws.njsproj", "{534896ED-D8EB-43E7-93E1-30E80471977E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

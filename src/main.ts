@@ -1,4 +1,4 @@
-﻿/// <reference path="Scripts/typings/ws/ws.d.ts" />
+﻿/// <reference path="typings/ws/ws.d.ts" />
 /// <reference path="sftp.ts" />
 
 import SFTP = require("./sftp");

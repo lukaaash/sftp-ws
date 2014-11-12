@@ -1,5 +1,5 @@
-﻿/// <reference path="Scripts/typings/node/node.d.ts" />
-/// <reference path="Scripts/typings/ws/ws.d.ts" />
+﻿/// <reference path="typings/node/node.d.ts" />
+/// <reference path="typings/ws/ws.d.ts" />
 /// <reference path="client/SFTPv3.d.ts" />
 /// <reference path="sftp-server.ts" />
 
