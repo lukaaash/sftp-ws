@@ -17,14 +17,19 @@ var out = {
 
 gulp.task('lib', () => {
     var options = {
-        declaration: false,
-        removeComments: true
+        "declaration": false,
+        "removeComments": true,
+        "module": "commonjs",
     };
-    options['module'] = 'commonjs';
 
     gulp.src(src.lib)
         .pipe(typescript(options))
         .pipe(gulp.dest(out.lib));
+});
+
+gulp.task('client', () => {
+    gulp.src(src.client)
+        .pipe(gulp.dest(out.client));
 });
 
 gulp.task('package', () => {
@@ -33,12 +38,7 @@ gulp.task('package', () => {
         .pipe(gulp.dest(out.pkg));
 });
 
-gulp.task('client', () => {
-    gulp.src(src.client)
-        .pipe(gulp.dest(out.client));
-});
-
-gulp.task('default', ['lib', 'client'], () => {
+gulp.task('default', ['lib', 'package', 'client'], () => {
 
 });
 

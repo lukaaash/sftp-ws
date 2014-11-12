@@ -41,6 +41,7 @@
     <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
+    <TypeScriptCompile Include="typings\gulp\gulp.d.ts" />
     <TypeScriptCompile Include="typings\node\node.d.ts" />
     <TypeScriptCompile Include="typings\ws\ws.d.ts" />
     <TypeScriptCompile Include="lib\sftp-misc.ts" />
@@ -51,6 +52,7 @@
     <Folder Include="lib\client\" />
     <Folder Include="lib\" />
     <Folder Include="typings\" />
+    <Folder Include="typings\gulp\" />
     <Folder Include="typings\node\" />
     <Folder Include="typings\ws\" />
   </ItemGroup>

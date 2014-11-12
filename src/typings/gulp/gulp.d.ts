@@ -207,14 +207,14 @@ declare module gulp {
          * @param glob a glob string, using node-glob syntax
          * @param opt an optional option object
          */
-        src(glob:string, opt?:ISrcOptions): NodeJS.ReadWriteStream;
+        src(glob:string, opt?:ISrcOptions): ReadWriteStream;
 
         /**
          * Takes a glob and represents a file structure. Can be piped to plugins.
          * @param glob an array of glob strings, using node-glob syntax
          * @param opt an optional option object
          */
-        src(glob:string[], opt?:ISrcOptions): NodeJS.ReadWriteStream;
+        src(glob:string[], opt?:ISrcOptions): ReadWriteStream;
 
 
         /**
@@ -224,7 +224,7 @@ declare module gulp {
          * @param outFolder the path (output folder) to write files to.
          * @param opt
          */
-        dest(outFolder:string, opt?:IDestOptions): NodeJS.ReadWriteStream;
+        dest(outFolder:string, opt?:IDestOptions): ReadWriteStream;
 
         /**
          * Can be piped to and it will write files. Re-emits all data passed to it so you can pipe to multiple folders.
@@ -233,7 +233,7 @@ declare module gulp {
          * @param outFolder a function that converts a vinyl File instance into an output path
          * @param opt
          */
-        dest(outFolder:(file:string)=>string, opt?:IDestOptions): NodeJS.ReadWriteStream;
+        dest(outFolder:(file:string)=>string, opt?:IDestOptions): ReadWriteStream;
 
 
         /**
@@ -284,5 +284,5 @@ declare module "gulp" {
 }
 
 interface IGulpPlugin {
-    (...args: any[]): NodeJS.ReadWriteStream;
+    (...args: any[]): ReadWriteStream;
 }
