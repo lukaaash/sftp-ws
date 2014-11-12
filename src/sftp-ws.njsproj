@@ -34,29 +34,30 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="client\Stats.d.ts" />
+    <TypeScriptCompile Include="lib\client\Stats.d.ts" />
     <TypeScriptCompile Include="gulpfile.ts" />
-    <TypeScriptCompile Include="sftp-fs.ts" />
-    <TypeScriptCompile Include="sftp-api.ts" />
-    <TypeScriptCompile Include="sftp.ts" />
+    <TypeScriptCompile Include="lib\sftp-fs.ts" />
+    <TypeScriptCompile Include="lib\sftp-api.ts" />
+    <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
     <TypeScriptCompile Include="typings\node\node.d.ts" />
     <TypeScriptCompile Include="typings\ws\ws.d.ts" />
-    <TypeScriptCompile Include="sftp-misc.ts" />
-    <TypeScriptCompile Include="sftp-packet.ts" />
-    <TypeScriptCompile Include="sftp-server.ts" />
+    <TypeScriptCompile Include="lib\sftp-misc.ts" />
+    <TypeScriptCompile Include="lib\sftp-packet.ts" />
+    <TypeScriptCompile Include="lib\sftp-server.ts" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="client\" />
+    <Folder Include="lib\client\" />
+    <Folder Include="lib\" />
     <Folder Include="typings\" />
     <Folder Include="typings\node\" />
     <Folder Include="typings\ws\" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="client\SFTPv3.d.ts" />
-    <Compile Include="client\SFTPv3.js" />
-    <Compile Include="client\Stats.js" />
+    <Compile Include="lib\client\SFTPv3.d.ts" />
+    <Compile Include="lib\client\SFTPv3.js" />
+    <Compile Include="lib\client\Stats.js" />
   </ItemGroup>
   <!-- Do not delete the following Import Project.  While this appears to do nothing it is a marker for setting TypeScript properties before our import that depends on them. -->
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="False" />

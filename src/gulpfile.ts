@@ -2,35 +2,38 @@
 var gulp = require('gulp');
 var typescript = require('gulp-tsc');
 
-var paths = {
-    sources: ['**/*.ts', '!**/*.d.ts', '!main.ts', '!node_modules/**', '!gulpfile.*'],
-    scripts: ['client/*.js'],
-    html: ['app/index.html', '!app/test.html'],
-    out: '../lib'
+var src = {
+    lib: ['lib/*.ts', '!lib/*.d.ts'],
+    client: ['lib/client/*.js'],
 };
 
-gulp.task('sources', () => {
+var out = {
+    lib: '../lib',
+    client: '../lib/client',
+};
+
+gulp.task('lib', () => {
     var options = {
         declaration: false,
         removeComments: true
     };
     options['module'] = 'commonjs';
 
-    gulp.src(paths.sources)
+    gulp.src(src.lib)
         .pipe(typescript(options))
-        .pipe(gulp.dest(paths.out));
+        .pipe(gulp.dest(out.lib));
 });
 
 gulp.task('typings', () => {
     //TODO
 });
 
-gulp.task('scripts', () => {
-    gulp.src(paths.scripts)
-        .pipe(gulp.dest(path.join(paths.out, "client")));
+gulp.task('client', () => {
+    gulp.src(src.client)
+        .pipe(gulp.dest(out.client));
 });
 
-gulp.task('default', ['sources', 'scripts'], () => {
+gulp.task('default', ['lib', 'client'], () => {
 
 });
 

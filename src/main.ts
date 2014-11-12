@@ -1,7 +1,7 @@
 ﻿/// <reference path="typings/ws/ws.d.ts" />
-/// <reference path="sftp.ts" />
+/// <reference path="lib/sftp.ts" />
 
-import SFTP = require("./sftp");
+import SFTP = require("./lib/sftp");
 
 import SftpServer = SFTP.Server;
 import SftpClient = SFTP.Client;
@@ -14,7 +14,7 @@ var host = "0.0.0.0";
 var server = new SftpServer({
     port: port,
     host: host,
-    log: console
+    //log: console,
 });
 
 console.log("SFTP.WS server running at port %s", port);
@@ -29,7 +29,7 @@ client.on('ready', () => {
 
     console.log("client: Connected.");
 
-    client.readdir("/client", (err, list) => {
+    client.readdir(".", (err, list) => {
         console.log("client:", err);
         console.log("client:", list);
         client.end();
