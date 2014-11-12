@@ -393,7 +393,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     private toRealPath(path: string): string {
-        path = Path.normalize(path);
+        path = Path.join("/", path);
         path = Path.join(this.root, path);
         return path;
     }
