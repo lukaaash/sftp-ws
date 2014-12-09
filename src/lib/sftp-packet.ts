@@ -84,42 +84,18 @@ export class SftpPacket {
 
     writeString(value: string): void {
         var offset = this.offset;
-        this.writeInt32(value.length);
-        this.checkSize(value.length);
-        var length = 0;
+        this.writeInt32(0); // will get overwritten later
+        var charLength = value.length;
+        this.checkSize(value.length); // does not ensure there is enough space (because of UTF-8)
 
-        for (var i = 0; i < value.length; i++) {
-            var code = value.charCodeAt(i);
-            if (code <= 0x7F) {
-                length += 1;
-                this.checkSize(1);
-                this.buffer[this.offset++] = (code | 0);
-            } else if (code <= 0x7FF) {
-                length += 2;
-                this.checkSize(2);
-                this.buffer[this.offset++] = (code >> 6) | 0x80;
-                this.buffer[this.offset++] = (code & 0x3F);
-            } else if (code <= 0xFFFF) {
-                length += 3;
-                this.checkSize(3);
-                this.buffer[this.offset++] = ((code >> 12) & 0x0F) | 0xE0;
-                this.buffer[this.offset++] = ((code >> 6) & 0x3F) | 0x80;
-                this.buffer[this.offset++] = (code & 0x3F);
-            } else if (code <= 0x1FFFFF) {
-                length += 4;
-                this.checkSize(4);
-                this.buffer[this.offset++] = ((code >> 18) & 0x03) | 0xF0;
-                this.buffer[this.offset++] = ((code >> 12) & 0x0F) | 0xE0;
-                this.buffer[this.offset++] = ((code >> 6) & 0x3F) | 0x80;
-                this.buffer[this.offset++] = (code & 0x3F);
-            } else {
-                length += 1;
-                this.checkSize(1);
-                this.buffer[this.offset++] = 0x3F;
-            }
-        }
+        (<any>this.buffer)._charsWritten = 0;
+        var bytesWritten = this.buffer.write(value, offset, undefined, 'utf-8');
+        this.offset += bytesWritten;
+        if ((<any>Buffer)._charsWritten != charLength)
+            throw new Error("Not enough space in the buffer");
 
-        this.buffer.writeInt32BE(length, offset, true);
+        // write number of bytes
+        this.buffer.writeInt32BE(bytesWritten, offset, true);
     }
 
     private checkSize(size: number): void {
