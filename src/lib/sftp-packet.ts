@@ -89,7 +89,7 @@ export class SftpPacket {
         this.checkSize(value.length); // does not ensure there is enough space (because of UTF-8)
 
         (<any>this.buffer)._charsWritten = 0;
-        var bytesWritten = this.buffer.write(value, offset, undefined, 'utf-8');
+        var bytesWritten = this.buffer.write(value, this.offset, undefined, 'utf-8');
         this.offset += bytesWritten;
         if ((<any>Buffer)._charsWritten != charLength)
             throw new Error("Not enough space in the buffer");
