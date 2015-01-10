@@ -207,8 +207,17 @@ module SFTP {
             var options = { binary: true };
 
             var close = (code: number) => {
-                session.end();
-                ws.close(code);
+                try {
+                    session.end();
+                } catch (error) {
+                    log.error("Error while closing session.", error);
+                }
+
+                try {
+                    ws.close(code);
+                } catch (error) {
+                    log.error("Error while closing websocket.", error);
+                }
             };
 
             var sendReply = data => {

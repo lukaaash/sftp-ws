@@ -127,6 +127,9 @@ export class SftpServer implements IServer {
     }
 
     end(): void {
+        if (typeof this.fs === 'undefined')
+            return;
+
         this.fs.dispose();
         delete this.fs;
     }
