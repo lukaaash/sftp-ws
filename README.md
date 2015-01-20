@@ -9,6 +9,7 @@ SFTP over WebSockets - client and server library for Node.js.
 ## Overview
 
 SFTP is a simple remote filesystem protocol misnamed as *SSH File Transfer Protocol*. This package provides SFTP v3, but layers it on top of WebSockets instead of SSH.
+Check out my [blogpost](http://lukas.pokorny.eu/sftp-over-websockets/) for more information.
 
 This package is currently in development and has not been properly tested yet.
 
@@ -21,9 +22,9 @@ npm install --save sftp-ws
 ## API
 
 The client core code comes from [ssh2 module](https://github.com/mscdex/ssh2) by Brian White and the client API is compatible with his.
-Einaros [ws module] is used to handle WebSockets and this is reflected in parts of the client and server API as well.
+Einaros [ws module](https://github.com/einaros/ws) is used to handle WebSockets and this is reflected in parts of the client and server API as well.
 
-# SFTP client - connecting to a server:
+### SFTP client - connecting to a server:
 
 ```javascript
 var SFTP = require('sftp-ws');
@@ -50,7 +51,7 @@ client.on('ready', function () {
 });
 ```
 
-# SFTP server - listening for connections
+### SFTP server - listening for connections:
 
 ```javascript
 var SFTP = require('sftp-ws');
@@ -67,7 +68,7 @@ var server = new SFTP.Server({
 
 This SFTP package is built around the `IFilesystem` interface:
 
-```typescript
+```javascript
 export interface IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
     close(handle: any, callback?: (err: Error) => any): void;
@@ -89,6 +90,11 @@ export interface IFilesystem {
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
 }
 
+export interface IItem {
+    filename: string;
+    stats?: IStats;
+}
+
 export interface IStats {
     mode?: number;
     uid?: number;
@@ -96,11 +102,6 @@ export interface IStats {
     size?: number;
     atime?: Date;
     mtime?: Date;
-}
-
-export interface IItem {
-    filename: string;
-    stats?: IStats;
 }
 ```
 
