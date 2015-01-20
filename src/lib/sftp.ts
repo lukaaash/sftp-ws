@@ -56,13 +56,36 @@ module SFTP {
         }
     }
 
+    export interface IClientOptions {
+        protocol?: string;
+        agent?: http.Agent;
+        headers?: { [key: string]: string };
+        protocolVersion?: any;
+        host?: string;
+        origin?: string;
+        pfx?: any;
+        key?: any;
+        passphrase?: string;
+        cert?: any;
+        ca?: any[];
+        ciphers?: string;
+        rejectUnauthorized?: boolean;
+    }
+
     export class Client extends SftpClient implements IFilesystem {
 
-        constructor(address: string) {
-            var ws = new WebSocket(address, {
-                protocol: "sftp"
-            });
+        constructor(address: string, options?: IClientOptions) {
 
+            if (typeof options == 'undefined') {
+                options = {};
+            }
+
+            if (typeof options.protocol == 'undefined') {
+                options.protocol = 'sftp';
+            }
+
+            var ws = new WebSocket(address, options);
+         
             super(new WebSocketStream(ws, {}), "");
 
             ws.on("open", () => {
