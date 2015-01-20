@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>SFTP over WebSockets - Sample Client</title>
+    <link rel="stylesheet" href="style.css" type="text/css" media="all" />
+    <script type="text/javascript" src="Init.js"></script>
+    <script type="text/javascript" src="Buffer.js"></script>
+    <script type="text/javascript" src="Stats.js"></script>
+    <script type="text/javascript" src="SFTPv3.js"></script>
+    <script type="text/javascript" src="Client.js"></script>
+</head>
+<body>
+
+    <div id="list">
+    </div>
+
+    <div id="info">
+        <div id="details"></div>
+        
+        <label>
+            <input type="file" id="files" name="files[]" multiple />
+            <span id="upload">Click to upload...</span>
+        </label>
+
+        <a id="preview" href="download">
+            <img id="image" width="320" height="240" />
+        </a>
+    </div>
+
+    <script type="text/javascript">
+
+        var client = new SftpClient();
+        var currentPath = '/';
+        var list = document.getElementById('list');
+
+        var address = (window.location.protocol == "https") ? "wss" : "ws";
+        address += "://" + window.location.hostname + ":" + window.location.port + "/sftp";
+        
+        client.connect(address)
+            .error(onError)
+            .success(onConnected);
+
+        function onError(error) {
+            alert("SFTP.WS error: " + error.message + " (" + error.type + ")");
+        }
+
+        function onConnected() {
+            getList('/');
+        }
+
+        function getList(path) {
+            showInfo(null);
+
+            list.innerHTML = "";
+
+            if (path[path.length - 1] == '/')
+                path = path.substr(path, path.length - 1);
+
+            var p = path.lastIndexOf('/');
+            if (path.length > 0 && p >= 0) {
+
+                var parentPath = path.substr(0, p);
+                if (parentPath.length == 0)
+                    parentPath = '/';
+
+                var parent = createItem('..');
+                parent.onclick = function () { getList(parentPath); }
+                list.appendChild(parent);
+            }
+
+            path += '/';
+            currentPath = path;
+
+            client.getList(path)
+                .error(onError)
+                .item(onItem);
+            
+            function onItem(item) {
+                var div = createItem(item);
+
+                if (item.isDirectory()) {
+                    div.onclick = function () { getList(path + item.name); }
+                }
+
+                if (item.isFile()) {
+                    div.onclick = function () { downloadImage(path, item.name); }
+                }
+
+                list.appendChild(div);
+            };
+        }
+
+        function downloadImage(path, name) {
+            path += name;
+            client.getFile(path)
+                .error(onError)
+                .success(function (e) {
+                    var data = e.data;
+                    var image = document.getElementById('image');
+                    var preview = document.getElementById('preview');
+
+                    var blob = new Blob([data], { type: "image/jpeg" });
+                    var url = URL.createObjectURL(blob);
+
+                    image.src = url;
+                    preview.href = url;
+                    //preview.href = '#' + path;
+                    preview.draggable = "true";
+                    preview.download = name;
+                });
+        }
+
+        function showInfo(item) {
+            var info = document.getElementById('details');
+            if (item == null) {
+                info.innerHTML = "";
+            } else {
+                info.innerHTML = "Name: " + item.name + "<br/>"
+                    + "Length: " + ((item.length / 1024) | 0) + " KB<br/>"
+                    + "Modified: " + item.modified.toLocaleString();
+            }
+        }
+
+        function createItem(item) {
+            var name;
+            var info;
+            if (typeof item === 'string') {
+                name = item;
+                info = false;
+            } else {
+                name = item.name;
+                if (name.length > 18)
+                    name = name.substr(0, 16) + "...";
+                info = true;
+            }
+
+            var div = document.createElement("div");
+            div.textContent = name;
+            div.className = 'item';
+
+            if (info) {
+                div.onmouseover = function () {
+                    showInfo(item);
+                };
+            }
+
+            return div;
+        }
+
+        document.getElementById('files').addEventListener('change', onUploadFiles, false);
+
+        var uploadQueue = [];
+        var uploading = false;
+
+        function onUploadFiles(e) {
+            var files = e.target.files;
+
+            for (var i = 0, file; file = files[i]; i++) {
+                uploadQueue.push(file);
+            }
+
+            uploadFile();
+        }
+
+        function uploadFile() {
+            if (uploading)
+                return;
+
+            var file = uploadQueue.shift();
+            if (typeof file === 'undefined')
+                return;
+
+            console.log('uploading ' + currentPath + file.name + ' (' + file.size + ' ' + file.lastModifiedDate + ')');
+            uploading = true;
+            var itemDiv = null;
+            var progress = null;
+
+            client.putFile(file, currentPath + file.name, true)
+                .error(function (error) {
+                    uploading = false;
+                    uploadQueue.length = 0;
+                    onError(error);
+                })
+                .success(onSuccess)
+                .progress(onProgress);
+
+            function onSuccess() {
+                if (progress != null)
+                    itemDiv.removeChild(progress);
+
+                uploading = false;
+                uploadFile();
+            }
+            
+            function onProgress(e, current) {
+                if (itemDiv == null) {
+                    itemDiv = createItem({ name: file.name, length: file.size, modified: file.lastModifiedDate });
+                    list.appendChild(itemDiv);
+
+                    progress = document.createElement("div");
+                    progress.className = 'progress';
+                    itemDiv.appendChild(progress);
+                }
+
+                progress.style.width = (current | 0) + '%';
+            }
+        }
+
+
+    </script>
+
+
+</body>
+</html>

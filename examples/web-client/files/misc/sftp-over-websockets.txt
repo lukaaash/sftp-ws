@@ -1,0 +1,18 @@
+Introducting SFTP over WebSockets
+
+Contrary to common belief, SFTP doesn't stand for "Secure FTP" or "Secure File Transfer Protocol", but for "SSH File Transfer Protocol". This is actually a double misnomer:
+
+1. Although SFTP is almost always layered on top of an SSH channel, it could just as well run over any reliable data stream.
+2. SFTP is not really a file transfer protocol, but rather a simple remote file system protocol.
+
+Because SFTP isn't related to the legacy FTP protocol at all, it doesn't suffer from it's shortcomings - FTP is notoriously firewall-unfriendly due to awkward distinction between control and data connection, and is not well-suited for much more that simple file upload or download.
+
+Given the benefits of SFTP, it's not a surprise that lot of people have been looking for ways to use SFTP to transfer files from a web browser directly to an SFTP server. Some of them already had an SFTP server and wanted to eliminate the need of forcing their customers to install a stand-alone SFTP client, others just wanted to get rid of the nightmare of AJAX-based uploads.
+
+The Past: Black Magic of AJAX
+
+At Rebex, we got numerous questions from those unfortunate people, and we always had to reply that unfortunately, it's impossible to implement a web-based SFTP client unless the browser is extended with third-party plugins. And even though it's easily possible to transfer files between the web server and and SFTP server (using a suitable library), the transfer between the web browser and the web server has to be done by HTTP or the black magic of AJAX. Which was the very technology our customers wanted to get rid in most cases...
+
+The Future: SFTP over WebSockets
+
+Fortunately, those sad days will soon be over. Modern web browsers support WebSockets, a technology that makes it possible to open an efficient and persistent packet-based communication session between a web browser application and a web server. Because the SFTP protocol is packet-based as well, it's actually a perfect match. Additionally, the asynchronous nature of the SFTP protocol makes it ideal for the JavaScript environment. When the two protocols are combined, any modern web browser is perfectly capable of communicating directly with any SFTP server that supports SFTP over WebSockets, eliminating the need to use clunky and proprietary AJAX-based solutions.

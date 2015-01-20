@@ -1,0 +1,10 @@
+{
+  "name": "web-client",
+  "version": "0.1.0",
+  "description": "SFTP over WebSockets - browser-based client and Node.js server",
+  "main": "server.js",
+  "dependencies": {
+    "express": "4.10.x",
+    "sftp-ws": "0.1.x"
+  }
+}

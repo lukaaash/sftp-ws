@@ -1,0 +1,9 @@
+{
+  "name": "simple-server",
+  "version": "0.1.0",
+  "description": "SFTP over WebSockets - simple server",
+  "main": "server.js",
+  "dependencies": {
+    "sftp-ws": "0.1.x"
+  }
+}
