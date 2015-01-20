@@ -4,7 +4,7 @@ sftp-ws
 v0.0.2
 ------
 
-SFTP.js - client and server library for Node.js.
+SFTP over WebSockets - client and server library for Node.js.
 
 Currently in development. No examples yet. Sorry!
 
