@@ -68,7 +68,7 @@ var server = new SFTP.Server({
 
 This SFTP package is built around the `IFilesystem` interface:
 
-```javascript
+```typescript
 export interface IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
     close(handle: any, callback?: (err: Error) => any): void;
@@ -115,7 +115,7 @@ However, you can easily implement a custom virtual filesystem and use it instead
 ## Examples
 
 Sample code is available in [this project's GitHub repository](https://github.com/lukaaash/sftp-ws/tree/master/examples).
-This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/master/examples/web-client).
+This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/v0.1.0/examples/web-client).
 
 ## Future
 
