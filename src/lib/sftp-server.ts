@@ -299,7 +299,7 @@ export class SftpServer implements IServer {
 
                     var next = (items: IItem[]) => {
 
-                        if (items.length == 0) {
+                        if (items == null) {
                             done();
                             return;
                         }

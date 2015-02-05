@@ -254,7 +254,7 @@ export class LocalFilesystem implements IFilesystem {
 
         if (typeof callback == 'function') {
             process.nextTick(function () {
-                callback(err, items);
+                callback(err, null);
             });
         }
     }
