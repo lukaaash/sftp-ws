@@ -6,6 +6,7 @@ import api = require("./sftp-api");
 import SftpPacket = packet.SftpPacket;
 import IItem = api.IItem;
 import IStats = api.IStats;
+import IStatsExt = api.IStatsExt;
 
 export class SftpFlags {
     
@@ -16,6 +17,11 @@ export class SftpFlags {
     static CREAT = 0x00000008;
     static TRUNC = 0x00000010;
     static EXCL = 0x00000020;
+
+    static getFlags(mode: string): number {
+        //TODO: implement this
+        return this.READ | this.WRITE;
+    }
 
     static getModes(flags: number): string[] {
         var read = ((flags & this.READ) != 0);
@@ -199,14 +205,24 @@ export class SftpItem implements IItem {
     longname: string;
     stats: SftpAttributes;
 
-    constructor(filename: string, stats?: IStats) {
-        this.filename = filename;
-        this.longname = filename;
-        if (typeof stats === 'object') {
-            var attr = new SftpAttributes();
-            attr.from(stats);
-            this.stats = attr;
-            this.longname = attr.toString() + " " + filename;
+    constructor(packet: SftpPacket)
+    constructor(filename: string, stats?: IStats)
+    constructor(arg: any, stats?: IStats) {
+        if (typeof arg === 'object') {
+            var packet = <SftpPacket>arg;
+            this.filename = packet.readString();
+            this.longname = packet.readString();
+            this.stats = new SftpAttributes(packet);
+        } else {
+            var filename = <string>arg;
+            this.filename = filename;
+            this.longname = filename;
+            if (typeof stats === 'object') {
+                var attr = new SftpAttributes();
+                attr.from(stats);
+                this.stats = attr;
+                this.longname = attr.toString() + " " + filename;
+            }
         }
     }
 
@@ -323,17 +339,40 @@ export class SftpAttributes implements IStats {
         }
     }
 
-    from(stats: IStats): void {
-        this.flags = SftpAttributes.BASIC;
-        this.size = stats.size | 0;
-        this.uid = stats.uid | 0;
-        this.gid = stats.gid | 0;
-        this.atime = stats.atime;
-        this.mode = stats.mode;
-        this.mtime = stats.mtime;
-        this.nlink = (<any>stats).nlink;
-        if (typeof this.nlink === 'undefined')
-            this.nlink = 1;
+    from(stats: IStatsExt): void {
+        if (stats == null || typeof stats === 'undefined') {
+            this.flags = 0;
+        } else {
+            var flags = 0;
+
+            if (typeof stats.size !== 'undefined') {
+                flags |= SftpAttributes.SIZE;
+                this.size = stats.size | 0;
+            }
+
+            if (typeof stats.uid !== 'undefined' || typeof stats.gid !== 'undefined') {
+                flags |= SftpAttributes.UIDGID;
+                this.uid = stats.uid | 0;
+                this.gid = stats.gid | 0;
+            }
+
+            if (typeof stats.mode !== 'undefined') {
+                flags |= SftpAttributes.PERMISSIONS;
+                this.mode = stats.mode | 0;
+            }
+
+            if (typeof stats.atime !== 'undefined' || typeof stats.mtime !== 'undefined') {
+                flags |= SftpAttributes.ACMODTIME;
+                this.atime = stats.atime; //TODO: make sure its Date
+                this.mtime = stats.mtime; //TODO: make sure its Date
+            }
+
+            if (typeof stats.nlink !== 'undefined') {
+                this.nlink = stats.nlink;
+            }
+
+            this.flags = flags;
+        }
     }
 
     toString(): string {
@@ -393,7 +432,9 @@ export class SftpAttributes implements IStats {
         else
             date += " " + ("0" + modified.getUTCHours()).slice(-2) + ":" + ("0" + modified.getUTCMinutes()).slice(-2);
 
-        return perms + " " + this.nlink + " user group " + len + " " + date;
+        var nlink = (typeof this.nlink === 'undefined') ? 1 : this.nlink;
+
+        return perms + " " + nlink + " user group " + len + " " + date;
     }
 
 }

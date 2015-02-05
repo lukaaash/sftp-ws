@@ -8,6 +8,10 @@ export interface IStats {
     mtime?: Date;
 }
 
+export interface IStatsExt extends IStats {
+    nlink?: number;
+}
+
 export interface IItem {
     filename: string;
     stats?: IStats;
