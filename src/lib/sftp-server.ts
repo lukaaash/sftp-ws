@@ -317,13 +317,6 @@ export class SftpServer implements IServer {
                             }
                         }
 
-                        var prev = <Array<IItem>>this.readdirCache[handle];
-
-                        if (Array.isArray(prev) && prev.length > 0) {
-                            next(prev);
-                            return;
-                        }
-
                         readdir();
                     };
 
@@ -335,6 +328,13 @@ export class SftpServer implements IServer {
                             next(items);
                         });
                     };
+
+                    var previous = <IItem[]>this.readdirCache[handle];
+                    if (Array.isArray(previous) && previous.length > 0) {
+                        this.readdirCache[handle] = [];
+                        next(previous);
+                        return;
+                    }
 
                     readdir();
                     return;
