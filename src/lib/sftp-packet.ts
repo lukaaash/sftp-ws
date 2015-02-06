@@ -28,101 +28,76 @@ export class SftpPacket {
     static REQUEST_MAX = 20;
 
     // replies
+    static RESPONSE_MIN = 101;
     static STATUS = 101;
     static HANDLE = 102;
     static DATA = 103;
     static NAME = 104;
     static ATTRS = 105;
+    static RESPONSE_MAX = 105;
 
+    type: number;
     id: number;
+
     buffer: NodeBuffer;
-    offset: number;
+    position: number;
     length: number;
 
+    constructor() {
+    }
+
+    check(count: number): void {
+        var remaining = this.length - this.position;
+        if (count > remaining)
+            throw new Error("Unexpected end of packet");
+    }
+
+    skip(count: number): void {
+        this.check(length);
+        this.position += count;
+    }
+}
+
+export class SftpPacketReader extends SftpPacket {
+
     constructor(buffer: NodeBuffer) {
+        super();
+
         this.buffer = buffer;
-        this.offset = 0;
+        this.position = 0;
         this.length = buffer.length;
-    }
 
-    reset(): void {
-        this.offset = 0;
-        this.writeInt32(0);
-    }
+        var length = this.readInt32() + 4;
+        if (length != this.length)
+            throw new Error("Invalid packet received");
 
-    seek(offset: number): void {
-        this.offset = offset;
-    }
-
-    ignore(count: number): number {
-        this.checkSize(count);
-        var offset = this.offset;
-        this.offset += count;
-        return offset;
-    }
-
-    writeByte(value: number): void {
-        this.checkSize(1);
-        this.buffer.writeInt8(value, this.offset, true);
-        this.offset += 1;
-    }
-
-    writeInt32(value: number): void {
-        this.checkSize(4);
-        this.buffer.writeInt32BE(value, this.offset, true);
-        this.offset += 4;
-    }
-
-    writeInt64(value: number): void {
-
-        var hi = (value / 0x100000000) | 0;
-        var lo = (value & 0xFFFFFFFF) | 0;
-
-        this.writeInt32(hi);
-        this.writeInt32(lo);
-    }
-
-    writeString(value: string): void {
-        var offset = this.offset;
-        this.writeInt32(0); // will get overwritten later
-        var charLength = value.length;
-        this.checkSize(value.length); // does not ensure there is enough space (because of UTF-8)
-
-        (<any>this.buffer)._charsWritten = 0;
-        var bytesWritten = this.buffer.write(value, this.offset, undefined, 'utf-8');
-        this.offset += bytesWritten;
-        if ((<any>Buffer)._charsWritten != charLength)
-            throw new Error("Not enough space in the buffer");
-
-        // write number of bytes
-        this.buffer.writeInt32BE(bytesWritten, offset, true);
-    }
-
-    private checkSize(size: number): void {
-        var remaining = this.length - this.offset;
-        if (size > remaining)
-            throw new Error("Premature end of packet encountered");
+        this.type = this.readByte();
+        if (this.type == SftpPacket.INIT || this.type == SftpPacket.VERSION) {
+            this.id = null;
+        } else {
+            this.id = this.readInt32();
+        }
     }
 
     readByte(): number {
-        this.checkSize(1);
-        var value = this.buffer.readUInt8(this.offset, true);
-        this.offset += 1;
+        this.check(1);
+        var value = this.buffer.readUInt8(this.position, true);
+        this.position += 1;
 
         return value;
     }
 
     readInt32(): number {
-        this.checkSize(4);
-        var value = this.buffer.readInt32BE(this.offset, true);
-        this.offset += 4;
+        this.check(4);
+        var value = this.buffer.readInt32BE(this.position, true);
+        this.position += 4;
         return value;
     }
 
     readUint32(): number {
-        this.checkSize(4);
-        var value = this.buffer.readUInt32BE(this.offset, true);
-        this.offset += 4;
+        this.check(4);
+        var value = this.buffer.readUInt32BE(this.position, true);
+        this.position += 4;
         return value;
     }
 
@@ -136,26 +111,21 @@ export class SftpPacket {
 
     readString(): string {
         var length = this.readInt32();
-        this.checkSize(length);
+        this.check(length);
 
-        var end = this.offset + length;
-        var value = this.buffer.toString('utf8', this.offset, end);
-        this.offset = end;
+        var end = this.position + length;
+        var value = this.buffer.toString('utf8', this.position, end);
+        this.position = end;
 
         return value;
     }
 
     skipString(): void {
         var length = this.readInt32();
-        this.checkSize(length);
+        this.check(length);
 
-        var end = this.offset + length;
-        this.offset = end;
-    }
-
-    writeHandle(h: number): void {
-        this.writeInt32(4);
-        this.writeInt32(h);
+        var end = this.position + length;
+        this.position = end;
     }
 
     readHandle(): number {
@@ -164,15 +134,100 @@ export class SftpPacket {
         if (length == 4) {
             value = this.readInt32();
         } else {
-            this.checkSize(length);
-            this.offset += length;
+            this.check(length);
+            this.position += length;
             value = -1;
         }
 
         return value;
     }
 
+    readData(): NodeBuffer {
+        var length = this.readInt32();
+        this.check(length);
+
+        var start = this.position;
+        var end = start + length;
+        this.position = end;
+        return this.buffer.slice(start, end);
+    }
+
+}
+
+export class SftpPacketWriter extends SftpPacket {
+
+    constructor(length: number) {
+        super();
+
+        this.buffer = new Buffer(length);
+        this.position = 0;
+        this.length = length;
+    }
+
+    start(): void {
+        this.position = 0;
+        this.writeInt32(0); // length placeholder
+        this.writeByte(this.type | 0);
+
+        if (this.type == SftpPacket.INIT || this.type == SftpPacket.VERSION) {
+            // these packets don't have an id
+        } else {
+            this.writeInt32(this.id | 0);
+        }
+    }
+
+    writeByte(value: number): void {
+        this.check(1);
+        this.buffer.writeInt8(value, this.position, true);
+        this.position += 1;
+    }
+
+    writeInt32(value: number): void {
+        this.check(4);
+        this.buffer.writeInt32BE(value, this.position, true);
+        this.position += 4;
+    }
+
+    writeInt64(value: number): void {
+
+        var hi = (value / 0x100000000) | 0;
+        var lo = (value & 0xFFFFFFFF) | 0;
+
+        this.writeInt32(hi);
+        this.writeInt32(lo);
+    }
+
+    writeString(value: string): void {
+        var offset = this.position;
+        this.writeInt32(0); // will get overwritten later
+        var charLength = value.length;
+        this.check(value.length); // does not ensure there is enough space (because of UTF-8)
+
+        (<any>this.buffer)._charsWritten = 0;
+        var bytesWritten = this.buffer.write(value, this.position, undefined, 'utf-8');
+        this.position += bytesWritten;
+        if ((<any>Buffer)._charsWritten != charLength)
+            throw new Error("Not enough space in the buffer");
+
+        // write number of bytes
+        this.buffer.writeInt32BE(bytesWritten, offset, true);
+    }
+
+    writeHandle(h: number): void {
+        this.writeInt32(4);
+        this.writeInt32(h);
+    }
+
+    writeData(data: NodeBuffer): void {
+        var length = data.length;
+        this.writeInt32(length);
+        this.check(length);
+
+        data.copy(this.buffer, this.position, 0, length);
+        this.position += length;
+    }
+
     isEmpty(): boolean {
-        return this.offset >= this.length;
+        return this.position >= this.length;
     }
 }

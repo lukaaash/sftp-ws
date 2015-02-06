@@ -4,6 +4,8 @@ import packet = require("./sftp-packet");
 import api = require("./sftp-api");
 
 import SftpPacket = packet.SftpPacket;
+import SftpPacketWriter = packet.SftpPacketWriter;
+import SftpPacketReader = packet.SftpPacketReader;
 import IItem = api.IItem;
 import IStats = api.IStats;
 import IStatsExt = api.IStatsExt;
@@ -74,20 +76,20 @@ export class SftpStatus {
     static CONNECTION_LOST = 7;
     static OP_UNSUPPORTED = 8;
 
-    static write(packet: SftpPacket, code: number, message: string) {
-        packet.reset();
-        packet.writeByte(SftpPacket.STATUS);
-        packet.writeInt32(packet.id | 0);
-        packet.writeInt32(code);
-        packet.writeString(message);
-        packet.writeInt32(0);
+    static write(response: SftpPacketWriter, code: number, message: string) {
+        response.type = SftpPacket.STATUS;
+        response.start();
+
+        response.writeInt32(code);
+        response.writeString(message);
+        response.writeInt32(0);
     }
 
-    static writeSuccess(packet: SftpPacket) {
-        this.write(packet, this.OK, "OK");
+    static writeSuccess(response: SftpPacketWriter) {
+        this.write(response, this.OK, "OK");
     }
 
-    static writeError(packet: SftpPacket, err: ErrnoException) {
+    static writeError(response: SftpPacketWriter, err: ErrnoException) {
         var message: string;
         var code = this.FAILURE;
 
@@ -185,7 +187,7 @@ export class SftpStatus {
                 break;
         }
 
-        this.write(packet, code, message);
+        this.write(response, code, message);
     }
 
 }
@@ -205,14 +207,14 @@ export class SftpItem implements IItem {
     longname: string;
     stats: SftpAttributes;
 
-    constructor(packet: SftpPacket)
+    constructor(request: SftpPacketReader)
     constructor(filename: string, stats?: IStats)
     constructor(arg: any, stats?: IStats) {
         if (typeof arg === 'object') {
-            var packet = <SftpPacket>arg;
-            this.filename = packet.readString();
-            this.longname = packet.readString();
-            this.stats = new SftpAttributes(packet);
+            var request = <SftpPacketReader>arg;
+            this.filename = request.readString();
+            this.longname = request.readString();
+            this.stats = new SftpAttributes(request);
         } else {
             var filename = <string>arg;
             this.filename = filename;
@@ -226,13 +228,13 @@ export class SftpItem implements IItem {
         }
     }
 
-    write(packet: SftpPacket): void {
-        packet.writeString(this.filename);
-        packet.writeString(this.longname);
+    write(response: SftpPacketWriter): void {
+        response.writeString(this.filename);
+        response.writeString(this.longname);
         if (typeof this.stats === "object")
-            this.stats.write(packet);
+            this.stats.write(response);
         else
-            packet.writeInt32(0);
+            response.writeInt32(0);
     }
 }
 
@@ -276,66 +278,66 @@ export class SftpAttributes implements IStats {
     mtime: Date;
     nlink: number;
 
-    constructor(packet?: SftpPacket) {
-        if (typeof packet === 'undefined') {
+    constructor(request?: SftpPacketReader) {
+        if (typeof request === 'undefined') {
             this.flags = 0;
             return;
         }
 
-        var flags = this.flags = packet.readUint32();
+        var flags = this.flags = request.readUint32();
 
         if (flags & SftpAttributes.SIZE) {
-            this.size = packet.readInt64();
+            this.size = request.readInt64();
         }
 
         if (flags & SftpAttributes.UIDGID) {
-            this.uid = packet.readInt32();
-            this.gid = packet.readInt32();
+            this.uid = request.readInt32();
+            this.gid = request.readInt32();
         }
 
         if (flags & SftpAttributes.PERMISSIONS) {
-            this.mode = packet.readUint32();
+            this.mode = request.readUint32();
         }
 
         if (flags & SftpAttributes.ACMODTIME) {
-            this.atime = new Date(1000 * packet.readUint32());
-            this.mtime = new Date(1000 * packet.readUint32());
+            this.atime = new Date(1000 * request.readUint32());
+            this.mtime = new Date(1000 * request.readUint32());
         }
 
         if (flags & SftpAttributes.EXTENDED) {
             this.flags -= SftpAttributes.EXTENDED;
-            this.size = packet.readInt64();
+            this.size = request.readInt64();
             for (var i = 0; i < this.size; i++) {
-                packet.skipString();
-                packet.skipString();
+                request.skipString();
+                request.skipString();
             }
         }
     }
 
-    write(buffer: SftpPacket): void {
+    write(response: SftpPacketWriter): void {
         var flags = this.flags;
-        buffer.writeInt32(flags);
+        response.writeInt32(flags);
 
         if (flags & SftpAttributes.SIZE) {
-            buffer.writeInt64(this.size);
+            response.writeInt64(this.size);
         }
 
         if (flags & SftpAttributes.UIDGID) {
-            buffer.writeInt32(this.uid);
-            buffer.writeInt32(this.gid);
+            response.writeInt32(this.uid);
+            response.writeInt32(this.gid);
         }
 
         if (flags & SftpAttributes.PERMISSIONS) {
-            buffer.writeInt32(this.mode);
+            response.writeInt32(this.mode);
         }
 
         if (flags & SftpAttributes.ACMODTIME) {
-            buffer.writeInt32(this.atime.getTime() / 1000);
-            buffer.writeInt32(this.mtime.getTime() / 1000);
+            response.writeInt32(this.atime.getTime() / 1000);
+            response.writeInt32(this.mtime.getTime() / 1000);
         }
 
         if (flags & SftpAttributes.EXTENDED) {
-            buffer.writeInt32(0);
+            response.writeInt32(0);
         }
     }
 
