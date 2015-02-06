@@ -21,7 +21,7 @@ npm install --save sftp-ws
 
 ## API
 
-The client core code comes from [ssh2 module](https://github.com/mscdex/ssh2) by Brian White and the client API is compatible with his.
+The client API aims to be compatible with SFTP client in [ssh2 module](https://github.com/mscdex/ssh2) by Brian White.
 Einaros [ws module](https://github.com/einaros/ws) is used to handle WebSockets and this is reflected in parts of the client and server API as well.
 
 ### SFTP client - connecting to a server:

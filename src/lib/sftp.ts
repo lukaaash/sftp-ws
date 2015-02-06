@@ -3,17 +3,18 @@
 /// <reference path="client/SFTPv3.d.ts" />
 /// <reference path="sftp-server.ts" />
 
-import SftpClient = require("./client/SFTPv3");
 import WebSocket = require("ws");
 import http = require("http");
 import path = require("path");
 import stream = require("stream");
+import client = require("./sftp-client");
 import server = require("./sftp-server");
 import sfs = require("./sftp-fs");
 import api = require("./sftp-api");
 
 import IFilesystem = api.IFilesystem;
 import ILogWriter = api.ILogWriter;
+import SftpClient = client.SftpClient;
 import SftpServer = server.SftpServer;
 import SafeFilesystem = sfs.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
@@ -72,7 +73,7 @@ module SFTP {
         rejectUnauthorized?: boolean;
     }
 
-    export class Client extends SftpClient implements IFilesystem {
+    export class Client extends SftpClient {
 
         constructor(address: string, options?: IClientOptions) {
 
@@ -89,12 +90,17 @@ module SFTP {
             super(new WebSocketStream(ws, {}), "");
 
             ws.on("open", () => {
-                this._init();
+                this._init(err => {
+                    if (err != null) {
+                        this.emit('error', err);
+                    } else {
+                        this.emit('ready');
+                    }
+                });
             });
 
             ws.on('error', err => {
                 this.emit('error', err);
-                return;
             });
 
             ws.on('message', (data, flags) => {
@@ -108,7 +114,12 @@ module SFTP {
                     return;
                 }
 
-                this._parse(packet);
+                try {
+                    this._parse(packet);
+                } catch (err) {
+                    this.emit('error', err);
+                }
+
             });
         }
     }
