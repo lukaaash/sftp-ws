@@ -56,6 +56,10 @@ export class SftpPacket {
         this.check(length);
         this.position += count;
     }
+
+    static isBuffer(obj: any): boolean {
+        return Buffer.isBuffer(obj);
+    }
 }
 
 export class SftpPacketReader extends SftpPacket {

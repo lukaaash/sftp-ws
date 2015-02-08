@@ -30,8 +30,11 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     private _requests: SftpRequest[];
     private _ready: boolean;
 
+    private _maxReadBlockLength: number;
+    private _maxWriteBlockLength: number;
+
     private getRequest(type: number): SftpPacketWriter {
-        var request = new SftpPacketWriter(34000); //TODO: cache buffers
+        var request = new SftpPacketWriter(this._maxWriteBlockLength + 1024); //TODO: cache buffers
 
         request.type = type;
         request.id = this._id;
@@ -48,14 +51,6 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         return request;
     }
 
-    private writeHandle(packet: SftpPacketWriter, handle: any): void {
-        // TODO: make sure it's a handle
-        if (!Buffer.isBuffer(handle))
-            throw new Error("Invalid handle");
-
-        packet.writeData(handle);
-    }
-
     private writeStats(packet: SftpPacketWriter, attrs?: IStats): void {
         var pattrs = new SftpAttributes();
         pattrs.from(attrs);
@@ -68,21 +63,30 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         this._id = null;
         this._ready = false;
         this._requests = [];
+
+        this._maxWriteBlockLength = 32 * 1024;
+        this._maxReadBlockLength = 256 * 1024;
     }
 
 
     private execute(request: SftpPacketWriter, callback: Function, responseParser: (response: SftpPacketReader, callback: Function) => void): void {
-        var length = request.position;
+
+        if (typeof callback !== 'function') {
+            // use dummy callback to prevent having to check this later
+            callback = function () { };
+        }
 
         // write packet length
+        var length = request.position;
         request.buffer.writeInt32BE(length - 4, 0, true);
 
         if (typeof this._requests[request.id] !== 'undefined')
             throw new Error("Duplicate request");
 
+        this._stream.write(request.buffer.slice(0, length));
+
         this._requests[request.id] = { callback: callback, responseParser: responseParser };
 
-        this._stream.write(request.buffer.slice(0, length));
     }
 
     _parse(data: NodeBuffer): void {
@@ -126,6 +130,8 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
+        path = this.toPath(path, 'path');
+
         var request = this.getRequest(SftpPacket.OPEN);
 
         request.writeString(path);
@@ -136,17 +142,27 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     close(handle: any, callback?: (err: Error) => any): void {
+        handle = this.toHandle(handle);
+
         var request = this.getRequest(SftpPacket.CLOSE);
 
-        this.writeHandle(request, handle);
+        request.writeHandle(handle);
 
         this.execute(request, callback, this.parseStatus);
     }
 
     read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
+        handle = this.toHandle(handle);
+        this.checkBuffer(buffer, offset, length);
+        this.checkPosition(position);
+
+        // make sure the length is within reasonable limits
+        if (length > this._maxReadBlockLength)
+            length = this._maxReadBlockLength;
+
         var request = this.getRequest(SftpPacket.READ);
         
-        this.writeHandle(request, handle);
+        request.writeHandle(handle);
         request.writeInt64(position);
         request.writeInt32(length);
 
@@ -167,9 +183,16 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
+        handle = this.toHandle(handle);
+        this.checkBuffer(buffer, offset, length);
+        this.checkPosition(position);
+
+        if (length > this._maxWriteBlockLength)
+            throw new Error("Length exceeds maximum allowed data block length");
+
         var request = this.getRequest(SftpPacket.WRITE);
         
-        this.writeHandle(request, handle);
+        request.writeHandle(handle);
         request.writeInt64(position);
         request.writeData(buffer.slice(offset, offset + length));
 
@@ -177,18 +200,24 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.LSTAT, [path], callback, this.parseAttribs);
     }
 
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
+        handle = this.toHandle(handle);
+
         var request = this.getRequest(SftpPacket.FSTAT);
 
-        this.writeHandle(request, handle);
+        request.writeHandle(handle);
 
         this.execute(request, callback, this.parseAttribs);
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
+        path = this.toPath(path, 'path');
+
         var request = this.getRequest(SftpPacket.SETSTAT);
 
         request.writeString(path);
@@ -198,31 +227,41 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
+        handle = this.toHandle(handle);
+
         var request = this.getRequest(SftpPacket.FSETSTAT);
 
-        this.writeHandle(request, handle);
+        request.writeHandle(handle);
         this.writeStats(request, attrs);
 
         this.execute(request, callback, this.parseStatus);
     }
 
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.OPENDIR, [path], callback, this.parseHandle);
     }
 
     readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
+        handle = this.toHandle(handle);
+
         var request = this.getRequest(SftpPacket.READDIR);
 
-        this.writeHandle(request, handle);
+        request.writeHandle(handle);
 
         this.execute(request, callback, this.parseItems);
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.REMOVE, [path], callback, this.parseStatus);
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+        path = this.toPath(path, 'path');
+
         var request = this.getRequest(SftpPacket.MKDIR);
 
         request.writeString(path);
@@ -232,27 +271,88 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.RMDIR, [path], callback, this.parseStatus);
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.REALPATH, [path], callback, this.parsePath);
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.STAT, [path], callback, this.parseAttribs);
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        oldPath = this.toPath(oldPath, 'oldPath');
+        newPath = this.toPath(newPath, 'newPath');
+
         this.command(SftpPacket.RENAME, [oldPath, newPath], callback, this.parseStatus);
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
+        path = this.toPath(path, 'path');
+
         this.command(SftpPacket.READLINK, [path], callback, this.parsePath);
     }
 
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
-        this.command(SftpPacket.SYMLINK, [targetpath, linkpath], callback, this.parseStatus);
+    symlink(targetPath: string, linkPath: string, callback?: (err: Error) => any): void {
+        targetPath = this.toPath(targetPath, 'targetPath');
+        linkPath = this.toPath(linkPath, 'linkPath');
+
+        this.command(SftpPacket.SYMLINK, [targetPath, linkPath], callback, this.parseStatus);
+    }
+
+    private toHandle(handle: { _handle: NodeBuffer; _this: SftpClient }): NodeBuffer {
+        if (typeof handle === 'object') {
+            if (SftpPacket.isBuffer(handle._handle) && handle._this == this)
+                return handle._handle;
+        } else if (handle == null || typeof handle === 'undefined') {
+            throw new Error("Missing handle");
+        }
+
+        throw new Error("Invalid handle");
+    }
+
+    private toPath(path: string, name: string): string {
+        if (typeof path !== 'string') {
+            if (path == null || typeof path === 'undefined')
+                throw new Error("Missing " + name);
+
+            if (typeof path === 'function')
+                throw new Error("Invalid " + name);
+
+            path = <string>new String(path);
+        }
+
+        if (path.length == 0)
+            throw new Error("Empty " + name);
+
+        return path;
+    }
+
+    private checkBuffer(buffer: NodeBuffer, offset: number, length: number): void {
+        if (!SftpPacket.isBuffer(buffer))
+            throw new Error("Invalid buffer");
+
+        if (typeof offset !== 'number' || offset < 0)
+            throw new Error("Invalid offset");
+
+        if (typeof length !== 'number' || length < 0)
+            throw new Error("Invalid length");
+
+        if ((offset + length) > buffer.length)
+            throw new Error("Offset or length is out of bands");
+    }
+
+    private checkPosition(position: number): void {
+        if (typeof position !== 'number' || position < 0 || position > 0x7FFFFFFFFFFFFFFF)
+            throw new Error("Invalid position");
     }
 
     private command(command: number, args: string[], callback: Function, responseParser: (response: SftpPacketReader, callback: Function) => void): void {
@@ -315,7 +415,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         var handle = new Buffer(data.length);
         data.copy(handle);
 
-        callback(null, handle);
+        callback(null, { _handle: handle, _this: this });
     }
 
     private parsePath(response: SftpPacketReader, callback?: (err: Error, path?: string) => any): void {
