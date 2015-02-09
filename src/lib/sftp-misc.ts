@@ -16,20 +16,46 @@ export class SftpFlags {
     static READ = 0x00000001;
     static WRITE = 0x00000002;
     static APPEND = 0x00000004;
-    static CREAT = 0x00000008;
+    static CREATE = 0x00000008;
     static TRUNC = 0x00000010;
     static EXCL = 0x00000020;
 
-    static getFlags(mode: string): number {
-        //TODO: implement this
-        return this.READ | this.WRITE;
+    static toFlags(flags: string): number {
+        switch (flags) {
+            case 'r':
+                return SftpFlags.READ;
+            case 'r+':
+                return SftpFlags.READ | SftpFlags.WRITE;
+            case 'w':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC;
+            case 'w+':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC | SftpFlags.READ;
+            case 'wx':
+            case 'xw':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC | SftpFlags.EXCL;
+            case 'wx+':
+            case 'xw+':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC | SftpFlags.EXCL | SftpFlags.READ;
+            case 'a':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND;
+            case 'a+':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND | SftpFlags.READ;
+            case 'ax':
+            case 'xa':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND | SftpFlags.EXCL;
+            case 'ax+':
+            case 'xa+':
+                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND | SftpFlags.EXCL | SftpFlags.READ;
+            default:
+                throw Error("Invalid flags '" + flags + "'");
+        }
     }
 
-    static getModes(flags: number): string[] {
+    static fromFlags(flags: number): string[] {
         var read = ((flags & this.READ) != 0);
         var write = ((flags & this.WRITE) != 0);
         var append = ((flags & this.APPEND) != 0);
-        var create = ((flags & this.CREAT) != 0);
+        var create = ((flags & this.CREATE) != 0);
         var trunc = ((flags & this.TRUNC) != 0);
         var excl = ((flags & this.EXCL) != 0);
 

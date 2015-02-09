@@ -135,7 +135,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         var request = this.getRequest(SftpPacket.OPEN);
 
         request.writeString(path);
-        request.writeInt32(SftpFlags.getFlags(flags));
+        request.writeInt32(SftpFlags.toFlags(flags));
         this.writeStats(request, attrs);
 
         this.execute(request, callback, this.parseHandle);

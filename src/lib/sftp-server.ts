@@ -160,7 +160,7 @@ export class SftpServer implements IServer {
                     var pflags = request.readInt32();
                     var attrs = new SftpAttributes(request);
 
-                    var modes = SftpFlags.getModes(pflags);
+                    var modes = SftpFlags.fromFlags(pflags);
 
                     if (modes.length == 0) {
                         this.sendStatus(response, SftpStatus.FAILURE, "Unsupported flags");
