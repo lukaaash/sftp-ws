@@ -166,20 +166,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         request.writeInt64(position);
         request.writeInt32(length);
 
-        this.execute(request, callback, (response, cb) => {
-            if (!this.checkResponse(response, SftpPacket.DATA, cb))
-                return;
-
-            var data = response.readData();
-
-            if (data.length > length)
-                throw new Error("Received too much data");
-
-            length = data.length;
-
-            data.copy(buffer, offset, 0, length);
-            cb(null, length, buffer.slice(offset, offset + length)); //TODO: make sure that this corresponds to the behavior of fs.read
-        });
+        this.execute(request, callback, (response, cb) => this.parseData(response, <any>cb, buffer, offset, length));
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
@@ -429,6 +416,21 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         var path = response.readString();
 
         callback(null, path);
+    }
+
+    private parseData(response: SftpPacketReader, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, buffer: NodeBuffer, offset: number, length: number): void {
+        if (!this.checkResponse(response, SftpPacket.DATA, callback))
+            return;
+
+        var data = response.readData();
+
+        if (data.length > length)
+            throw new Error("Received too much data");
+
+        length = data.length;
+
+        data.copy(buffer, offset, 0, length);
+        callback(null, length, buffer.slice(offset, offset + length)); //TODO: make sure that this corresponds to the behavior of fs.read
     }
 
     private parseItems(response: SftpPacketReader, callback?: (err: Error, items: IItem[]) => any): void {
