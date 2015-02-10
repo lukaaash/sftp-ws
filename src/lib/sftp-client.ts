@@ -146,7 +146,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
 
         var request = this.getRequest(SftpPacket.CLOSE);
 
-        request.writeHandle(handle);
+        request.writeData(handle);
 
         this.execute(request, callback, this.parseStatus);
     }
@@ -162,7 +162,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
 
         var request = this.getRequest(SftpPacket.READ);
         
-        request.writeHandle(handle);
+        request.writeData(handle);
         request.writeInt64(position);
         request.writeInt32(length);
 
@@ -179,7 +179,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
 
         var request = this.getRequest(SftpPacket.WRITE);
         
-        request.writeHandle(handle);
+        request.writeData(handle);
         request.writeInt64(position);
         request.writeData(buffer.slice(offset, offset + length));
 
@@ -197,7 +197,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
 
         var request = this.getRequest(SftpPacket.FSTAT);
 
-        request.writeHandle(handle);
+        request.writeData(handle);
 
         this.execute(request, callback, this.parseAttribs);
     }
@@ -218,7 +218,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
 
         var request = this.getRequest(SftpPacket.FSETSTAT);
 
-        request.writeHandle(handle);
+        request.writeData(handle);
         this.writeStats(request, attrs);
 
         this.execute(request, callback, this.parseStatus);
@@ -235,7 +235,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
 
         var request = this.getRequest(SftpPacket.READDIR);
 
-        request.writeHandle(handle);
+        request.writeData(handle);
 
         this.execute(request, callback, this.parseItems);
     }
