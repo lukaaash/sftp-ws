@@ -398,184 +398,265 @@ export class SafeFilesystem implements IFilesystem {
         return path;
     }
 
-    private processCallbackPath(err: Error, path: string, callback?: (err: Error, path: string) => any) {
-        if (typeof callback === 'function') {
-            if (typeof err !== 'undefined' && err != null) {
-                path = undefined;
-            } else {
-                if (typeof path !== 'undefined' && path != null)
-                    path = this.toVirtualPath(path);
-            }
-
-            callback(err, path);
+    private processCallbackPath(err: Error, path: string, callback: (err: Error, path: string) => any) {
+        if (typeof err !== 'undefined' && err != null) {
+            path = undefined;
+        } else {
+            if (typeof path !== 'undefined' && path != null)
+                path = this.toVirtualPath(path);
         }
+
+        callback(err, path);
     }
 
-    private processCallbackHandle(err: Error, handle: any, callback?: (err: Error, handle: any) => any) {
-        if (typeof callback === 'function') {
-            if (typeof err !== 'undefined' && err != null) {
-                handle = undefined;
-            } else {
-            if (typeof handle !== 'undefined' && handle != null)
-                handle = this.addHandle(handle);
-            }
-
-            callback(err, handle);
+    private processCallbackHandle(err: Error, handle: any, callback: (err: Error, handle: any) => any) {
+        if (typeof err !== 'undefined' && err != null) {
+            handle = undefined;
+        } else {
+        if (typeof handle !== 'undefined' && handle != null)
+            handle = this.addHandle(handle);
         }
+
+        callback(err, handle);
     }
 
-    private reportReadOnly(callback?: (err: Error) => any) {
-        if (typeof callback === 'function') {
-            var err = new LocalError("Internal server error", true);
+    private reportReadOnly(callback: (err: Error, ...any) => any) {
+        var err = new LocalError("Internal server error", true);
 
-            process.nextTick(() => {
-                callback(err);
-            });
-        }
+        process.nextTick(() => {
+            callback(err);
+        });
     }
 
     private isReadOnly(): boolean {
         return !(this.readOnly === false);
     }
 
-    open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
+    open(path: string, flags: string, attrs: IStats, callback: (err: Error, handle: any) => any): void {
         if (this.isReadOnly() && flags != "r") {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
             return;
         }
 
-        path = this.toRealPath(path);
-        this.fs.open(path, flags, attrs, (err, handle) => this.processCallbackHandle(err, handle, callback));
+        try {
+            path = this.toRealPath(path);
+            this.fs.open(path, flags, attrs, (err, handle) => this.processCallbackHandle(err, handle, callback));
+        } catch (err) {
+            callback(err, null);
+        }
     }
 
-    close(handle: any, callback?: (err: Error) => any): void {
+    close(handle: any, callback: (err: Error) => any): void {
         var h = <number>handle;
         handle = this.toLocalHandle(h);
         if (handle != null)
             this.removeHandle(h);
 
-        this.fs.close(handle, callback);
-    }
-
-    read(handle: any, buffer, offset, length, position, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
-        handle = this.toLocalHandle(handle);
-        this.fs.read(handle, buffer, offset, length, position, callback);
-    }
-
-    write(handle: any, buffer, offset, length, position, callback?: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly();
-            return;
+        try {
+            this.fs.close(handle, callback);
+        } catch (err) {
+            callback(err);
         }
+    }
 
+    read(handle: any, buffer, offset, length, position, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
         handle = this.toLocalHandle(handle);
-        this.fs.write(handle, buffer, offset, length, position, callback);
-    }
 
-    lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        path = this.toRealPath(path);
-        this.fs.lstat(path, callback);
-    }
-
-    fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
-        handle = this.toLocalHandle(handle);
-        this.fs.fstat(handle, callback);
-    }
-
-    setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly();
-            return;
+        try {
+            this.fs.read(handle, buffer, offset, length, position, callback);
+        } catch (err) {
+            callback(err, null, null);
         }
-
-        path = this.toRealPath(path);
-        this.fs.setstat(path, attrs, callback);
     }
 
-    fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
+    write(handle: any, buffer, offset, length, position, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
             return;
         }
 
         handle = this.toLocalHandle(handle);
-        this.fs.fsetstat(handle, attrs, callback);
+
+        try {
+            this.fs.write(handle, buffer, offset, length, position, callback);
+        } catch (err) {
+            callback(err);
+        }
     }
 
-    opendir(path: string, callback?: (err: Error, handle: any) => any): void {
+    lstat(path: string, callback: (err: Error, attrs: IStats) => any): void {
         path = this.toRealPath(path);
-        this.fs.opendir(path, (err, handle) => this.processCallbackHandle(err, handle, callback));
+
+        try {
+            this.fs.lstat(path, callback);
+        } catch (err) {
+            callback(err, null);
+        }
     }
 
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
+    fstat(handle: any, callback: (err: Error, attrs: IStats) => any): void {
         handle = this.toLocalHandle(handle);
-        this.fs.readdir(handle, callback);
+
+        try {
+            this.fs.fstat(handle, callback);
+        } catch (err) {
+            callback(err, null);
+        }
     }
 
-    unlink(path: string, callback?: (err: Error) => any): void {
+    setstat(path: string, attrs: IStats, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
             return;
         }
 
         path = this.toRealPath(path);
-        this.fs.unlink(path, callback);
+        try {
+            this.fs.setstat(path, attrs, callback);
+        } catch (err) {
+            callback(err);
+        }
     }
 
-    mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+    fsetstat(handle: any, attrs: IStats, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
+            return;
+        }
+
+        handle = this.toLocalHandle(handle);
+
+        try {
+            this.fs.fsetstat(handle, attrs, callback);
+        } catch (err) {
+            callback(err);
+        }
+    }
+
+    opendir(path: string, callback: (err: Error, handle: any) => any): void {
+        path = this.toRealPath(path);
+
+        try {
+            this.fs.opendir(path, (err, handle) => this.processCallbackHandle(err, handle, callback));
+        } catch (err) {
+            callback(err, null);
+        }
+    }
+
+    readdir(handle: any, callback: (err: Error, items: IItem[]) => any): void {
+        handle = this.toLocalHandle(handle);
+
+        try {
+            this.fs.readdir(handle, callback);
+        } catch (err) {
+            callback(err, null);
+        }
+    }
+
+    unlink(path: string, callback: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly(callback);
             return;
         }
 
         path = this.toRealPath(path);
-        this.fs.mkdir(path, attrs, callback);
+
+        try {
+            this.fs.unlink(path, callback);
+        } catch (err) {
+            callback(err);
+        }
     }
 
-    rmdir(path: string, callback?: (err: Error) => any): void {
+    mkdir(path: string, attrs: IStats, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
             return;
         }
 
         path = this.toRealPath(path);
-        this.fs.rmdir(path, callback);
+
+        try {
+            this.fs.mkdir(path, attrs, callback);
+        } catch (err) {
+            callback(err);
+        }
     }
 
-    realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
-        path = this.toRealPath(path);
-        this.fs.realpath(path, (err, resolvedPath) => this.processCallbackPath(err, resolvedPath, callback));
-    }
-
-    stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        path = this.toRealPath(path);
-        this.fs.stat(path, callback);
-    }
-
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+    rmdir(path: string, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
+            return;
+        }
+
+        path = this.toRealPath(path);
+
+        try {
+            this.fs.rmdir(path, callback);
+        } catch (err) {
+            callback(err);
+        }
+    }
+
+    realpath(path: string, callback: (err: Error, resolvedPath: string) => any): void {
+        path = this.toRealPath(path);
+
+        try {
+            this.fs.realpath(path, (err, resolvedPath) => this.processCallbackPath(err, resolvedPath, callback));
+        } catch (err) {
+            callback(err, null);
+        }
+    }
+
+    stat(path: string, callback: (err: Error, attrs: IStats) => any): void {
+        path = this.toRealPath(path);
+
+        try {
+            this.fs.stat(path, callback);
+        } catch (err) {
+            callback(err, null);
+        }
+    }
+
+    rename(oldPath: string, newPath: string, callback: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly(callback);
             return;
         }
 
         oldPath = this.toRealPath(oldPath);
         newPath = this.toRealPath(newPath);
-        this.fs.rename(oldPath, newPath, callback);
+
+        try {
+            this.fs.rename(oldPath, newPath, callback);
+        } catch (err) {
+            callback(err);
+        }
     }
 
-    readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
+    readlink(path: string, callback: (err: Error, linkString: string) => any): void {
         path = this.toRealPath(path);
-        this.fs.readlink(path, (err, linkString) => this.processCallbackPath(err, linkString, callback));
+
+        try {
+            this.fs.readlink(path, (err, linkString) => this.processCallbackPath(err, linkString, callback));
+        } catch (err) {
+            callback(err, null);
+        }
     }
 
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
+    symlink(targetpath: string, linkpath: string, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
-            this.reportReadOnly();
+            this.reportReadOnly(callback);
             return;
         }
 
         targetpath = this.toRealPath(targetpath);
         linkpath = this.toRealPath(linkpath);
-        this.fs.symlink(targetpath, linkpath, callback);
+
+        try {
+            this.fs.symlink(targetpath, linkpath, callback);
+        } catch (err) {
+            callback(err);
+        }
     }
 }
