@@ -26,36 +26,70 @@ export interface SftpServerOptions {
     log?: ILogWriter;
 }
 
+class SftpResponse extends SftpPacketWriter {
+
+    constructor() {
+        super(34000);
+    }
+
+    handleInfo: SftpHandleInfo;
+}
+
+class SftpHandleInfo {
+    h: number;
+    handle: any;
+    items: IItem[];
+    locked: boolean;
+    tasks: Function[];
+
+    constructor(h: number) {
+        this.h = h;
+        this.items = null;
+        this.locked = false;
+        this.tasks = [];
+    }
+}
+
 export class SftpServer implements IServer {
 
     private fs: SafeFilesystem;
     private sendData: (data: NodeBuffer) => void;
     private log: ILogWriter;
-    private readdirCache: Object;
+    private handles: SftpHandleInfo[];
+    private nextHandle: number;
+
+    private static MAX_HANDLE_COUNT = 512;
 
     constructor(options: SftpServerOptions) {
         this.fs = options.fs;
         this.sendData = options.send;
         this.log = options.log;
-        this.readdirCache = {};
+        this.handles = new Array<SftpHandleInfo>(SftpServer.MAX_HANDLE_COUNT + 1);
+        this.nextHandle = 1;
     }
 
-    private send(response: SftpPacketWriter): void {
+    private send(response: SftpResponse): void {
         var length = response.position;
 
         // write packet length
         response.position = 0;
         response.writeInt32(length - 4);
 
+        // send data
         this.sendData(response.buffer.slice(0, length));
+
+        // start next task
+        if (typeof response.handleInfo === 'object') {
+            this.processNext(response.handleInfo);
+        }
     }
 
-    private sendStatus(response: SftpPacketWriter, code: number, message: string): void {
+    private sendStatus(response: SftpResponse, code: number, message: string): void {
         SftpStatus.write(response, code, message);
         this.send(response);
     }
 
-    private sendError(response: SftpPacketWriter, err: Error): void {
+    private sendError(response: SftpResponse, err: Error): void {
         if (typeof this.log === 'object' && typeof this.log.error === 'function')
             this.log.error(err);
 
@@ -63,7 +97,7 @@ export class SftpServer implements IServer {
         this.send(response);
     }
 
-    private sendIfError(response: SftpPacketWriter, err: ErrnoException): boolean {
+    private sendIfError(response: SftpResponse, err: ErrnoException): boolean {
         if (err == null || typeof err === 'undefined')
             return false;
 
@@ -71,7 +105,7 @@ export class SftpServer implements IServer {
         return true;
     }
 
-    private sendSuccess(response: SftpPacketWriter, err: ErrnoException): void {
+    private sendSuccess(response: SftpResponse, err: ErrnoException): void {
         if (this.sendIfError(response, err))
             return;
 
@@ -79,7 +113,7 @@ export class SftpServer implements IServer {
         this.send(response);
     }
 
-    private sendAttribs(response: SftpPacketWriter, err: ErrnoException, stats: IStats): void {
+    private sendAttribs(response: SftpResponse, err: ErrnoException, stats: IStats): void {
         if (this.sendIfError(response, err))
             return;
 
@@ -92,18 +126,16 @@ export class SftpServer implements IServer {
         this.send(response);
     }
 
-    private sendHandle(response: SftpPacketWriter, err: ErrnoException, handle: any): void {
-        if (this.sendIfError(response, err))
-            return;
-
+    private sendHandle(response: SftpResponse, handleInfo: SftpHandleInfo): void {
         response.type = SftpPacket.HANDLE;
         response.start();
         
-        response.writeHandle(handle);
+        response.writeInt32(4);
+        response.writeInt32(handleInfo.h);
         this.send(response);
     }
 
-    private sendPath(response: SftpPacketWriter, err: ErrnoException, path: string): void {
+    private sendPath(response: SftpResponse, err: ErrnoException, path: string): void {
         if (this.sendIfError(response, err))
             return;
 
@@ -117,6 +149,49 @@ export class SftpServer implements IServer {
         this.send(response);
     }
 
+    private readHandleInfo(request: SftpPacketReader): SftpHandleInfo {
+        // read a 4-byte handle
+        if (request.readInt32() != 4)
+            return null;
+
+        var h = request.readInt32();
+        var handleInfo = this.handles[h];
+        if (typeof handleInfo !== 'object')
+            return null;
+
+        return handleInfo;
+    }
+
+    private createHandleInfo() {
+        var h = this.nextHandle;
+        var max = SftpServer.MAX_HANDLE_COUNT;
+
+        for (var i = 0; i < max; i++) {
+            var next = (h % max) + 1; // 1..MAX_HANDLE_COUNT
+
+            var handleInfo = this.handles[h];
+            if (typeof handleInfo === 'undefined') {
+                var handleInfo = new SftpHandleInfo(h);
+                this.handles[h] = handleInfo;
+                this.nextHandle = next;
+                return handleInfo;
+            }
+
+            h = next;
+        }
+
+        return null;
+    }
+
+    private deleteHandleInfo(handleInfo: SftpHandleInfo): void {
+        var h = handleInfo.h;
+        var handleInfo = this.handles[h];
+        if (typeof handleInfo !== 'object')
+            throw new Error("Handle not found");
+
+        delete this.handles[h];
+    }
+
     end(): void {
         if (typeof this.fs === 'undefined')
             return;
@@ -126,13 +201,9 @@ export class SftpServer implements IServer {
     }
 
     process(data: NodeBuffer): void {
-        var fs = this.fs;
-        if (typeof fs === 'undefined')
-            throw new Error("Session has ended");
-
         var request = new SftpPacketReader(data);
 
-        var response = new SftpPacketWriter(34000);
+        var response = new SftpResponse();
 
         if (request.type == SftpPacket.INIT) {
             var version = request.readInt32();
@@ -147,12 +218,58 @@ export class SftpServer implements IServer {
 
         response.id = request.id;
 
-        if (request.length > 66000) {
-            this.sendStatus(response, SftpStatus.BAD_MESSAGE, "Packet too long");
+        var handleInfo: SftpHandleInfo;
+        switch (request.type) {
+            case SftpPacket.CLOSE:
+            case SftpPacket.READ:
+            case SftpPacket.WRITE:
+            case SftpPacket.FSTAT:
+            case SftpPacket.FSETSTAT:
+            case SftpPacket.READDIR:
+                handleInfo = this.readHandleInfo(request);
+                if (handleInfo == null)
+                    this.sendStatus(response, SftpStatus.FAILURE, "Invalid handle");
+
+                response.handleInfo = handleInfo;
+                break;
+            default:
+                handleInfo = null;
+                break;
+        }
+
+        if (handleInfo == null) {
+            this.processRequest(request, response, null);
+        } else if (!handleInfo.locked) {
+            handleInfo.locked = true;
+            this.processRequest(request, response, handleInfo);
+        } else {
+            handleInfo.tasks.push(() => this.processRequest(request, response, handleInfo));
+        }
+    }
+
+    private processNext(handleInfo: SftpHandleInfo) {
+        if (handleInfo.tasks.length > 0) {
+            var task = handleInfo.tasks.pop();
+            task();
+        } else {
+            handleInfo.locked = false;
+        }
+    }
+
+    private processRequest(request: SftpPacketReader, response: SftpResponse, handleInfo: SftpHandleInfo) {
+        var fs = this.fs;
+        if (typeof fs === 'undefined') {
+            // already disposed
             return;
         }
 
         try {
+
+            if (request.length > 66000) {
+                this.sendStatus(response, SftpStatus.BAD_MESSAGE, "Packet too long");
+                return;
+            }
+
             switch (request.type) {
 
                 case SftpPacket.OPEN:
@@ -167,21 +284,32 @@ export class SftpServer implements IServer {
                         return;
                     }
 
+                    handleInfo = this.createHandleInfo();
+                    if (handleInfo == null) {
+                        this.sendStatus(response, SftpStatus.FAILURE, "Too many open handles");
+                        return;
+                    }
+
                     var openFile = () => {
                         var mode = modes.shift();
                         fs.open(path, mode, attrs, (err, handle) => {
 
-                            if (this.sendIfError(response, err))
+                            if (this.sendIfError(response, err)) {
+                                this.deleteHandleInfo(handleInfo);
                                 return;
+                            }
 
                             if (modes.length == 0) {
-                                this.sendHandle(response, null, handle);
+                                handleInfo.handle = handle;
+                                this.sendHandle(response, handleInfo);
                                 return;
                             }
 
                             fs.close(handle, err => {
-                                if (this.sendIfError(response, err))
+                                if (this.sendIfError(response, err)) {
+                                    this.deleteHandleInfo(handleInfo);
                                     return;
+                                }
 
                                 openFile();
                             });
@@ -192,17 +320,12 @@ export class SftpServer implements IServer {
                     return;
 
                 case SftpPacket.CLOSE:
-                    var handle = request.readHandle();
+                    this.deleteHandleInfo(handleInfo);
 
-                    if (typeof this.readdirCache[handle] !== "undefined") {
-                        delete this.readdirCache[handle];
-                    }
-
-                    fs.close(handle, err => this.sendSuccess(response, err));
+                    fs.close(handleInfo.handle, err => this.sendSuccess(response, err));
                     return;
 
                 case SftpPacket.READ:
-                    var handle = request.readHandle();
                     var position = request.readInt64();
                     var count = request.readInt32();
                     if (count > 0x8000)
@@ -214,7 +337,7 @@ export class SftpServer implements IServer {
                     var offset = response.position;
                     response.check(4 + count);
 
-                    fs.read(handle, response.buffer, offset, count, position, (err, bytesRead, b) => {
+                    fs.read(handleInfo.handle, response.buffer, offset, count, position, (err, bytesRead, b) => {
                         if (this.sendIfError(response, err))
                             return;
 
@@ -225,13 +348,12 @@ export class SftpServer implements IServer {
                     return;
 
                 case SftpPacket.WRITE:
-                    var handle = request.readHandle();
                     var position = request.readInt64();
                     var count = request.readInt32();
                     var offset = request.position;
                     request.skip(count);
 
-                    fs.write(handle, response.buffer, offset, count, position, err => this.sendSuccess(response, err));
+                    fs.write(handleInfo.handle, response.buffer, offset, count, position, err => this.sendSuccess(response, err));
                     return;
 
                 case SftpPacket.LSTAT:
@@ -241,9 +363,7 @@ export class SftpServer implements IServer {
                     return;
 
                 case SftpPacket.FSTAT:
-                    var handle = request.readHandle();
-
-                    fs.fstat(handle, (err, stats) => this.sendAttribs(response, err, stats));
+                    fs.fstat(handleInfo.handle, (err, stats) => this.sendAttribs(response, err, stats));
                     return;
 
                 case SftpPacket.SETSTAT:
@@ -254,21 +374,33 @@ export class SftpServer implements IServer {
                     return;
 
                 case SftpPacket.FSETSTAT:
-                    var handle = request.readHandle();
                     var attrs = new SftpAttributes(request);
 
-                    fs.fsetstat(handle, attrs, err => this.sendSuccess(response, err));
+                    fs.fsetstat(handleInfo.handle, attrs, err => this.sendSuccess(response, err));
                     return;
 
                 case SftpPacket.OPENDIR:
                     var path = request.readString();
 
-                    fs.opendir(path, (err, handle) => this.sendHandle(response, err, handle));
+                    handleInfo = this.createHandleInfo();
+                    if (handleInfo == null) {
+                        this.sendStatus(response, SftpStatus.FAILURE, "Too many open handles");
+                        return;
+                    }
+
+                    fs.opendir(path, (err, handle) => {
+
+                        if (this.sendIfError(response, err)) {
+                            this.deleteHandleInfo(handleInfo);
+                            return;
+                        }
+
+                        handleInfo.handle = handle;
+                        this.sendHandle(response, handleInfo);
+                    });
                     return;
 
                 case SftpPacket.READDIR:
-                    var handle = request.readHandle();
-
                     response.type = SftpPacket.NAME;
                     response.start();
 
@@ -299,7 +431,7 @@ export class SftpServer implements IServer {
                             count++;
 
                             if (response.position > 0x7000) {
-                                this.readdirCache[handle] = items;
+                                handleInfo.items = items;
                                 done();
                                 return;
                             }
@@ -309,7 +441,7 @@ export class SftpServer implements IServer {
                     };
 
                     var readdir = () => {
-                        fs.readdir(handle, (err, items) => {
+                        fs.readdir(handleInfo.handle, (err, items) => {
                             if (this.sendIfError(response, err))
                                 return;
 
@@ -317,9 +449,9 @@ export class SftpServer implements IServer {
                         });
                     };
 
-                    var previous = <IItem[]>this.readdirCache[handle];
-                    if (Array.isArray(previous) && previous.length > 0) {
-                        this.readdirCache[handle] = [];
+                    var previous = handleInfo.items;
+                    if (previous != null && previous.length > 0) {
+                        handleInfo.items = [];
                         next(previous);
                         return;
                     }

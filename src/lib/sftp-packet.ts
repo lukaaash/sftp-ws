@@ -132,20 +132,6 @@ export class SftpPacketReader extends SftpPacket {
         this.position = end;
     }
 
-    readHandle(): number {
-        var length = this.readInt32();
-        var value;
-        if (length == 4) {
-            value = this.readInt32();
-        } else {
-            this.check(length);
-            this.position += length;
-            value = -1;
-        }
-
-        return value;
-    }
-
     readData(): NodeBuffer {
         var length = this.readInt32();
         this.check(length);
@@ -215,11 +201,6 @@ export class SftpPacketWriter extends SftpPacket {
 
         // write number of bytes
         this.buffer.writeInt32BE(bytesWritten, offset, true);
-    }
-
-    writeHandle(h: number): void {
-        this.writeInt32(4);
-        this.writeInt32(h);
     }
 
     writeData(data: NodeBuffer): void {
