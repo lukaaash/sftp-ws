@@ -1,7 +1,5 @@
 ﻿/// <reference path="../typings/node/node.d.ts" />
 /// <reference path="../typings/ws/ws.d.ts" />
-/// <reference path="client/SFTPv3.d.ts" />
-/// <reference path="sftp-server.ts" />
 
 import WebSocket = require("ws");
 import http = require("http");
