@@ -1,10 +1,8 @@
-﻿/// <reference path="sftp-packet.ts" />
-/// <reference path="sftp-misc.ts" />
-
-import packet = require("./sftp-packet");
+﻿import packet = require("./sftp-packet");
 import misc = require("./sftp-misc");
 import fs = require("./sftp-fs");
 import api = require("./sftp-api");
+import common = require("./sftp-common");
 
 import SafeFilesystem = fs.SafeFilesystem;
 import IStats = api.IStats;
@@ -15,6 +13,7 @@ import IServer = api.IServerSession;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
+import SftpPacketType = common.SftpPacketType;
 import SftpItem = misc.SftpItem;
 import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;
@@ -69,14 +68,10 @@ export class SftpServer implements IServer {
     }
 
     private send(response: SftpResponse): void {
-        var length = response.position;
 
-        // write packet length
-        response.position = 0;
-        response.writeInt32(length - 4);
-
-        // send data
-        this.sendData(response.buffer.slice(0, length));
+        // send packet
+        var buffer = response.finish();
+        this.sendData(buffer);
 
         // start next task
         if (typeof response.handleInfo === 'object') {
@@ -117,7 +112,7 @@ export class SftpServer implements IServer {
         if (this.sendIfError(response, err))
             return;
 
-        response.type = SftpPacket.ATTRS;
+        response.type = SftpPacketType.ATTRS;
         response.start();
 
         var attr = new SftpAttributes();
@@ -127,7 +122,7 @@ export class SftpServer implements IServer {
     }
 
     private sendHandle(response: SftpResponse, handleInfo: SftpHandleInfo): void {
-        response.type = SftpPacket.HANDLE;
+        response.type = SftpPacketType.HANDLE;
         response.start();
         
         response.writeInt32(4);
@@ -139,7 +134,7 @@ export class SftpServer implements IServer {
         if (this.sendIfError(response, err))
             return;
 
-        response.type = SftpPacket.NAME;
+        response.type = SftpPacketType.NAME;
         response.start();
 
         response.writeInt32(1);
@@ -205,10 +200,10 @@ export class SftpServer implements IServer {
 
         var response = new SftpResponse();
 
-        if (request.type == SftpPacket.INIT) {
+        if (request.type == SftpPacketType.INIT) {
             var version = request.readInt32();
 
-            response.type = SftpPacket.VERSION;
+            response.type = SftpPacketType.VERSION;
             response.start();
 
             response.writeInt32(3);
@@ -220,12 +215,12 @@ export class SftpServer implements IServer {
 
         var handleInfo: SftpHandleInfo;
         switch (request.type) {
-            case SftpPacket.CLOSE:
-            case SftpPacket.READ:
-            case SftpPacket.WRITE:
-            case SftpPacket.FSTAT:
-            case SftpPacket.FSETSTAT:
-            case SftpPacket.READDIR:
+            case SftpPacketType.CLOSE:
+            case SftpPacketType.READ:
+            case SftpPacketType.WRITE:
+            case SftpPacketType.FSTAT:
+            case SftpPacketType.FSETSTAT:
+            case SftpPacketType.READDIR:
                 handleInfo = this.readHandleInfo(request);
                 if (handleInfo == null)
                     this.sendStatus(response, SftpStatus.FAILURE, "Invalid handle");
@@ -272,7 +267,7 @@ export class SftpServer implements IServer {
 
             switch (request.type) {
 
-                case SftpPacket.OPEN:
+                case SftpPacketType.OPEN:
                     var path = request.readString();
                     var pflags = request.readInt32();
                     var attrs = new SftpAttributes(request);
@@ -319,19 +314,19 @@ export class SftpServer implements IServer {
                     openFile();
                     return;
 
-                case SftpPacket.CLOSE:
+                case SftpPacketType.CLOSE:
                     this.deleteHandleInfo(handleInfo);
 
                     fs.close(handleInfo.handle, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.READ:
+                case SftpPacketType.READ:
                     var position = request.readInt64();
                     var count = request.readInt32();
                     if (count > 0x8000)
                         count = 0x8000;
 
-                    response.type = SftpPacket.DATA;
+                    response.type = SftpPacketType.DATA;
                     response.start();
 
                     var offset = response.position;
@@ -347,7 +342,7 @@ export class SftpServer implements IServer {
                     });
                     return;
 
-                case SftpPacket.WRITE:
+                case SftpPacketType.WRITE:
                     var position = request.readInt64();
                     var count = request.readInt32();
                     var offset = request.position;
@@ -356,30 +351,30 @@ export class SftpServer implements IServer {
                     fs.write(handleInfo.handle, response.buffer, offset, count, position, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.LSTAT:
+                case SftpPacketType.LSTAT:
                     var path = request.readString();
 
                     fs.lstat(path, (err, stats) => this.sendAttribs(response, err, stats));
                     return;
 
-                case SftpPacket.FSTAT:
+                case SftpPacketType.FSTAT:
                     fs.fstat(handleInfo.handle, (err, stats) => this.sendAttribs(response, err, stats));
                     return;
 
-                case SftpPacket.SETSTAT:
+                case SftpPacketType.SETSTAT:
                     var path = request.readString();
                     var attrs = new SftpAttributes(request);
 
                     fs.setstat(path, attrs, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.FSETSTAT:
+                case SftpPacketType.FSETSTAT:
                     var attrs = new SftpAttributes(request);
 
                     fs.fsetstat(handleInfo.handle, attrs, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.OPENDIR:
+                case SftpPacketType.OPENDIR:
                     var path = request.readString();
 
                     handleInfo = this.createHandleInfo();
@@ -400,8 +395,8 @@ export class SftpServer implements IServer {
                     });
                     return;
 
-                case SftpPacket.READDIR:
-                    response.type = SftpPacket.NAME;
+                case SftpPacketType.READDIR:
+                    response.type = SftpPacketType.NAME;
                     response.start();
 
                     var count = 0;
@@ -459,51 +454,51 @@ export class SftpServer implements IServer {
                     readdir();
                     return;
 
-                case SftpPacket.REMOVE:
+                case SftpPacketType.REMOVE:
                     var path = request.readString();
 
                     fs.unlink(path, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.MKDIR:
+                case SftpPacketType.MKDIR:
                     var path = request.readString();
                     var attrs = new SftpAttributes(request);
 
                     fs.mkdir(path, attrs, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.RMDIR:
+                case SftpPacketType.RMDIR:
                     var path = request.readString();
 
                     fs.rmdir(path, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.REALPATH:
+                case SftpPacketType.REALPATH:
                     var path = request.readString();
 
                     fs.realpath(path, (err, resolvedPath) => this.sendPath(response, err, resolvedPath));
                     return;
 
-                case SftpPacket.STAT:
+                case SftpPacketType.STAT:
                     var path = request.readString();
 
                     fs.stat(path, (err, stats) => this.sendAttribs(response, err, stats));
                     return;
 
-                case SftpPacket.RENAME:
+                case SftpPacketType.RENAME:
                     var oldpath = request.readString();
                     var newpath = request.readString();
 
                     fs.rename(oldpath, newpath, err => this.sendSuccess(response, err));
                     return;
 
-                case SftpPacket.READLINK:
+                case SftpPacketType.READLINK:
                     var path = request.readString();
 
                     fs.readlink(path, (err, linkString) => this.sendPath(response, err, linkString));
                     return;
 
-                case SftpPacket.SYMLINK:
+                case SftpPacketType.SYMLINK:
                     var linkpath = request.readString();
                     var targetpath = request.readString();
 

@@ -1,41 +1,8 @@
-﻿
+﻿import common = require("./sftp-common");
+
+import SftpPacketType = common.SftpPacketType;
+
 export class SftpPacket {
-
-    // initialization
-    static INIT = 1;
-    static VERSION = 2;
-
-    // requests
-    static REQUEST_MIN = 3;
-    static OPEN = 3;
-    static CLOSE = 4;
-    static READ = 5;
-    static WRITE = 6;
-    static LSTAT = 7;
-    static FSTAT = 8;
-    static SETSTAT = 9;
-    static FSETSTAT = 10;
-    static OPENDIR = 11;
-    static READDIR = 12;
-    static REMOVE = 13;
-    static MKDIR = 14;
-    static RMDIR = 15;
-    static REALPATH = 16;
-    static STAT = 17;
-    static RENAME = 18;
-    static READLINK = 19;
-    static SYMLINK = 20;
-    static REQUEST_MAX = 20;
-
-    // replies
-    static RESPONSE_MIN = 101;
-    static STATUS = 101;
-    static HANDLE = 102;
-    static DATA = 103;
-    static NAME = 104;
-    static ATTRS = 105;
-    static RESPONSE_MAX = 105;
-
     type: number;
     id: number;
 
@@ -76,7 +43,7 @@ export class SftpPacketReader extends SftpPacket {
             throw new Error("Invalid packet received");
 
         this.type = this.readByte();
-        if (this.type == SftpPacket.INIT || this.type == SftpPacket.VERSION) {
+        if (this.type == SftpPacketType.INIT || this.type == SftpPacketType.VERSION) {
             this.id = null;
         } else {
             this.id = this.readInt32();
@@ -132,14 +99,20 @@ export class SftpPacketReader extends SftpPacket {
         this.position = end;
     }
 
-    readData(): NodeBuffer {
+    readData(clone: boolean): NodeBuffer {
         var length = this.readInt32();
         this.check(length);
 
         var start = this.position;
         var end = start + length;
         this.position = end;
-        return this.buffer.slice(start, end);
+        if (clone) {
+            var buffer = new Buffer(length);
+            this.buffer.copy(buffer, 0, start, end);
+            return buffer;
+        } else {
+            return this.buffer.slice(start, end);
+        }
     }
 
 }
@@ -159,11 +132,17 @@ export class SftpPacketWriter extends SftpPacket {
         this.writeInt32(0); // length placeholder
         this.writeByte(this.type | 0);
 
-        if (this.type == SftpPacket.INIT || this.type == SftpPacket.VERSION) {
+        if (this.type == SftpPacketType.INIT || this.type == SftpPacketType.VERSION) {
             // these packets don't have an id
         } else {
             this.writeInt32(this.id | 0);
         }
+    }
+
+    finish(): NodeBuffer {
+        var length = this.position;
+        this.buffer.writeInt32BE(length - 4, 0, true);
+        return this.buffer.slice(0, length);
     }
 
     writeByte(value: number): void {
@@ -203,16 +182,15 @@ export class SftpPacketWriter extends SftpPacket {
         this.buffer.writeInt32BE(bytesWritten, offset, true);
     }
 
-    writeData(data: NodeBuffer): void {
+    writeData(data: NodeBuffer, start?: number, end?: number): void {
+        if (typeof start !== 'undefined')
+            data = data.slice(start, end);
+
         var length = data.length;
         this.writeInt32(length);
         this.check(length);
 
         data.copy(this.buffer, this.position, 0, length);
         this.position += length;
-    }
-
-    isEmpty(): boolean {
-        return this.position >= this.length;
     }
 }

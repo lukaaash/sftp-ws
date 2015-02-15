@@ -1,11 +1,11 @@
-﻿/// <reference path="sftp-packet.ts" />
-
-import packet = require("./sftp-packet");
+﻿import packet = require("./sftp-packet");
 import api = require("./sftp-api");
+import common = require("./sftp-common");
 
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
+import SftpPacketType = common.SftpPacketType;
 import IItem = api.IItem;
 import IStats = api.IStats;
 import IStatsExt = api.IStatsExt;
@@ -103,7 +103,7 @@ export class SftpStatus {
     static OP_UNSUPPORTED = 8;
 
     static write(response: SftpPacketWriter, code: number, message: string) {
-        response.type = SftpPacket.STATUS;
+        response.type = SftpPacketType.STATUS;
         response.start();
 
         response.writeInt32(code);

@@ -1,17 +1,16 @@
-﻿/// <reference path="sftp-packet.ts" />
-/// <reference path="sftp-misc.ts" />
-/// <reference path="sftp-api.ts" />
-
-import packet = require("./sftp-packet");
+﻿import packet = require("./sftp-packet");
 import misc = require("./sftp-misc");
 import api = require("./sftp-api");
+import common = require("./sftp-common");
 import events = require("events");
 
 import IStats = api.IStats;
 import IItem = api.IItem;
+import IFilesystem = api.IFilesystem;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
+import SftpPacketType = common.SftpPacketType;
 import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
@@ -23,7 +22,7 @@ interface SftpRequest {
     responseParser: (reply: SftpPacket, callback: Function) => void;
 }
 
-export class SftpClientCore extends EventEmitter implements api.IFilesystem {
+export class SftpClientCore extends EventEmitter implements IFilesystem {
 
     private _stream: WritableStream;
     private _id: number;
@@ -39,7 +38,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         request.type = type;
         request.id = this._id;
 
-        if (type == SftpPacket.INIT) {
+        if (type == SftpPacketType.INIT) {
             if (this._id != null)
                 throw new Error("Already initialized");
             this._id = 1;
@@ -76,14 +75,11 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
             callback = function () { };
         }
 
-        // write packet length
-        var length = request.position;
-        request.buffer.writeInt32BE(length - 4, 0, true);
-
         if (typeof this._requests[request.id] !== 'undefined')
             throw new Error("Duplicate request");
 
-        this._stream.write(request.buffer.slice(0, length));
+        var buffer = request.finish();
+        this._stream.write(buffer);
 
         this._requests[request.id] = { callback: callback, responseParser: responseParser };
 
@@ -107,13 +103,13 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     _init(callback?: (err: Error) => any): void {
-        var request = this.getRequest(SftpPacket.INIT);
+        var request = this.getRequest(SftpPacketType.INIT);
 
         request.writeInt32(3); // SFTPv3
 
         this.execute(request, callback, (response, cb) => {
 
-            if (response.type != SftpPacket.VERSION) {
+            if (response.type != SftpPacketType.VERSION) {
                 callback(new Error("Protocol violation"));
                 return;
             }
@@ -132,7 +128,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
         path = this.toPath(path, 'path');
 
-        var request = this.getRequest(SftpPacket.OPEN);
+        var request = this.getRequest(SftpPacketType.OPEN);
 
         request.writeString(path);
         request.writeInt32(SftpFlags.toFlags(flags));
@@ -144,7 +140,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     close(handle: any, callback?: (err: Error) => any): void {
         handle = this.toHandle(handle);
 
-        var request = this.getRequest(SftpPacket.CLOSE);
+        var request = this.getRequest(SftpPacketType.CLOSE);
 
         request.writeData(handle);
 
@@ -160,7 +156,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         if (length > this._maxReadBlockLength)
             length = this._maxReadBlockLength;
 
-        var request = this.getRequest(SftpPacket.READ);
+        var request = this.getRequest(SftpPacketType.READ);
         
         request.writeData(handle);
         request.writeInt64(position);
@@ -177,11 +173,11 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
         if (length > this._maxWriteBlockLength)
             throw new Error("Length exceeds maximum allowed data block length");
 
-        var request = this.getRequest(SftpPacket.WRITE);
+        var request = this.getRequest(SftpPacketType.WRITE);
         
         request.writeData(handle);
         request.writeInt64(position);
-        request.writeData(buffer.slice(offset, offset + length));
+        request.writeData(buffer, offset, offset + length);
 
         this.execute(request, callback, this.parseStatus);
     }
@@ -189,13 +185,13 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.LSTAT, [path], callback, this.parseAttribs);
+        this.command(SftpPacketType.LSTAT, [path], callback, this.parseAttribs);
     }
 
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
         handle = this.toHandle(handle);
 
-        var request = this.getRequest(SftpPacket.FSTAT);
+        var request = this.getRequest(SftpPacketType.FSTAT);
 
         request.writeData(handle);
 
@@ -205,7 +201,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
         path = this.toPath(path, 'path');
 
-        var request = this.getRequest(SftpPacket.SETSTAT);
+        var request = this.getRequest(SftpPacketType.SETSTAT);
 
         request.writeString(path);
         this.writeStats(request, attrs);
@@ -216,7 +212,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
         handle = this.toHandle(handle);
 
-        var request = this.getRequest(SftpPacket.FSETSTAT);
+        var request = this.getRequest(SftpPacketType.FSETSTAT);
 
         request.writeData(handle);
         this.writeStats(request, attrs);
@@ -227,13 +223,13 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.OPENDIR, [path], callback, this.parseHandle);
+        this.command(SftpPacketType.OPENDIR, [path], callback, this.parseHandle);
     }
 
     readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
         handle = this.toHandle(handle);
 
-        var request = this.getRequest(SftpPacket.READDIR);
+        var request = this.getRequest(SftpPacketType.READDIR);
 
         request.writeData(handle);
 
@@ -243,13 +239,13 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     unlink(path: string, callback?: (err: Error) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.REMOVE, [path], callback, this.parseStatus);
+        this.command(SftpPacketType.REMOVE, [path], callback, this.parseStatus);
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
         path = this.toPath(path, 'path');
 
-        var request = this.getRequest(SftpPacket.MKDIR);
+        var request = this.getRequest(SftpPacketType.MKDIR);
 
         request.writeString(path);
         this.writeStats(request, attrs);
@@ -260,39 +256,39 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     rmdir(path: string, callback?: (err: Error) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.RMDIR, [path], callback, this.parseStatus);
+        this.command(SftpPacketType.RMDIR, [path], callback, this.parseStatus);
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.REALPATH, [path], callback, this.parsePath);
+        this.command(SftpPacketType.REALPATH, [path], callback, this.parsePath);
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.STAT, [path], callback, this.parseAttribs);
+        this.command(SftpPacketType.STAT, [path], callback, this.parseAttribs);
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
         oldPath = this.toPath(oldPath, 'oldPath');
         newPath = this.toPath(newPath, 'newPath');
 
-        this.command(SftpPacket.RENAME, [oldPath, newPath], callback, this.parseStatus);
+        this.command(SftpPacketType.RENAME, [oldPath, newPath], callback, this.parseStatus);
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
         path = this.toPath(path, 'path');
 
-        this.command(SftpPacket.READLINK, [path], callback, this.parsePath);
+        this.command(SftpPacketType.READLINK, [path], callback, this.parsePath);
     }
 
     symlink(targetPath: string, linkPath: string, callback?: (err: Error) => any): void {
         targetPath = this.toPath(targetPath, 'targetPath');
         linkPath = this.toPath(linkPath, 'linkPath');
 
-        this.command(SftpPacket.SYMLINK, [targetPath, linkPath], callback, this.parseStatus);
+        this.command(SftpPacketType.SYMLINK, [targetPath, linkPath], callback, this.parseStatus);
     }
 
     private toHandle(handle: { _handle: NodeBuffer; _this: SftpClient }): NodeBuffer {
@@ -364,7 +360,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     private checkResponse(response: SftpPacketReader, expectedType: number, callback: Function): boolean {
-        if (response.type == SftpPacket.STATUS) {
+        if (response.type == SftpPacketType.STATUS) {
             var error = this.readStatus(response);
             if (error != null) {
                 callback(error);
@@ -379,14 +375,14 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     private parseStatus(response: SftpPacketReader, callback?: (err: Error) => any): void {
-        if (!this.checkResponse(response, SftpPacket.STATUS, callback))
+        if (!this.checkResponse(response, SftpPacketType.STATUS, callback))
             return;
 
         callback(null);
     }
 
     private parseAttribs(response: SftpPacketReader, callback?: (err: Error, attrs: IStats) => any): void {
-        if (!this.checkResponse(response, SftpPacket.ATTRS, callback))
+        if (!this.checkResponse(response, SftpPacketType.ATTRS, callback))
             return;
 
         var attrs = new SftpAttributes(response);
@@ -395,18 +391,16 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     private parseHandle(response: SftpPacketReader, callback?: (err: Error, handle: any) => any): void {
-        if (!this.checkResponse(response, SftpPacket.HANDLE, callback))
+        if (!this.checkResponse(response, SftpPacketType.HANDLE, callback))
             return;
 
-        var data = response.readData();
-        var handle = new Buffer(data.length);
-        data.copy(handle);
+        var handle = response.readData(true);
 
         callback(null, { _handle: handle, _this: this });
     }
 
     private parsePath(response: SftpPacketReader, callback?: (err: Error, path?: string) => any): void {
-        if (!this.checkResponse(response, SftpPacket.NAME, callback))
+        if (!this.checkResponse(response, SftpPacketType.NAME, callback))
             return;
 
         var count = response.readInt32();
@@ -419,23 +413,25 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
     }
 
     private parseData(response: SftpPacketReader, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, buffer: NodeBuffer, offset: number, length: number): void {
-        if (!this.checkResponse(response, SftpPacket.DATA, callback))
+        if (!this.checkResponse(response, SftpPacketType.DATA, callback))
             return;
 
-        var data = response.readData();
+        var data = response.readData(false);
 
         if (data.length > length)
             throw new Error("Received too much data");
 
         length = data.length;
 
-        data.copy(buffer, offset, 0, length);
-        callback(null, length, buffer.slice(offset, offset + length)); //TODO: make sure that this corresponds to the behavior of fs.read
+        data.copy(buffer, offset, 0, length); //WEB: buffer.set(data, offset);
+        var view = buffer.slice(offset, offset + length); //WEB: var view = buffer.subarray(offset, offset + length); 
+
+        callback(null, length, view); //TODO: make sure that this corresponds to the behavior of fs.read
     }
 
     private parseItems(response: SftpPacketReader, callback?: (err: Error, items: IItem[]) => any): void {
 
-        if (response.type == SftpPacket.STATUS) {
+        if (response.type == SftpPacketType.STATUS) {
             var error = this.readStatus(response);
             if (error != null) {
                 if (error['code'] == SftpStatus.EOF)
@@ -446,7 +442,7 @@ export class SftpClientCore extends EventEmitter implements api.IFilesystem {
             }
         }
 
-        if (response.type != SftpPacket.NAME)
+        if (response.type != SftpPacketType.NAME)
             throw new Error("Unexpected packet received");
 
         var count = response.readInt32();

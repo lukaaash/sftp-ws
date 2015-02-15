@@ -36,8 +36,10 @@
   <ItemGroup>
     <TypeScriptCompile Include="gulpfile.ts" />
     <TypeScriptCompile Include="lib\sftp-client.ts" />
+    <TypeScriptCompile Include="lib\sftp-enums.ts" />
     <TypeScriptCompile Include="lib\sftp-fs.ts" />
     <TypeScriptCompile Include="lib\sftp-api.ts" />
+    <None Include="lib\sftp-packet-web.ts" />
     <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
