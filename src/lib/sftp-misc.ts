@@ -1,11 +1,11 @@
 ﻿import packet = require("./sftp-packet");
 import api = require("./sftp-api");
-import common = require("./sftp-common");
+import enums = require("./sftp-enums");
 
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
-import SftpPacketType = common.SftpPacketType;
+import SftpPacketType = enums.SftpPacketType;
 import IItem = api.IItem;
 import IStats = api.IStats;
 import IStatsExt = api.IStatsExt;

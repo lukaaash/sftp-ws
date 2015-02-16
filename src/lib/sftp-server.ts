@@ -2,7 +2,7 @@
 import misc = require("./sftp-misc");
 import fs = require("./sftp-fs");
 import api = require("./sftp-api");
-import common = require("./sftp-common");
+import enums = require("./sftp-enums");
 
 import SafeFilesystem = fs.SafeFilesystem;
 import IStats = api.IStats;
@@ -13,7 +13,7 @@ import IServer = api.IServerSession;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
-import SftpPacketType = common.SftpPacketType;
+import SftpPacketType = enums.SftpPacketType;
 import SftpItem = misc.SftpItem;
 import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;

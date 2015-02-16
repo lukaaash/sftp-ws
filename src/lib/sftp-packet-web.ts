@@ -1,6 +1,6 @@
-﻿import common = require("./sftp-common");
+﻿import enums = require("./sftp-enums");
 
-import SftpPacketType = common.SftpPacketType;
+import SftpPacketType = enums.SftpPacketType;
 
 interface ErrnoException extends Error {
     errno?: number;
