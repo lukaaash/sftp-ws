@@ -412,21 +412,23 @@ export class SftpServer implements IServer {
                         }
                     };
 
-                    var next = (items: IItem[]) => {
+                    var next = (items: IItem[]|boolean) => {
 
-                        if (items == null) {
+                        if (items === false) {
                             done();
                             return;
                         }
+                        
+                        var list = <IItem[]>items;
 
-                        while (items.length > 0) {
-                            var it = items.shift();
+                        while (list.length > 0) {
+                            var it = list.shift();
                             var item = new SftpItem(it.filename, it.stats);
                             item.write(response);
                             count++;
 
                             if (response.position > 0x7000) {
-                                handleInfo.items = items;
+                                handleInfo.items = list;
                                 done();
                                 return;
                             }

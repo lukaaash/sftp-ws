@@ -226,7 +226,7 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
         this.command(SftpPacketType.OPENDIR, [path], callback, this.parseHandle);
     }
 
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
         handle = this.toHandle(handle);
 
         var request = this.getRequest(SftpPacketType.READDIR);
@@ -429,13 +429,13 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
         callback(null, length, view); //TODO: make sure that this corresponds to the behavior of fs.read
     }
 
-    private parseItems(response: SftpPacketReader, callback?: (err: Error, items: IItem[]) => any): void {
+    private parseItems(response: SftpPacketReader, callback?: (err: Error, items: IItem[]|boolean) => any): void {
 
         if (response.type == SftpPacketType.STATUS) {
             var error = this.readStatus(response);
             if (error != null) {
                 if (error['code'] == SftpStatus.EOF)
-                    callback(null, null);
+                    callback(null, false);
                 else
                     callback(error, null);
                 return;
@@ -464,7 +464,7 @@ export class SftpClient extends SftpClientCore {
         super(stream, server_ident_raw);
     }
 
-    readdir(path: string, callback?: (err: Error, items: IItem[]) => any)
+    readdir(path: string, callback?: (err: Error, items: IItem[]|boolean) => any)
     readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
 
         if (typeof handle !== 'string')
@@ -473,7 +473,7 @@ export class SftpClient extends SftpClientCore {
         var path = <string>handle;
         var list: IItem[] = [];
 
-        var next = (err, items: IItem[]) => {
+        var next = (err, items: IItem[]|boolean) => {
 
             if (err != null) {
                 this.close(handle);
@@ -481,18 +481,18 @@ export class SftpClient extends SftpClientCore {
                 return;
             }
 
-            if (items == null) {
+            if (items === false) {
                 this.close(handle, err => {
                     callback(err, list);
                 });
                 return;
             }
 
-            list = list.concat(items);
+            list = list.concat(<IItem[]>items);
             super.readdir(handle, next);
         };
 
-        this.opendir(path, (err, h) => {
+        this.opendir(path,(err, h) => {
             if (err != null) {
                 callback(err, null);
                 return;

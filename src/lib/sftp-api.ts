@@ -27,7 +27,7 @@ export interface IFilesystem {
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void;
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void;
     opendir(path: string, callback?: (err: Error, handle: any) => any): void;
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void;
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void;
     unlink(path: string, callback?: (err: Error) => any): void;
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void;
     rmdir(path: string, callback?: (err: Error) => any): void;

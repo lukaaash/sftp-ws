@@ -204,7 +204,7 @@ export class LocalFilesystem implements IFilesystem {
         });
     }
 
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
         var err = null;
         var path = null;
         if (Array.isArray(handle)) {
@@ -228,7 +228,7 @@ export class LocalFilesystem implements IFilesystem {
                 var next = function () {
                     if (items.length >= 64 || list.length == 0) {
                         if (typeof callback == 'function') {
-                            callback(null, items);
+                            callback(null,(items.length > 0) ? items : false);
                         }
                         return;
                     }
@@ -254,7 +254,7 @@ export class LocalFilesystem implements IFilesystem {
 
         if (typeof callback == 'function') {
             process.nextTick(function () {
-                callback(err, null);
+                callback(err, err == null ? false : null);
             });
         }
     }
@@ -543,7 +543,7 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
-    readdir(handle: any, callback: (err: Error, items: IItem[]) => any): void {
+    readdir(handle: any, callback: (err: Error, items: IItem[]|boolean) => any): void {
         handle = this.toLocalHandle(handle);
 
         try {
