@@ -6,58 +6,52 @@ import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
 import SftpPacketType = enums.SftpPacketType;
+import SftpStatusCode = enums.SftpStatusCode;
+import SftpOpenFlags = enums.SftpOpenFlags;
 import IItem = api.IItem;
 import IStats = api.IStats;
 import IStatsExt = api.IStatsExt;
 
 export class SftpFlags {
-    
-    // flags
-    static READ = 0x00000001;
-    static WRITE = 0x00000002;
-    static APPEND = 0x00000004;
-    static CREATE = 0x00000008;
-    static TRUNC = 0x00000010;
-    static EXCL = 0x00000020;
 
-    static toFlags(flags: string): number {
+    static toFlags(flags: string): SftpOpenFlags {
         switch (flags) {
             case 'r':
-                return SftpFlags.READ;
+                return SftpOpenFlags.READ;
             case 'r+':
-                return SftpFlags.READ | SftpFlags.WRITE;
+                return SftpOpenFlags.READ | SftpOpenFlags.WRITE;
             case 'w':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC;
             case 'w+':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC | SftpFlags.READ;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC | SftpOpenFlags.READ;
             case 'wx':
             case 'xw':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC | SftpFlags.EXCL;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC | SftpOpenFlags.EXCL;
             case 'wx+':
             case 'xw+':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.TRUNC | SftpFlags.EXCL | SftpFlags.READ;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC | SftpOpenFlags.EXCL | SftpOpenFlags.READ;
             case 'a':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.APPEND;
             case 'a+':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND | SftpFlags.READ;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.APPEND | SftpOpenFlags.READ;
             case 'ax':
             case 'xa':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND | SftpFlags.EXCL;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.APPEND | SftpOpenFlags.EXCL;
             case 'ax+':
             case 'xa+':
-                return SftpFlags.WRITE | SftpFlags.CREATE | SftpFlags.APPEND | SftpFlags.EXCL | SftpFlags.READ;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.APPEND | SftpOpenFlags.EXCL | SftpOpenFlags.READ;
             default:
                 throw Error("Invalid flags '" + flags + "'");
         }
     }
 
     static fromFlags(flags: number): string[] {
-        var read = ((flags & this.READ) != 0);
-        var write = ((flags & this.WRITE) != 0);
-        var append = ((flags & this.APPEND) != 0);
-        var create = ((flags & this.CREATE) != 0);
-        var trunc = ((flags & this.TRUNC) != 0);
-        var excl = ((flags & this.EXCL) != 0);
+        var read = ((flags & SftpOpenFlags.READ) != 0);
+        var write = ((flags & SftpOpenFlags.WRITE) != 0);
+        var append = ((flags & SftpOpenFlags.APPEND) != 0);
+        var create = ((flags & SftpOpenFlags.CREATE) != 0);
+        var trunc = ((flags & SftpOpenFlags.TRUNC) != 0);
+        var excl = ((flags & SftpOpenFlags.EXCL) != 0);
 
         var modes = [];
 
@@ -92,17 +86,9 @@ export class SftpFlags {
 }
 
 export class SftpStatus {
-    static OK = 0;
-    static EOF = 1;
-    static NO_SUCH_FILE = 2;
-    static PERMISSION_DENIED = 3;
-    static FAILURE = 4;
-    static BAD_MESSAGE = 5;
-    static NO_CONNECTION = 6;
-    static CONNECTION_LOST = 7;
-    static OP_UNSUPPORTED = 8;
 
-    static write(response: SftpPacketWriter, code: number, message: string) {
+
+    static write(response: SftpPacketWriter, code: SftpStatusCode, message: string) {
         response.type = SftpPacketType.STATUS;
         response.start();
 
@@ -112,12 +98,12 @@ export class SftpStatus {
     }
 
     static writeSuccess(response: SftpPacketWriter) {
-        this.write(response, this.OK, "OK");
+        this.write(response, SftpStatusCode.OK, "OK");
     }
 
     static writeError(response: SftpPacketWriter, err: ErrnoException) {
         var message: string;
-        var code = this.FAILURE;
+        var code = SftpStatusCode.FAILURE;
 
         // loosely based on the list from https://github.com/rvagg/node-errno/blob/master/errno.js
 
@@ -130,11 +116,11 @@ export class SftpStatus {
                 break;
             case 1: // EOF
                 message = "End of file";
-                code = this.EOF;
+                code = SftpStatusCode.EOF;
                 break;
             case 3: // EACCES
                 message = "Permission denied";
-                code = this.PERMISSION_DENIED;
+                code = SftpStatusCode.PERMISSION_DENIED;
                 break;
             case 4: // EAGAIN
                 message = "Try again";
@@ -168,11 +154,11 @@ export class SftpStatus {
                 break
             case 34: // ENOENT
                 message = "No such file or directory";
-                code = this.NO_SUCH_FILE;
+                code = SftpStatusCode.NO_SUCH_FILE;
                 break
             case 35: // ENOSYS
                 message = "Function not implemented";
-                code = this.OP_UNSUPPORTED;
+                code = SftpStatusCode.OP_UNSUPPORTED;
                 break;
             case 47: // EEXIST
                 message = "File exists";
@@ -203,7 +189,7 @@ export class SftpStatus {
                 break
             case 57: // ENODEV
                 message = "No such device";
-                code = this.NO_SUCH_FILE;
+                code = SftpStatusCode.NO_SUCH_FILE;
                 break
             case 58: // ESPIPE
                 message = "Illegal seek";
@@ -264,6 +250,25 @@ export class SftpItem implements IItem {
     }
 }
 
+const enum SftpAttributeFlags {
+    SIZE         = 0x00000001,
+    UIDGID       = 0x00000002,
+    PERMISSIONS  = 0x00000004,
+    ACMODTIME    = 0x00000008,
+    BASIC        = 0x0000000F,
+    EXTENDED     = 0x80000000,
+}
+
+const enum PosixFlags {
+    FIFO              = 0x1000,
+    CHARACTER_DEVICE  = 0x2000,
+    DIRECTORY         = 0x4000,
+    BLOCK_DEVICE      = 0x6000,
+    REGULAR_FILE      = 0x8000,
+    SYMLINK           = 0xA000,
+    SOCKET            = 0XC000,
+}
+
 export class SftpAttributes implements IStats {
 
     //uint32   flags
@@ -279,23 +284,7 @@ export class SftpAttributes implements IStats {
     //...      more extended data(extended_type - extended_data pairs),
     //so that number of pairs equals extended_count
 
-    // attribute flags
-    static SIZE = 0x00000001;
-    static UIDGID = 0x00000002;
-    static PERMISSIONS = 0x00000004;
-    static ACMODTIME = 0x00000008;
-    static BASIC = 0x0000000F;
-    static EXTENDED = 0x80000000;
-
-    static POSIX_FIFO = 0x1000;
-    static POSIX_CHARACTER_DEVICE = 0x2000;
-    static POSIX_DIRECTORY = 0x4000;
-    static POSIX_BLOCK_DEVICE = 0x6000;
-    static POSIX_REGULAR_FILE = 0x8000;
-    static POSIX_SYMLINK = 0xA000;
-    static POSIX_SOCKET = 0XC000;
-
-    flags: number;
+    flags: SftpAttributeFlags;
     size: number;
     uid: number;
     gid: number;
@@ -312,26 +301,26 @@ export class SftpAttributes implements IStats {
 
         var flags = this.flags = request.readUint32();
 
-        if (flags & SftpAttributes.SIZE) {
+        if (flags & SftpAttributeFlags.SIZE) {
             this.size = request.readInt64();
         }
 
-        if (flags & SftpAttributes.UIDGID) {
+        if (flags & SftpAttributeFlags.UIDGID) {
             this.uid = request.readInt32();
             this.gid = request.readInt32();
         }
 
-        if (flags & SftpAttributes.PERMISSIONS) {
+        if (flags & SftpAttributeFlags.PERMISSIONS) {
             this.mode = request.readUint32();
         }
 
-        if (flags & SftpAttributes.ACMODTIME) {
+        if (flags & SftpAttributeFlags.ACMODTIME) {
             this.atime = new Date(1000 * request.readUint32());
             this.mtime = new Date(1000 * request.readUint32());
         }
 
-        if (flags & SftpAttributes.EXTENDED) {
-            this.flags -= SftpAttributes.EXTENDED;
+        if (flags & SftpAttributeFlags.EXTENDED) {
+            this.flags &= ~SftpAttributeFlags.EXTENDED;
             this.size = request.readInt64();
             for (var i = 0; i < this.size; i++) {
                 request.skipString();
@@ -344,25 +333,25 @@ export class SftpAttributes implements IStats {
         var flags = this.flags;
         response.writeInt32(flags);
 
-        if (flags & SftpAttributes.SIZE) {
+        if (flags & SftpAttributeFlags.SIZE) {
             response.writeInt64(this.size);
         }
 
-        if (flags & SftpAttributes.UIDGID) {
+        if (flags & SftpAttributeFlags.UIDGID) {
             response.writeInt32(this.uid);
             response.writeInt32(this.gid);
         }
 
-        if (flags & SftpAttributes.PERMISSIONS) {
+        if (flags & SftpAttributeFlags.PERMISSIONS) {
             response.writeInt32(this.mode);
         }
 
-        if (flags & SftpAttributes.ACMODTIME) {
+        if (flags & SftpAttributeFlags.ACMODTIME) {
             response.writeInt32(this.atime.getTime() / 1000);
             response.writeInt32(this.mtime.getTime() / 1000);
         }
 
-        if (flags & SftpAttributes.EXTENDED) {
+        if (flags & SftpAttributeFlags.EXTENDED) {
             response.writeInt32(0);
         }
     }
@@ -374,23 +363,23 @@ export class SftpAttributes implements IStats {
             var flags = 0;
 
             if (typeof stats.size !== 'undefined') {
-                flags |= SftpAttributes.SIZE;
+                flags |= SftpAttributeFlags.SIZE;
                 this.size = stats.size | 0;
             }
 
             if (typeof stats.uid !== 'undefined' || typeof stats.gid !== 'undefined') {
-                flags |= SftpAttributes.UIDGID;
+                flags |= SftpAttributeFlags.UIDGID;
                 this.uid = stats.uid | 0;
                 this.gid = stats.gid | 0;
             }
 
             if (typeof stats.mode !== 'undefined') {
-                flags |= SftpAttributes.PERMISSIONS;
+                flags |= SftpAttributeFlags.PERMISSIONS;
                 this.mode = stats.mode | 0;
             }
 
             if (typeof stats.atime !== 'undefined' || typeof stats.mtime !== 'undefined') {
-                flags |= SftpAttributes.ACMODTIME;
+                flags |= SftpAttributeFlags.ACMODTIME;
                 this.atime = stats.atime; //TODO: make sure its Date
                 this.mtime = stats.mtime; //TODO: make sure its Date
             }
@@ -408,25 +397,25 @@ export class SftpAttributes implements IStats {
 
         var perms;
         switch (attrs & 0xE000) {
-            case SftpAttributes.POSIX_CHARACTER_DEVICE:
+            case PosixFlags.CHARACTER_DEVICE:
                 perms = "c";
                 break;
-            case SftpAttributes.POSIX_DIRECTORY:
+            case PosixFlags.DIRECTORY:
                 perms = "d";
                 break;
-            case SftpAttributes.POSIX_BLOCK_DEVICE:
+            case PosixFlags.BLOCK_DEVICE:
                 perms = "b";
                 break;
-            case SftpAttributes.POSIX_REGULAR_FILE:
+            case PosixFlags.REGULAR_FILE:
                 perms = "-";
                 break;
-            case SftpAttributes.POSIX_SYMLINK:
+            case PosixFlags.SYMLINK:
                 perms = "l";
                 break;
-            case SftpAttributes.POSIX_SOCKET:
+            case PosixFlags.SOCKET:
                 perms = "s";
                 break;
-            case SftpAttributes.POSIX_FIFO:
+            case PosixFlags.FIFO:
                 perms = "p";
                 break;
             default:

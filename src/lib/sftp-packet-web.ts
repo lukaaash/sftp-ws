@@ -16,7 +16,7 @@ class EventEmitter {
 }
 
 class SftpPacket {
-    type: number;
+    type: SftpPacketType;
     id: number;
 
     buffer: Uint8Array;

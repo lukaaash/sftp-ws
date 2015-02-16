@@ -3,7 +3,7 @@
 import SftpPacketType = enums.SftpPacketType;
 
 export class SftpPacket {
-    type: number;
+    type: SftpPacketType;
     id: number;
 
     buffer: NodeBuffer;

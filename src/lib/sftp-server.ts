@@ -14,6 +14,7 @@ import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
 import SftpPacketType = enums.SftpPacketType;
+import SftpStatusCode = enums.SftpStatusCode;
 import SftpItem = misc.SftpItem;
 import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;
@@ -223,7 +224,7 @@ export class SftpServer implements IServer {
             case SftpPacketType.READDIR:
                 handleInfo = this.readHandleInfo(request);
                 if (handleInfo == null)
-                    this.sendStatus(response, SftpStatus.FAILURE, "Invalid handle");
+                    this.sendStatus(response, SftpStatusCode.FAILURE, "Invalid handle");
 
                 response.handleInfo = handleInfo;
                 break;
@@ -261,7 +262,7 @@ export class SftpServer implements IServer {
         try {
 
             if (request.length > 66000) {
-                this.sendStatus(response, SftpStatus.BAD_MESSAGE, "Packet too long");
+                this.sendStatus(response, SftpStatusCode.BAD_MESSAGE, "Packet too long");
                 return;
             }
 
@@ -275,13 +276,13 @@ export class SftpServer implements IServer {
                     var modes = SftpFlags.fromFlags(pflags);
 
                     if (modes.length == 0) {
-                        this.sendStatus(response, SftpStatus.FAILURE, "Unsupported flags");
+                        this.sendStatus(response, SftpStatusCode.FAILURE, "Unsupported flags");
                         return;
                     }
 
                     handleInfo = this.createHandleInfo();
                     if (handleInfo == null) {
-                        this.sendStatus(response, SftpStatus.FAILURE, "Too many open handles");
+                        this.sendStatus(response, SftpStatusCode.FAILURE, "Too many open handles");
                         return;
                     }
 
@@ -379,7 +380,7 @@ export class SftpServer implements IServer {
 
                     handleInfo = this.createHandleInfo();
                     if (handleInfo == null) {
-                        this.sendStatus(response, SftpStatus.FAILURE, "Too many open handles");
+                        this.sendStatus(response, SftpStatusCode.FAILURE, "Too many open handles");
                         return;
                     }
 
@@ -405,7 +406,7 @@ export class SftpServer implements IServer {
 
                     var done = () => {
                         if (count == 0) {
-                            this.sendStatus(response, SftpStatus.EOF, "EOF");
+                            this.sendStatus(response, SftpStatusCode.EOF, "EOF");
                         } else {
                             response.buffer.writeInt32BE(count, offset, true);
                             this.send(response);
@@ -508,7 +509,7 @@ export class SftpServer implements IServer {
                     return;
 
                 default:
-                    this.sendStatus(response, SftpStatus.OP_UNSUPPORTED, "Not supported");
+                    this.sendStatus(response, SftpStatusCode.OP_UNSUPPORTED, "Not supported");
             }
         } catch (err) {
             this.sendError(response, err);

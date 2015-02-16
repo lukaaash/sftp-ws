@@ -11,6 +11,7 @@ import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
 import SftpPacketType = enums.SftpPacketType;
+import SftpStatusCode = enums.SftpStatusCode;
 import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
@@ -351,7 +352,7 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
     private readStatus(response: SftpPacketReader): Error {
         var code = response.readInt32();
         var message = response.readString();
-        if (code == SftpStatus.OK)
+        if (code == SftpStatusCode.OK)
             return null;
 
         var error = new Error("SFTP error " + code + ": " + message);
@@ -434,7 +435,7 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
         if (response.type == SftpPacketType.STATUS) {
             var error = this.readStatus(response);
             if (error != null) {
-                if (error['code'] == SftpStatus.EOF)
+                if (error['code'] == SftpStatusCode.EOF)
                     callback(null, false);
                 else
                     callback(error, null);
