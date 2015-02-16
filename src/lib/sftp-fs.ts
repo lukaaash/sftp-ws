@@ -303,7 +303,6 @@ export class SafeFilesystem implements IFilesystem {
     private fs: IFilesystem;
     private isWindows: boolean;
     private root: string;
-    private handles: Array<any>;
     private readOnly: boolean;
 
     constructor(fs: IFilesystem, virtualRootPath: string, readOnly?: boolean) {
@@ -311,51 +310,24 @@ export class SafeFilesystem implements IFilesystem {
         this.fs = fs;
         this.isWindows = (fs['isWindows'] === true);
         this.root = Path.normalize(virtualRootPath);
-        this.handles = [];
         this.readOnly = (readOnly == true);
     }
 
-    dispose() {
-        if (this.handles == null)
-            return;
-
-        this.handles.forEach(handle => {
-            if (handle != null)
-                this.fs.close(handle, err => { });
-        });
-
-        this.fs = null;
-        this.root = null;
-        this.handles = null;
-    }
-
-    private addHandle(value: any): number {
-        if (value == null || typeof value === 'undefined')
+    private wrapHandle(handle: any): any {
+        if (handle == null || typeof handle === 'undefined')
             throw Error("Invalid handle");
 
-        if (this.handles.length > 64) {
-            for (var h = 0; h < this.handles.length; h++) {
-                if (this.handles[h] == null) {
-                    this.handles[h] = value;
-                    return h + 1; // return (index + 1) to avoid a zero handle
-                }
-            }
-        }
-
-        this.handles.push(value);
-        return this.handles.length; // return (index + 1) to avoid a zero handle
+        return { handle: handle, owner: this };
     }
 
-    private removeHandle(h: number) {
-        this.handles[h - 1] = null;
-    }
-
-    private toLocalHandle(h: number): any {
-        var value = this.handles[h - 1];
-        if (value == null || typeof value === 'undefined')
+    private unwrapHandle(handle: any): any {
+        if (typeof handle !== 'object')
             return null;
 
-        return value;
+        if (handle.owner != this)
+            return null;
+
+        return handle.handle;
     }
 
     private toVirtualPath(fullPath: string): string {
@@ -414,7 +386,7 @@ export class SafeFilesystem implements IFilesystem {
             handle = undefined;
         } else {
         if (typeof handle !== 'undefined' && handle != null)
-            handle = this.addHandle(handle);
+            handle = this.wrapHandle(handle);
         }
 
         callback(err, handle);
@@ -447,10 +419,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     close(handle: any, callback: (err: Error) => any): void {
-        var h = <number>handle;
-        handle = this.toLocalHandle(h);
-        if (handle != null)
-            this.removeHandle(h);
+        handle = this.unwrapHandle(handle);
 
         try {
             this.fs.close(handle, callback);
@@ -460,7 +429,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     read(handle: any, buffer, offset, length, position, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
-        handle = this.toLocalHandle(handle);
+        handle = this.unwrapHandle(handle);
 
         try {
             this.fs.read(handle, buffer, offset, length, position, callback);
@@ -475,7 +444,7 @@ export class SafeFilesystem implements IFilesystem {
             return;
         }
 
-        handle = this.toLocalHandle(handle);
+        handle = this.unwrapHandle(handle);
 
         try {
             this.fs.write(handle, buffer, offset, length, position, callback);
@@ -495,7 +464,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     fstat(handle: any, callback: (err: Error, attrs: IStats) => any): void {
-        handle = this.toLocalHandle(handle);
+        handle = this.unwrapHandle(handle);
 
         try {
             this.fs.fstat(handle, callback);
@@ -524,7 +493,7 @@ export class SafeFilesystem implements IFilesystem {
             return;
         }
 
-        handle = this.toLocalHandle(handle);
+        handle = this.unwrapHandle(handle);
 
         try {
             this.fs.fsetstat(handle, attrs, callback);
@@ -544,7 +513,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     readdir(handle: any, callback: (err: Error, items: IItem[]|boolean) => any): void {
-        handle = this.toLocalHandle(handle);
+        handle = this.unwrapHandle(handle);
 
         try {
             this.fs.readdir(handle, callback);

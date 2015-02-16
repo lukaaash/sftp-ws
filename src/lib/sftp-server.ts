@@ -192,7 +192,14 @@ export class SftpServer implements IServer {
         if (typeof this.fs === 'undefined')
             return;
 
-        this.fs.dispose();
+        // close all handles
+        this.handles.forEach(handleInfo => {
+            this.fs.close(handleInfo.handle, err => {
+                if (err != null)
+                    this.log.error("Unable to close handle.");
+            });
+        });
+           
         delete this.fs;
     }
 
