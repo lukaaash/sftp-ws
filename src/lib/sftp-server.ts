@@ -8,7 +8,8 @@ import SafeFilesystem = fs.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import ILogWriter = api.ILogWriter;
-import IServer = api.IServerSession;
+import ISession = api.ISession;
+import ISessionHost = api.ISessionHost;
 
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
@@ -20,11 +21,6 @@ import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;
 import SftpFlags = misc.SftpFlags;
 
-export interface SftpServerOptions {
-    fs: SafeFilesystem;
-    send: (data: NodeBuffer) => void;
-    log?: ILogWriter;
-}
 
 class SftpResponse extends SftpPacketWriter {
 
@@ -50,29 +46,27 @@ class SftpHandleInfo {
     }
 }
 
-export class SftpServer implements IServer {
+export class SftpServer implements ISession {
 
-    private fs: SafeFilesystem;
-    private sendData: (data: NodeBuffer) => void;
-    private log: ILogWriter;
-    private handles: SftpHandleInfo[];
+    private _fs: SafeFilesystem;
+    private _host: ISessionHost;
+    private _handles: SftpHandleInfo[];
     private nextHandle: number;
 
     private static MAX_HANDLE_COUNT = 512;
 
-    constructor(options: SftpServerOptions) {
-        this.fs = options.fs;
-        this.sendData = options.send;
-        this.log = options.log;
-        this.handles = new Array<SftpHandleInfo>(SftpServer.MAX_HANDLE_COUNT + 1);
+    constructor(host: ISessionHost, fs: SafeFilesystem) {
+        this._fs = fs;
+        this._host = host;
+        this._handles = new Array<SftpHandleInfo>(SftpServer.MAX_HANDLE_COUNT + 1);
         this.nextHandle = 1;
     }
 
     private send(response: SftpResponse): void {
 
         // send packet
-        var buffer = response.finish();
-        this.sendData(buffer);
+        var packet = response.finish();
+        this._host.send(packet);
 
         // start next task
         if (typeof response.handleInfo === 'object') {
@@ -86,8 +80,9 @@ export class SftpServer implements IServer {
     }
 
     private sendError(response: SftpResponse, err: Error): void {
-        if (typeof this.log === 'object' && typeof this.log.error === 'function')
-            this.log.error(err);
+        var log = this._host.log;
+        if (typeof log === 'object' && typeof log.error === 'function')
+            log.error(err);
 
         SftpStatus.writeError(response, err);
         this.send(response);
@@ -151,7 +146,7 @@ export class SftpServer implements IServer {
             return null;
 
         var h = request.readInt32();
-        var handleInfo = this.handles[h];
+        var handleInfo = this._handles[h];
         if (typeof handleInfo !== 'object')
             return null;
 
@@ -165,10 +160,10 @@ export class SftpServer implements IServer {
         for (var i = 0; i < max; i++) {
             var next = (h % max) + 1; // 1..MAX_HANDLE_COUNT
 
-            var handleInfo = this.handles[h];
+            var handleInfo = this._handles[h];
             if (typeof handleInfo === 'undefined') {
                 var handleInfo = new SftpHandleInfo(h);
-                this.handles[h] = handleInfo;
+                this._handles[h] = handleInfo;
                 this.nextHandle = next;
                 return handleInfo;
             }
@@ -181,29 +176,31 @@ export class SftpServer implements IServer {
 
     private deleteHandleInfo(handleInfo: SftpHandleInfo): void {
         var h = handleInfo.h;
-        var handleInfo = this.handles[h];
+        var handleInfo = this._handles[h];
         if (typeof handleInfo !== 'object')
             throw new Error("Handle not found");
 
-        delete this.handles[h];
+        delete this._handles[h];
     }
 
     end(): void {
-        if (typeof this.fs === 'undefined')
+        this._host.close();
+    }
+
+    _end(): void {
+        if (typeof this._fs === 'undefined')
             return;
 
         // close all handles
-        this.handles.forEach(handleInfo => {
-            this.fs.close(handleInfo.handle, err => {
-                if (err != null)
-                    this.log.error("Unable to close handle.");
+        this._handles.forEach(handleInfo => {
+            this._fs.close(handleInfo.handle, err => {
             });
         });
            
-        delete this.fs;
+        delete this._fs;
     }
 
-    process(data: NodeBuffer): void {
+    _process(data: NodeBuffer): void {
         var request = new SftpPacketReader(data);
 
         var response = new SftpResponse();
@@ -260,7 +257,7 @@ export class SftpServer implements IServer {
     }
 
     private processRequest(request: SftpPacketReader, response: SftpResponse, handleInfo: SftpHandleInfo) {
-        var fs = this.fs;
+        var fs = this._fs;
         if (typeof fs === 'undefined') {
             // already disposed
             return;

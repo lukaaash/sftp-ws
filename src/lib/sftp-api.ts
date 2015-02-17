@@ -49,15 +49,13 @@ export interface ILogWriter {
     log(message?: any, ...optionalParams: any[]): void;
 }
 
-export interface IServerOptions {
-    filesystem?: IFilesystem;
-    virtualRoot?: string;
-    readOnly?: boolean;
+export interface ISessionHost {
+    send(packet: NodeBuffer): void;
+    close(reason?: number): void;
     log?: ILogWriter;
-    noServer?: boolean;
 }
 
-export interface IServerSession {
-    process: (request: NodeBuffer) => void;
-    end: () => void;
+export interface ISession {
+    _process(packet: NodeBuffer): void;
+    _end(): void;
 }

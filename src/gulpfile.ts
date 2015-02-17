@@ -6,7 +6,7 @@ var jeditor = require("gulp-json-editor");
 
 var src = {
     lib: ['lib/*.ts', '!lib/sftp-interop.ts', '!lib/*.d.ts'],
-    lib_web: ['lib/sftp-client.ts', 'lib/sftp-api.ts', 'lib/sftp-misc.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-enums.ts'],
+    lib_web: ['lib/sftp-web.ts', 'lib/sftp-client.ts', 'lib/sftp-api.ts', 'lib/sftp-misc.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-enums.ts', 'lib/channel.ts'],
     pkg: ['package.json'],
 };
 
@@ -37,14 +37,15 @@ gulp.task('web', () => {
     gulp.src(src.lib_web)
 //        .pipe(typescript(options))
         //.pipe(replace(/(\/\/\/[^\n]*\n)/g, ''))
-        .pipe(replace(/\r\nimport events = require\(\"(.*)\"\);/g, ''))
+        .pipe(replace(/\r?\nimport events = require\(\"(.*)\"\);/g, ''))
         .pipe(replace(/import (.*) = require\(\".\/sftp-packet\"\);/g, '/// <reference path="./sftp-packet-web.ts" />'))
         .pipe(replace(/import (.*) = require\(\"(.*)\"\);/g, '/// <reference path="$2.ts" />'))
-        .pipe(replace(/\r\nimport (.*) = (.*);/g, ''))
+        .pipe(replace(/\r?\nimport (.*) = (.*);/g, ''))
+        .pipe(replace(/export const/g, 'const'))
         .pipe(replace(/export class/g, 'class'))
         .pipe(replace(/export interface/g, 'interface'))
         .pipe(replace(/NodeBuffer/g, 'Uint8Array'))
-        .pipe(replace(/\n(\s*)(.*)WEB\: /g, '$1'))
+        .pipe(replace(/\r?\n(\s*)(.*)WEB\: /g, '\r\n$1'))
         .pipe(gulp.dest(out.lib_web));
 
     

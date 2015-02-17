@@ -7,6 +7,8 @@ import events = require("events");
 import IStats = api.IStats;
 import IItem = api.IItem;
 import IFilesystem = api.IFilesystem;
+import ISession = api.ISession;
+import ISessionHost = api.ISessionHost;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -23,9 +25,9 @@ interface SftpRequest {
     responseParser: (reply: SftpPacket, callback: Function) => void;
 }
 
-export class SftpClientCore extends EventEmitter implements IFilesystem {
+export class SftpClientCore extends EventEmitter implements ISession, IFilesystem {
 
-    private _stream: WritableStream;
+    private _host: ISessionHost
     private _id: number;
     private _requests: SftpRequest[];
     private _ready: boolean;
@@ -57,9 +59,9 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
         pattrs.write(packet);
     }
 
-    constructor(stream: WritableStream, server_ident_raw: string) {
+    constructor(host: ISessionHost) {
         super();
-        this._stream = stream;
+        this._host = host;
         this._id = null;
         this._ready = false;
         this._requests = [];
@@ -79,27 +81,10 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
         if (typeof this._requests[request.id] !== 'undefined')
             throw new Error("Duplicate request");
 
-        var buffer = request.finish();
-        this._stream.write(buffer);
+        var packet = request.finish();
+        this._host.send(packet);
 
         this._requests[request.id] = { callback: callback, responseParser: responseParser };
-
-    }
-
-    _parse(data: NodeBuffer): void {
-        var response = new SftpPacketReader(data);
-
-        var request = this._requests[response.id];
-
-        if (typeof request === 'undefined')
-            throw new Error("Unknown response ID");
-
-        delete this._requests[response.id];
-
-        request.responseParser.call(this, response, request.callback);
-    }
-
-    end(): void {
 
     }
 
@@ -108,7 +93,7 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
 
         request.writeInt32(3); // SFTPv3
 
-        this.execute(request, callback, (response, cb) => {
+        this.execute(request, callback,(response, cb) => {
 
             if (response.type != SftpPacketType.VERSION) {
                 callback(new Error("Protocol violation"));
@@ -124,6 +109,26 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
             this._ready = true;
             callback(null);
         });
+    }
+
+    _process(packet: NodeBuffer): void {
+        var response = new SftpPacketReader(packet);
+
+        var request = this._requests[response.id];
+
+        if (typeof request === 'undefined')
+            throw new Error("Unknown response ID");
+
+        delete this._requests[response.id];
+
+        request.responseParser.call(this, response, request.callback);
+    }
+
+    _end(): void {
+    }
+
+    end(): void {
+        this._host.close();
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
@@ -461,8 +466,8 @@ export class SftpClientCore extends EventEmitter implements IFilesystem {
 
 export class SftpClient extends SftpClientCore {
 
-    constructor(stream: WritableStream, server_ident_raw: string) {
-        super(stream, server_ident_raw);
+    constructor(host: ISessionHost) {
+        super(host);
     }
 
     readdir(path: string, callback?: (err: Error, items: IItem[]|boolean) => any)

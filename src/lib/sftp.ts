@@ -4,56 +4,20 @@
 import WebSocket = require("ws");
 import http = require("http");
 import path = require("path");
-import stream = require("stream");
 import client = require("./sftp-client");
 import server = require("./sftp-server");
 import sfs = require("./sftp-fs");
 import api = require("./sftp-api");
+import channel = require("./channel");
 
 import IFilesystem = api.IFilesystem;
 import ILogWriter = api.ILogWriter;
 import SftpClient = client.SftpClient;
-import SftpServer = server.SftpServer;
 import SafeFilesystem = sfs.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
+import Channel = channel.Channel;
 
 module SFTP {
-
-    class WebSocketStream extends stream.Writable {
-
-        private ws: WebSocket;
-        private options: any;
-
-        constructor(ws: WebSocket, options: any) {
-            super({});
-            this.ws = ws;
-            this.options = options;
-        }
-
-        _write(data: NodeBuffer, encoding: string, callback: Function): void;
-        _write(data: string, encoding: string, callback: Function): void;
-        _write(data: any, encoding: string, callback: Function): void {
-            var buffer = <NodeBuffer>data;
-            if (!Buffer.isBuffer(buffer)) {
-                super.emit("error", new Error("Only Buffer writes are currently supported"));
-                return;
-            }
-
-            this.ws.send(buffer, this.options, err => {
-                if (typeof err !== 'undefined' && err != null) {
-                    super.emit('error', err);
-                }
-
-                if (typeof callback === "function") {
-                    callback();
-                }
-            });
-        }
-
-        end() {
-            this.ws.close(1000, "closed"); // normal close
-        }
-    }
 
     export interface IClientOptions {
         protocol?: string;
@@ -69,6 +33,8 @@ module SFTP {
         ca?: any[];
         ciphers?: string;
         rejectUnauthorized?: boolean;
+
+        log?: ILogWriter;
     }
 
     export class Client extends SftpClient {
@@ -84,10 +50,14 @@ module SFTP {
             }
 
             var ws = new WebSocket(address, options);
-         
-            super(new WebSocketStream(ws, {}), "");
+            var channel = new Channel(this, ws);
+            channel.log = options.log;
+            super(channel);
 
-            ws.on("open", () => {
+            ws.on("open",() => {
+
+                channel.start();
+
                 this._init(err => {
                     if (err != null) {
                         this.emit('error', err);
@@ -97,28 +67,6 @@ module SFTP {
                 });
             });
 
-            ws.on('error', err => {
-                this.emit('error', err);
-            });
-
-            ws.on('message', (data, flags) => {
-
-                var packet: NodeBuffer;
-                if (flags.binary) {
-                    packet = <NodeBuffer>data;
-                } else {
-                    console.error("Text packet received, but not supported yet.");
-                    ws.close(1003); // unsupported data
-                    return;
-                }
-
-                try {
-                    this._parse(packet);
-                } catch (err) {
-                    this.emit('error', err);
-                }
-
-            });
         }
     }
 
@@ -134,7 +82,13 @@ module SFTP {
         readOnly?: boolean;
     }
 
-    export interface IServerOptions extends api.IServerOptions, WebSocket.IServerOptions {
+    export interface IServerOptions extends WebSocket.IServerOptions {
+        filesystem?: IFilesystem;
+        virtualRoot?: string;
+        readOnly?: boolean;
+        noServer?: boolean;
+        log?: ILogWriter;
+
         verifyClient?: {
             (info: RequestInfo): boolean;
             (info: RequestInfo, accept: (result: boolean) => void): void;
@@ -142,7 +96,19 @@ module SFTP {
         };
     }
 
-    export interface IServerSession extends api.IServerSession {
+    
+
+    class ServerSession extends server.SftpServer {
+
+        constructor(ws: WebSocket, fs: SafeFilesystem, log: ILogWriter) {
+
+            var channel = new Channel(this, ws);
+            channel.log = log;
+            super(channel, fs);
+
+            channel.start();
+        }
+
     }
 
     export class Server {
@@ -263,7 +229,7 @@ module SFTP {
             if (typeof this._wss === 'object') {
                 // end all active sessions
                 this._wss.clients.forEach(ws => {
-                    var session = <SftpServer>(<any>ws).session;
+                    var session = <ServerSession>(<any>ws).session;
                     if (typeof session === 'object') {
                         session.end();
                         delete (<any>ws).session;
@@ -275,20 +241,6 @@ module SFTP {
             }
         }
 
-        // TODO: add argument - info: ISessionInfo
-        create(sendReply: (reply: NodeBuffer) => void): IServerSession {
-
-            var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
-
-            var session = new SftpServer({
-                fs: fs,
-                send: sendReply,
-                log: this._log,
-            });
-
-            return session;
-        }
-
         accept(ws: WebSocket): void {
 
             var log = this._log;
@@ -297,60 +249,10 @@ module SFTP {
 
             var options = { binary: true };
 
-            var close = (code: number) => {
-                try {
-                    session.end();
-                } catch (error) {
-                    log.error("Error while closing session.", error);
-                }
+            var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
-                try {
-                    ws.close(code);
-                } catch (error) {
-                    log.error("Error while closing websocket.", error);
-                }
-            };
-
-            var sendReply = data => {
-                ws.send(data, options, err => {
-                    if (typeof err !== 'undefined' && err != null) {
-                        log.error("Error while sending:", err);
-                        close(1011); // unexpected condition
-                    }
-                });
-            };
-
-            var session = this.create(sendReply);
+            var session = new ServerSession(ws, fs, log);
             (<any>ws).session = session;
-
-            ws.on('close', (code, message) => {
-                log.info("Connection closed:", code, message);
-                close(1000); // normal close
-            });
-
-            ws.on('error', err => {
-                log.error("Socket error:", err.message, err.name);
-                close(1011); // unexpected condition
-            });
-
-            ws.on('message', (data, flags) => {
-
-                var request: NodeBuffer;
-                if (flags.binary) {
-                    request = <NodeBuffer>data;
-                } else {
-                    log.error("Text packet received, but not supported yet.");
-                    close(1003); // unsupported data
-                    return;
-                }
-
-                try {
-                    session.process(request);
-                } catch (error) {
-                    log.error("Error while processing packet.", error);
-                    close(1011); // unexpected condition
-                }
-            });
         }
 
     }
