@@ -1,5 +1,5 @@
 ﻿import packet = require("./sftp-packet");
-import api = require("./sftp-api");
+import api = require("./fs-api");
 import enums = require("./sftp-enums");
 
 import SftpPacket = packet.SftpPacket;
@@ -284,7 +284,7 @@ export class SftpAttributes implements IStats {
     //...      more extended data(extended_type - extended_data pairs),
     //so that number of pairs equals extended_count
 
-    flags: SftpAttributeFlags;
+    private flags: SftpAttributeFlags;
     size: number;
     uid: number;
     gid: number;

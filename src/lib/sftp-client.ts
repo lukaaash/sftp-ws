@@ -1,14 +1,18 @@
 ﻿import packet = require("./sftp-packet");
 import misc = require("./sftp-misc");
-import api = require("./sftp-api");
 import enums = require("./sftp-enums");
-import events = require("events");
+import api = require("./fs-api");
+import plus = require("./fs-plus");
+import channel = require("./channel");
 
 import IStats = api.IStats;
 import IItem = api.IItem;
 import IFilesystem = api.IFilesystem;
-import ISession = api.ISession;
-import ISessionHost = api.ISessionHost;
+import FilesystemPlus = plus.FilesystemPlus;
+import ISession = channel.ISession;
+import ISessionHost = channel.ISessionHost;
+import ILogWriter = channel.ILogWriter;
+import Channel = channel.Channel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -18,14 +22,13 @@ import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
 import SftpItem = misc.SftpItem;
-import EventEmitter = events.EventEmitter;
 
 interface SftpRequest {
     callback: Function;
     responseParser: (reply: SftpPacket, callback: Function) => void;
 }
 
-export class SftpClientCore extends EventEmitter implements ISession, IFilesystem {
+class SftpClientCore implements ISession, IFilesystem {
 
     private _host: ISessionHost
     private _id: number;
@@ -59,9 +62,8 @@ export class SftpClientCore extends EventEmitter implements ISession, IFilesyste
         pattrs.write(packet);
     }
 
-    constructor(host: ISessionHost) {
-        super();
-        this._host = host;
+    constructor() {
+        this._host = null;
         this._id = null;
         this._ready = false;
         this._requests = [];
@@ -69,7 +71,6 @@ export class SftpClientCore extends EventEmitter implements ISession, IFilesyste
         this._maxWriteBlockLength = 32 * 1024;
         this._maxReadBlockLength = 256 * 1024;
     }
-
 
     private execute(request: SftpPacketWriter, callback: Function, responseParser: (response: SftpPacketReader, callback: Function) => void): void {
 
@@ -88,7 +89,9 @@ export class SftpClientCore extends EventEmitter implements ISession, IFilesyste
 
     }
 
-    _init(callback?: (err: Error) => any): void {
+    _init(host: ISessionHost, callback: (err: Error) => any): void {
+        this._host = host;
+
         var request = this.getRequest(SftpPacketType.INIT);
 
         request.writeInt32(3); // SFTPv3
@@ -297,7 +300,7 @@ export class SftpClientCore extends EventEmitter implements ISession, IFilesyste
         this.command(SftpPacketType.SYMLINK, [targetPath, linkPath], callback, this.parseStatus);
     }
 
-    private toHandle(handle: { _handle: NodeBuffer; _this: SftpClient }): NodeBuffer {
+    private toHandle(handle: { _handle: NodeBuffer; _this: SftpClientCore }): NodeBuffer {
         if (typeof handle === 'object') {
             if (SftpPacket.isBuffer(handle._handle) && handle._this == this)
                 return handle._handle;
@@ -460,54 +463,33 @@ export class SftpClientCore extends EventEmitter implements ISession, IFilesyste
 
         callback(null, items);
     }
-
 }
 
+export class SftpClient extends FilesystemPlus {
 
-export class SftpClient extends SftpClientCore {
+    constructor(ws: any, log?: ILogWriter) {
 
-    constructor(host: ISessionHost) {
-        super(host);
+        var sftp = new SftpClientCore();
+        var channel = new Channel(sftp, ws);
+        channel.log = log;
+
+        super(sftp);
+
+        ws.on("open", () => { //WEB: ws.onopen = () => {
+
+            channel.start();
+
+            sftp._init(channel, err => {
+                if (err != null) {
+                    this.emit('error', err);
+                } else {
+                    this.emit('ready');
+                }
+            });
+        }); //WEB: };
     }
 
-    readdir(path: string, callback?: (err: Error, items: IItem[]|boolean) => any)
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
-
-        if (typeof handle !== 'string')
-            return super.readdir(handle, callback);
-
-        var path = <string>handle;
-        var list: IItem[] = [];
-
-        var next = (err, items: IItem[]|boolean) => {
-
-            if (err != null) {
-                this.close(handle);
-                callback(err, list);
-                return;
-            }
-
-            if (items === false) {
-                this.close(handle, err => {
-                    callback(err, list);
-                });
-                return;
-            }
-
-            list = list.concat(<IItem[]>items);
-            super.readdir(handle, next);
-        };
-
-        this.opendir(path,(err, h) => {
-            if (err != null) {
-                callback(err, null);
-                return;
-            }
-
-            handle = h;
-            next(null, []);
-        });
-
+    end(): void {
+        (<SftpClientCore>this._fs).end();
     }
-
 }

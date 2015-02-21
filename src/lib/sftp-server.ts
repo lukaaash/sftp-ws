@@ -1,16 +1,17 @@
 ﻿import packet = require("./sftp-packet");
 import misc = require("./sftp-misc");
-import fs = require("./sftp-fs");
-import api = require("./sftp-api");
+import safe = require("./fs-safe");
+import api = require("./fs-api");
 import enums = require("./sftp-enums");
+import channel = require("./channel");
 
-import SafeFilesystem = fs.SafeFilesystem;
+import SafeFilesystem = safe.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
-import ILogWriter = api.ILogWriter;
-import ISession = api.ISession;
-import ISessionHost = api.ISessionHost;
-
+import ILogWriter = channel.ILogWriter;
+import ISession = channel.ISession;
+import ISessionHost = channel.ISessionHost;
+import Channel = channel.Channel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -46,7 +47,7 @@ class SftpHandleInfo {
     }
 }
 
-export class SftpServer implements ISession {
+export class SftpServerSessionCore implements ISession {
 
     private _fs: SafeFilesystem;
     private _host: ISessionHost;
@@ -58,7 +59,7 @@ export class SftpServer implements ISession {
     constructor(host: ISessionHost, fs: SafeFilesystem) {
         this._fs = fs;
         this._host = host;
-        this._handles = new Array<SftpHandleInfo>(SftpServer.MAX_HANDLE_COUNT + 1);
+        this._handles = new Array<SftpHandleInfo>(SftpServerSessionCore.MAX_HANDLE_COUNT + 1);
         this.nextHandle = 1;
     }
 
@@ -155,7 +156,7 @@ export class SftpServer implements ISession {
 
     private createHandleInfo() {
         var h = this.nextHandle;
-        var max = SftpServer.MAX_HANDLE_COUNT;
+        var max = SftpServerSessionCore.MAX_HANDLE_COUNT;
 
         for (var i = 0; i < max; i++) {
             var next = (h % max) + 1; // 1..MAX_HANDLE_COUNT
@@ -521,3 +522,16 @@ export class SftpServer implements ISession {
     }
 
 }
+
+export class SftpServerSession extends SftpServerSessionCore {
+
+    constructor(ws: any, fs: SafeFilesystem, log: ILogWriter) {
+
+        var channel = new Channel(this, ws);
+        channel.log = log;
+        super(channel, fs);
+
+        channel.start();
+    }
+}
+

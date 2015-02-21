@@ -37,25 +37,3 @@ export interface IFilesystem {
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
 }
-
-export interface IFilesystemExt extends IFilesystem {
-    //TODO: add non-core wrapper methods
-}
-
-export interface ILogWriter {
-    info(message?: any, ...optionalParams: any[]): void;
-    warn(message?: any, ...optionalParams: any[]): void;
-    error(message?: any, ...optionalParams: any[]): void;
-    log(message?: any, ...optionalParams: any[]): void;
-}
-
-export interface ISessionHost {
-    send(packet: NodeBuffer): void;
-    close(reason?: number): void;
-    log?: ILogWriter;
-}
-
-export interface ISession {
-    _process(packet: NodeBuffer): void;
-    _end(): void;
-}

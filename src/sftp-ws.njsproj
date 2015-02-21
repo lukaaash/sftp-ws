@@ -36,10 +36,13 @@
   <ItemGroup>
     <TypeScriptCompile Include="gulpfile.ts" />
     <TypeScriptCompile Include="lib\channel.ts" />
+    <TypeScriptCompile Include="lib\fs-local.ts" />
+    <TypeScriptCompile Include="lib\fs-plus.ts" />
+    <TypeScriptCompile Include="lib\fs-safe.ts" />
+    <None Include="lib\misc-web.ts" />
     <TypeScriptCompile Include="lib\sftp-client.ts" />
     <TypeScriptCompile Include="lib\sftp-enums.ts" />
-    <TypeScriptCompile Include="lib\sftp-fs.ts" />
-    <TypeScriptCompile Include="lib\sftp-api.ts" />
+    <TypeScriptCompile Include="lib\fs-api.ts" />
     <None Include="lib\sftp-packet-web.ts" />
     <None Include="lib\sftp-web.ts" />
     <TypeScriptCompile Include="lib\sftp.ts" />

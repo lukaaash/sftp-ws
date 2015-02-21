@@ -6,18 +6,26 @@ import http = require("http");
 import path = require("path");
 import client = require("./sftp-client");
 import server = require("./sftp-server");
-import sfs = require("./sftp-fs");
-import api = require("./sftp-api");
+import safe = require("./fs-safe");
+import local = require("./fs-local");
+import api = require("./fs-api");
 import channel = require("./channel");
 
-import IFilesystem = api.IFilesystem;
-import ILogWriter = api.ILogWriter;
 import SftpClient = client.SftpClient;
-import SafeFilesystem = sfs.SafeFilesystem;
+import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
 import Channel = channel.Channel;
+import SftpServerSession = server.SftpServerSession
 
 module SFTP {
+
+
+    export interface IFilesystem extends api.IFilesystem {
+    }
+
+    export interface ILogWriter extends channel.ILogWriter {
+    }
+
 
     export interface IClientOptions {
         protocol?: string;
@@ -50,23 +58,7 @@ module SFTP {
             }
 
             var ws = new WebSocket(address, options);
-            var channel = new Channel(this, ws);
-            channel.log = options.log;
-            super(channel);
-
-            ws.on("open",() => {
-
-                channel.start();
-
-                this._init(err => {
-                    if (err != null) {
-                        this.emit('error', err);
-                    } else {
-                        this.emit('ready');
-                    }
-                });
-            });
-
+            super(ws, options.log);
         }
     }
 
@@ -94,21 +86,6 @@ module SFTP {
             (info: RequestInfo, accept: (result: boolean) => void): void;
             (info: RequestInfo, accept: (session: ISessionInfo) => void): void;
         };
-    }
-
-    
-
-    class ServerSession extends server.SftpServer {
-
-        constructor(ws: WebSocket, fs: SafeFilesystem, log: ILogWriter) {
-
-            var channel = new Channel(this, ws);
-            channel.log = log;
-            super(channel, fs);
-
-            channel.start();
-        }
-
     }
 
     export class Server {
@@ -163,7 +140,7 @@ module SFTP {
             }
 
             if (typeof this._fs === 'undefined') {
-                this._fs = new sfs.LocalFilesystem();
+                this._fs = new local.LocalFilesystem();
             }
 
             //TODO: when no _fs and no _virtualRoot is specified, serve a dummy filesystem as well
@@ -229,7 +206,7 @@ module SFTP {
             if (typeof this._wss === 'object') {
                 // end all active sessions
                 this._wss.clients.forEach(ws => {
-                    var session = <ServerSession>(<any>ws).session;
+                    var session = <SftpServerSession>(<any>ws).session;
                     if (typeof session === 'object') {
                         session.end();
                         delete (<any>ws).session;
@@ -251,7 +228,7 @@ module SFTP {
 
             var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
-            var session = new ServerSession(ws, fs, log);
+            var session = new SftpServerSession(ws, fs, log);
             (<any>ws).session = session;
         }
 

@@ -1,9 +1,23 @@
-﻿import api = require("./sftp-api");
-import WebSocket = require("ws"); //WEB: // removed
+﻿import api = require("./fs-api");
+import WebSocket = require("ws");
 
-import ISession = api.ISession;
-import ISessionHost = api.ISessionHost;
-import ILogWriter = api.ILogWriter;
+export interface ILogWriter {
+    info(message?: any, ...optionalParams: any[]): void;
+    warn(message?: any, ...optionalParams: any[]): void;
+    error(message?: any, ...optionalParams: any[]): void;
+    log(message?: any, ...optionalParams: any[]): void;
+}
+
+export interface ISessionHost {
+    send(packet: NodeBuffer): void;
+    close(reason?: number): void;
+    log?: ILogWriter;
+}
+
+export interface ISession {
+    _process(packet: NodeBuffer): void;
+    _end(): void;
+}
 
 export class Channel implements ISessionHost {
 
