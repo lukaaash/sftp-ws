@@ -1,12 +1,27 @@
 ﻿import path = require('path');
 import gulp = require('gulp');
 var replace = require('gulp-replace');
-var typescript = require('gulp-tsc');
+var ts = require('gulp-typescript');
+var concat = require('gulp-concat');
 var jeditor = require("gulp-json-editor");
+var sourcemaps = require('gulp-sourcemaps');
+var uglify = require('gulp-uglify');
+
+var tsLib = ts.createProject({
+    "declarationFiles": false,
+    "noExternalResolve": true,
+    "module": "commonjs",
+});
+
+var tsWeb = ts.createProject({
+    "declarationFiles": false,
+    "noExternalResolve": true,
+    "sortOutput": true,
+});
 
 var src = {
-    lib: ['lib/*.ts', '!lib/sftp-interop.ts', '!lib/*.d.ts'],
-    lib_web: ['lib/sftp-web.ts', 'lib/sftp-client.ts', 'lib/sftp-api.ts', 'lib/sftp-misc.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-enums.ts', 'lib/channel.ts'],
+    lib: ['lib/*.ts', '!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
+    lib_web: ['lib/misc-web.ts', 'lib/fs-api.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
     pkg: ['package.json'],
 };
 
@@ -17,48 +32,65 @@ var out = {
 };
 
 gulp.task('lib', () => {
-    var options = {
-        "declaration": false,
-        "removeComments": true,
-        "module": "commonjs",
-    };
 
-    gulp.src(src.lib)
-        .pipe(typescript(options))
-        .pipe(gulp.dest(out.lib));
+    var tsResult = gulp.src(src.lib).pipe(ts(tsLib));
+
+    return tsResult.js.pipe(gulp.dest(out.lib));
 });
 
-gulp.task('web', () => {
-    var options = {
-        "declaration": false,
-        "removeComments": true,
-        "module": "commonjs",
-    };
-    gulp.src(src.lib_web)
-//        .pipe(typescript(options))
-        //.pipe(replace(/(\/\/\/[^\n]*\n)/g, ''))
-        .pipe(replace(/\r?\nimport events = require\(\"(.*)\"\);/g, ''))
-        .pipe(replace(/import (.*) = require\(\".\/sftp-packet\"\);/g, '/// <reference path="./sftp-packet-web.ts" />'))
-        .pipe(replace(/import (.*) = require\(\"(.*)\"\);/g, '/// <reference path="$2.ts" />'))
-        .pipe(replace(/\r?\nimport (.*) = (.*);/g, ''))
+gulp.task('web.ts', () => {
+
+    return gulp.src(src.lib_web)
+        //.pipe(replace(/import (.*) = require\(\"\.\/(.*)\"\);.*\r?\n/g, '/// <reference path="$2.ts" />\r\n'))
+        .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\r?\n/g, ''))
+        .pipe(replace(/import (.*) = (.*);.*\r?\n/g, ''))
         .pipe(replace(/export const/g, 'const'))
         .pipe(replace(/export class/g, 'class'))
         .pipe(replace(/export interface/g, 'interface'))
+        .pipe(replace(/^(\s*)(.*)WEB\: /gm, '$1'))
         .pipe(replace(/NodeBuffer/g, 'Uint8Array'))
-        .pipe(replace(/\r?\n(\s*)(.*)WEB\: /g, '\r\n$1'))
+        .pipe(concat('sftp.ts'))
+        .pipe(replace(/class Client /g, 'export class Client '))
+        .pipe(replace(/^/g, 'module SFTP {'))
+        .pipe(replace(/\n/g, '\n    '))
+        .pipe(replace(/$/g, '\n}'))
         .pipe(gulp.dest(out.lib_web));
-
-    
-    //import packet = require("./sftp-packet");
 });
 
+gulp.task('web.js', ['web.ts'], () => {
+
+    var mapOptions = {
+        includeContent: false,
+        sourceRoot: "./",
+    };
+
+    var uglifyOptions = {
+        mangle: false,
+        compress: true,
+    };
+
+    gulp.src(out.lib_web + '/sftp.ts')
+        .pipe(sourcemaps.init())
+        .pipe(ts(tsWeb)).js
+        .pipe(replace(/^.*\n.*\n.*\n.*\n.*\n.*\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\n'))
+//        .pipe(uglify(uglifyOptions))
+        .pipe(sourcemaps.write(".", mapOptions))
+        .pipe(gulp.dest(out.lib_web));
+
+});
+
+gulp.task('web', ['web.js'],() => {
+
+});
+
+
 gulp.task('package', () => {
-    gulp.src(src.pkg)
+    return gulp.src(src.pkg)
         .pipe(jeditor({'devDependencies': undefined}))
         .pipe(gulp.dest(out.pkg));
 });
 
-gulp.task('default', ['lib', 'package', 'web'], () => {
+gulp.task('default', ['lib', 'web', 'package'], () => {
 
 });
 
