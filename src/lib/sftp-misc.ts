@@ -284,7 +284,7 @@ export class SftpAttributes implements IStats {
     //...      more extended data(extended_type - extended_data pairs),
     //so that number of pairs equals extended_count
 
-    private flags: SftpAttributeFlags;
+    flags: SftpAttributeFlags;
     size: number;
     uid: number;
     gid: number;

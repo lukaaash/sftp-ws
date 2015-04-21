@@ -395,6 +395,7 @@ class SftpClientCore implements ISession, IFilesystem {
             return;
 
         var attrs = new SftpAttributes(response);
+        delete attrs.flags;
 
         callback(null, attrs);
     }
