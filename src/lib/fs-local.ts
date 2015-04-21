@@ -149,14 +149,16 @@ export class LocalFilesystem implements IFilesystem {
         if (!isNaN(attrs.mode))
             actions.push(function (next: Function) { fs.chmod(path, attrs.mode, err => next(err)) });
 
-        if (typeof attrs.atime === 'object' || typeof attrs.mtime === 'object') {
-            var atime = (typeof attrs.atime.getTime === 'function') ? attrs.atime.getTime() : undefined;
-            var mtime = (typeof attrs.mtime.getTime === 'function') ? attrs.mtime.getTime() : undefined;
-            actions.push(function (next: Function) { fs.utimes(path, attrs.atime.getTime(), attrs.mtime.getTime(), err => next(err)) });
-        }
-
         if (!isNaN(attrs.size))
             actions.push(function (next: Function) { fs.truncate(path, attrs.size, err => next(err)) });    
+
+        if (typeof attrs.atime === 'object' || typeof attrs.mtime === 'object') {
+            //var atime = (typeof attrs.atime.getTime === 'function') ? attrs.atime.getTime() : undefined;
+            //var mtime = (typeof attrs.mtime.getTime === 'function') ? attrs.mtime.getTime() : undefined;
+            var atime = attrs.atime;
+            var mtime = attrs.mtime;
+            actions.push(function (next: Function) { fs.utimes(path, <any>atime, <any>mtime, err => next(err)) });
+        }
 
         this.run(actions, callback);
     }
@@ -171,14 +173,16 @@ export class LocalFilesystem implements IFilesystem {
         if (!isNaN(attrs.mode))
             actions.push(function (next: Function) { fs.fchmod(handle, attrs.mode, err => next(err)) });
 
-        if (typeof attrs.atime === 'object' || typeof attrs.mtime === 'object') {
-            var atime = (typeof attrs.atime.getTime === 'function') ? attrs.atime.getTime() : undefined;
-            var mtime = (typeof attrs.mtime.getTime === 'function') ? attrs.mtime.getTime() : undefined;
-            actions.push(function (next: Function) { fs.futimes(handle, attrs.atime.getTime(), attrs.mtime.getTime(), err => next(err)) });
-        }
-
         if (!isNaN(attrs.size))
             actions.push(function (next: Function) { fs.ftruncate(handle, attrs.size, err => next(err)) });
+
+        if (typeof attrs.atime === 'object' || typeof attrs.mtime === 'object') {
+            //var atime = (typeof attrs.atime.getTime === 'function') ? attrs.atime.getTime() : undefined;
+            //var mtime = (typeof attrs.mtime.getTime === 'function') ? attrs.mtime.getTime() : undefined;
+            var atime = attrs.atime;
+            var mtime = attrs.mtime;
+            actions.push(function (next: Function) { fs.futimes(handle, <any>atime, <any>mtime, err => next(err)) });
+        }
 
         this.run(actions, callback);
     }
