@@ -228,8 +228,10 @@ export class SftpServerSessionCore implements ISession {
             case SftpPacketType.FSETSTAT:
             case SftpPacketType.READDIR:
                 handleInfo = this.readHandleInfo(request);
-                if (handleInfo == null)
+                if (handleInfo == null) {
                     this.sendStatus(response, SftpStatusCode.FAILURE, "Invalid handle");
+                    return;
+                }
 
                 response.handleInfo = handleInfo;
                 break;
