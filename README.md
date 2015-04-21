@@ -1,7 +1,7 @@
 sftp-ws
 =======
 
-v0.1.0
+v0.2.0
 ------
 
 SFTP over WebSockets - client and server library for Node.js.
@@ -11,7 +11,7 @@ SFTP over WebSockets - client and server library for Node.js.
 SFTP is a simple remote filesystem protocol misnamed as *SSH File Transfer Protocol*. This package provides SFTP v3, but layers it on top of WebSockets instead of SSH.
 Check out my [blogpost](http://lukas.pokorny.eu/sftp-over-websockets/) for more information.
 
-This package is currently in development and has not been properly tested yet.
+This package is currently in development and has not been sufficiently tested yet.
 
 ## Installing
 
@@ -64,6 +64,12 @@ var server = new SFTP.Server({
 });
 ```
 
+### Examples
+
+Sample code is available in [this project's GitHub repository](https://github.com/lukaaash/sftp-ws/tree/master/examples).
+
+This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/v0.1.0/examples/web-client).
+
 ## Virtual filesystems
 
 This SFTP package is built around the `IFilesystem` interface:
@@ -79,7 +85,7 @@ export interface IFilesystem {
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void;
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void;
     opendir(path: string, callback?: (err: Error, handle: any) => any): void;
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void;
+	readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void;
     unlink(path: string, callback?: (err: Error) => any): void;
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void;
     rmdir(path: string, callback?: (err: Error) => any): void;
@@ -112,16 +118,11 @@ The SFTP server object makes instances of this interface accessible by clients.
 This package comes with an implementation of 'virtual filesystem' that uses `fs` to make parts of the local filesystem accessible to SFTP clients.
 However, you can easily implement a custom virtual filesystem and use it instead of the built-in one - just supply an instance of `IFilesystem` to SFTP server's constructor as `filesystem' option.
 
-## Examples
-
-Sample code is available in [this project's GitHub repository](https://github.com/lukaaash/sftp-ws/tree/master/examples).
-This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/v0.1.0/examples/web-client).
-
 ## Future
 
 List of things I would like to add soon:
 
-- Unit tests
+- More unit tests
 - Documentation
 - Proper browser-based client
 - Client-side wrapper around `IFilesystem` to simplify common tasks
