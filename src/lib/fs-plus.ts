@@ -156,6 +156,10 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+            callback = <any>attrs;
+            attrs = null;
+        }
         callback = this.wrapCallback(callback);
 
         this._fs.mkdir(path, attrs, callback);
