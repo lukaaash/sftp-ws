@@ -4,6 +4,7 @@ import enums = require("./sftp-enums");
 import api = require("./fs-api");
 import plus = require("./fs-plus");
 import channel = require("./channel");
+import util = require("./util");
 
 import IStats = api.IStats;
 import IItem = api.IItem;
@@ -11,7 +12,7 @@ import IFilesystem = api.IFilesystem;
 import FilesystemPlus = plus.FilesystemPlus;
 import ISession = channel.ISession;
 import ISessionHost = channel.ISessionHost;
-import ILogWriter = channel.ILogWriter;
+import ILogWriter = util.ILogWriter;
 import Channel = channel.Channel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
@@ -22,6 +23,7 @@ import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
 import SftpItem = misc.SftpItem;
+import toLogWriter = util.toLogWriter;
 
 interface SftpRequest {
     callback: Function;
@@ -482,7 +484,7 @@ export class SftpClient extends FilesystemPlus {
 
         var sftp = new SftpClientCore();
         var channel = new Channel(sftp, ws);
-        channel.log = log;
+        channel.log = toLogWriter(log);
 
         super(sftp);
 

@@ -10,6 +10,7 @@ import safe = require("./fs-safe");
 import local = require("./fs-local");
 import api = require("./fs-api");
 import channel = require("./channel");
+import util = require("./util");
 
 import SftpClient = client.SftpClient;
 import SafeFilesystem = safe.SafeFilesystem;
@@ -28,7 +29,7 @@ module SFTP {
     export interface IFilesystem extends api.IFilesystem {
     }
 
-    export interface ILogWriter extends channel.ILogWriter {
+    export interface ILogWriter extends util.ILogWriter {
     }
 
     export interface IClientOptions {
@@ -110,7 +111,7 @@ module SFTP {
             if (typeof options !== 'undefined') {
                 this._virtualRoot = options.virtualRoot;
                 this._fs = options.filesystem;
-                this._log = options.log;
+                this._log = util.toLogWriter(options.log);
                 this._verifyClient = options.verifyClient;
                 noServer = options.noServer;
 
@@ -148,15 +149,6 @@ module SFTP {
             }
 
             //TODO: when no _fs and no _virtualRoot is specified, serve a dummy filesystem as well
-
-            if (typeof this._log === 'undefined') {
-                this._log = {
-                    info: function () { },
-                    warn: function () { },
-                    error: function () { },
-                    log: function () { }
-                };
-            }
 
             if (!noServer) {
                 this._wss = new WebSocketServer(serverOptions);

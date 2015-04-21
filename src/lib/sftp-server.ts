@@ -4,11 +4,12 @@ import safe = require("./fs-safe");
 import api = require("./fs-api");
 import enums = require("./sftp-enums");
 import channel = require("./channel");
+import util = require("./util");
 
 import SafeFilesystem = safe.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
-import ILogWriter = channel.ILogWriter;
+import ILogWriter = util.ILogWriter;
 import ISession = channel.ISession;
 import ISessionHost = channel.ISessionHost;
 import Channel = channel.Channel;

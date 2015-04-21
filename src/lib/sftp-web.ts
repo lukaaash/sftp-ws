@@ -1,10 +1,11 @@
 ﻿import client = require("./sftp-client");
 import api = require("./fs-api");
 import channel = require("./channel");
+import util = require("./util");
 
 import SftpClient = client.SftpClient;
 import IFilesystem = api.IFilesystem;
-import ILogWriter = channel.ILogWriter;
+import ILogWriter = util.ILogWriter;
 
 export interface IClientOptions {
     protocol?: string;

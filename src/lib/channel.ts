@@ -1,12 +1,8 @@
 ﻿import api = require("./fs-api");
+import util = require("./util");
 import WebSocket = require("ws");
 
-export interface ILogWriter {
-    info(message?: any, ...optionalParams: any[]): void;
-    warn(message?: any, ...optionalParams: any[]): void;
-    error(message?: any, ...optionalParams: any[]): void;
-    log(message?: any, ...optionalParams: any[]): void;
-}
+import ILogWriter = util.ILogWriter;
 
 export interface ISessionHost {
     send(packet: NodeBuffer): void;
