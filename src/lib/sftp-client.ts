@@ -137,6 +137,11 @@ class SftpClientCore implements ISession, IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
         path = this.toPath(path, 'path');
 
+        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+            callback = <any>attrs;
+            attrs = null;
+        }
+
         var request = this.getRequest(SftpPacketType.OPEN);
 
         request.writeString(path);
@@ -253,6 +258,10 @@ class SftpClientCore implements ISession, IFilesystem {
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
         path = this.toPath(path, 'path');
+        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+            callback = <any>attrs;
+            attrs = null;
+        }
 
         var request = this.getRequest(SftpPacketType.MKDIR);
 
