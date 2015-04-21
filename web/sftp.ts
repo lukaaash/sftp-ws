@@ -66,6 +66,41 @@ module SFTP {
     }
     
     
+    interface ILogWriter {
+        info(message?: any, ...optionalParams: any[]): void;
+        warn(message?: any, ...optionalParams: any[]): void;
+        error(message?: any, ...optionalParams: any[]): void;
+        log(message?: any, ...optionalParams: any[]): void;
+    }
+    
+    export function toLogWriter(writer?: ILogWriter): ILogWriter {
+        writer = writer || <ILogWriter>{};
+        var fixed = <ILogWriter>{};
+        var fix = false;
+    
+        function empty() {};
+    
+        function prepare(name: string) {
+            var func = <Function>writer[name];
+            if (typeof func !== 'function') {
+                fixed[name] = empty;
+                fix = true;
+            } else {
+                fixed[name] = function () {
+                    func.apply(writer, arguments);
+                }
+            }
+        };
+    
+        prepare("info");
+        prepare("warn");
+        prepare("error");
+        prepare("log");
+    
+        return fix ? fixed : writer;
+    }
+    
+    
     interface IStats {
         mode?: number;
         uid?: number;
@@ -305,12 +340,6 @@ module SFTP {
     
     }
     
-    interface ILogWriter {
-        info(message?: any, ...optionalParams: any[]): void;
-        warn(message?: any, ...optionalParams: any[]): void;
-        error(message?: any, ...optionalParams: any[]): void;
-        log(message?: any, ...optionalParams: any[]): void;
-    }
     
     interface ISessionHost {
         send(packet: Uint8Array): void;
@@ -1659,7 +1688,7 @@ module SFTP {
     
             var sftp = new SftpClientCore();
             var channel = new Channel(sftp, ws);
-            channel.log = log;
+            channel.log = toLogWriter(log);
     
             super(sftp);
     

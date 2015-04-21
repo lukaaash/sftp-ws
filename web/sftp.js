@@ -64,6 +64,33 @@ var SFTP;
         };
         return EventEmitter;
     })();
+    function toLogWriter(writer) {
+        writer = writer || {};
+        var fixed = {};
+        var fix = false;
+        function empty() {
+        }
+        ;
+        function prepare(name) {
+            var func = writer[name];
+            if (typeof func !== 'function') {
+                fixed[name] = empty;
+                fix = true;
+            }
+            else {
+                fixed[name] = function () {
+                    func.apply(writer, arguments);
+                };
+            }
+        }
+        ;
+        prepare("info");
+        prepare("warn");
+        prepare("error");
+        prepare("log");
+        return fix ? fixed : writer;
+    }
+    SFTP.toLogWriter = toLogWriter;
     var FilesystemPlus = (function (_super) {
         __extends(FilesystemPlus, _super);
         function FilesystemPlus(fs) {
@@ -1197,7 +1224,7 @@ var SFTP;
             var _this = this;
             var sftp = new SftpClientCore();
             var channel = new Channel(sftp, ws);
-            channel.log = log;
+            channel.log = toLogWriter(log);
             _super.call(this, sftp);
             ws.onopen = function () {
                 channel.start();
