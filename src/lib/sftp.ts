@@ -19,13 +19,17 @@ import SftpServerSession = server.SftpServerSession
 
 module SFTP {
 
+    export interface IStats extends api.IStats {
+    }
+
+    export interface IItem extends api.IItem {
+    }
 
     export interface IFilesystem extends api.IFilesystem {
     }
 
     export interface ILogWriter extends channel.ILogWriter {
     }
-
 
     export interface IClientOptions {
         protocol?: string;
