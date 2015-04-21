@@ -365,6 +365,7 @@ class SftpClientCore implements ISession, IFilesystem {
 
         var error = new Error("SFTP error " + code + ": " + message);
         error['code'] = code;
+        error['description'] = message;
         return error;
     }
 
