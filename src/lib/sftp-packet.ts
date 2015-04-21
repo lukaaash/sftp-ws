@@ -20,7 +20,7 @@ export class SftpPacket {
     }
 
     skip(count: number): void {
-        this.check(length);
+        this.check(count);
         this.position += count;
     }
 

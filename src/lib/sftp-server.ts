@@ -337,7 +337,7 @@ export class SftpServerSessionCore implements ISession {
                     response.type = SftpPacketType.DATA;
                     response.start();
 
-                    var offset = response.position;
+                    var offset = response.position + 4;
                     response.check(4 + count);
 
                     fs.read(handleInfo.handle, response.buffer, offset, count, position, (err, bytesRead, b) => {
@@ -356,7 +356,7 @@ export class SftpServerSessionCore implements ISession {
                     var offset = request.position;
                     request.skip(count);
 
-                    fs.write(handleInfo.handle, response.buffer, offset, count, position, err => this.sendSuccess(response, err));
+                    fs.write(handleInfo.handle, request.buffer, offset, count, position, err => this.sendSuccess(response, err));
                     return;
 
                 case SftpPacketType.LSTAT:
