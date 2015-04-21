@@ -4,7 +4,8 @@
   "description": "SFTP over WebSockets - client and server library",
   "main": "./lib/sftp.js",
   "scripts": {
-    "build": "node node_modules/gulp/bin/gulp.js"
+    "build": "gulp build",
+    "test": "mocha tests"
   },
   "engines": {
     "node": ">=0.10.0"

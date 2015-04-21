@@ -6,6 +6,7 @@ var concat = require('gulp-concat');
 var jeditor = require("gulp-json-editor");
 var sourcemaps = require('gulp-sourcemaps');
 var uglify = require('gulp-uglify');
+var rename = require('gulp-rename');
 
 var tsLib = ts.createProject({
     "declarationFiles": false,
@@ -20,13 +21,13 @@ var tsWeb = ts.createProject({
 });
 
 var src = {
-    lib: ['lib/*.ts', '!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
+    lib: ['lib/*.ts', 'tests/*.ts','!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
     lib_web: ['lib/misc-web.ts', 'lib/fs-api.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
     pkg: ['package.json'],
 };
 
 var out = {
-    lib: '../lib',
+    lib: '..',
     lib_web: '../web',
     pkg: '..',
 };
@@ -35,7 +36,14 @@ gulp.task('lib', () => {
 
     var tsResult = gulp.src(src.lib).pipe(ts(tsLib));
 
-    return tsResult.js.pipe(gulp.dest(out.lib));
+    return tsResult.js
+        .pipe(rename(path => {
+        if (path.basename.substr(path.basename.length - 6) == "-tests")
+            path.dirname = "./tests";
+        else
+            path.dirname = "./lib";
+        }))
+        .pipe(gulp.dest(out.lib));
 });
 
 gulp.task('web.ts', () => {
@@ -90,7 +98,12 @@ gulp.task('package', () => {
         .pipe(gulp.dest(out.pkg));
 });
 
-gulp.task('default', ['lib', 'web', 'package'], () => {
+gulp.task('build', ['lib', 'web', 'package'], () => {
 
 });
+
+gulp.task('default', ['build'],() => {
+
+});
+
 

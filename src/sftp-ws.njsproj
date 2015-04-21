@@ -6,6 +6,9 @@
     <Name>sftp.js</Name>
     <RootNamespace>sftp.js</RootNamespace>
     <NodejsPort>1984</NodejsPort>
+    <NodeExeArguments>
+    </NodeExeArguments>
+    <ScriptArguments>tests</ScriptArguments>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -13,7 +16,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>534896ed-d8eb-43e7-93e1-30e80471977e</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main.js</StartupFile>
+    <StartupFile>node_modules\mocha\bin\_mocha</StartupFile>
     <StartWebBrowser>False</StartWebBrowser>
     <SearchPath>
     </SearchPath>
@@ -25,7 +28,7 @@
     <TypeScriptSourceMap>true</TypeScriptSourceMap>
     <TypeScriptModuleKind>CommonJS</TypeScriptModuleKind>
     <EnableTypeScript>true</EnableTypeScript>
-    <StartWebBrowser>false</StartWebBrowser>
+    <StartWebBrowser>False</StartWebBrowser>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -48,7 +51,12 @@
     <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
+    <TypeScriptCompile Include="tests\core.ts">
+      <SubType>Code</SubType>
+      <TestFramework>Mocha</TestFramework>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="typings\gulp\gulp.d.ts" />
+    <TypeScriptCompile Include="typings\mocha\mocha.d.ts" />
     <TypeScriptCompile Include="typings\node\node.d.ts" />
     <TypeScriptCompile Include="typings\ws\ws.d.ts" />
     <TypeScriptCompile Include="lib\sftp-misc.ts" />
@@ -57,8 +65,10 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="lib\" />
+    <Folder Include="tests\" />
     <Folder Include="typings\" />
     <Folder Include="typings\gulp\" />
+    <Folder Include="typings\mocha\" />
     <Folder Include="typings\node\" />
     <Folder Include="typings\ws\" />
   </ItemGroup>
