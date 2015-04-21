@@ -9,6 +9,9 @@
 *.user
 *.sln.docstates
 
+# Temporary files
+tmp/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/

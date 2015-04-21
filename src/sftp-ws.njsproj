@@ -51,7 +51,7 @@
     <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
-    <TypeScriptCompile Include="tests\core.ts">
+    <TypeScriptCompile Include="tests\core-tests.ts">
       <SubType>Code</SubType>
       <TestFramework>Mocha</TestFramework>
     </TypeScriptCompile>
