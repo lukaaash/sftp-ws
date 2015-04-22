@@ -506,7 +506,7 @@ export class SftpServerSessionCore implements ISession {
                     return;
 
                 case SftpPacketType.OPENDIR:
-                    var path = request.readString();z
+                    var path = request.readString();
 
                     handleInfo = this.createHandleInfo();
                     if (handleInfo == null) {
