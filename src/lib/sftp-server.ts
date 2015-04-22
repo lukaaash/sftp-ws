@@ -48,10 +48,122 @@ class SftpHandleInfo {
     }
 }
 
+class SftpException implements Error {
+    name: string;
+    message: string;
+    code: SftpStatusCode;
+    errno: number;
+
+    constructor(err: ErrnoException) {
+        var message: string;
+        var code = SftpStatusCode.FAILURE;
+        var errno = err.errno | 0;
+        // loosely based on the list from https://github.com/rvagg/node-errno/blob/master/errno.js
+
+        switch (errno) {
+            default:
+                if (err["isPublic"] === true)
+                    message = err.message;
+                else
+                    message = "Unspecified error (" + errno + ")";
+                break;
+            case 1: // EOF
+                message = "End of file";
+                code = SftpStatusCode.EOF;
+                break;
+            case 3: // EACCES
+                message = "Permission denied";
+                code = SftpStatusCode.PERMISSION_DENIED;
+                break;
+            case 4: // EAGAIN
+                message = "Try again";
+                break;
+            case 9: // EBADF
+                message = "Bad file number";
+                break;
+            case 10: // EBUSY
+                message = "Device or resource busy";
+                break;
+            case 18: // EINVAL
+                message = "Invalid argument";
+                break;
+            case 20: // EMFILE
+                message = "Too many open files";
+                break;
+            case 24: // ENFILE
+                message = "File table overflow";
+                break
+            case 25: // ENOBUFS
+                message = "No buffer space available";
+                break
+            case 26: // ENOMEM
+                message = "Out of memory";
+                break
+            case 27: // ENOTDIR
+                message = "Not a directory";
+                break
+            case 28: // EISDIR
+                message = "Is a directory";
+                break
+            case 34: // ENOENT
+                message = "No such file or directory";
+                code = SftpStatusCode.NO_SUCH_FILE;
+                break
+            case 35: // ENOSYS
+                message = "Function not implemented";
+                code = SftpStatusCode.OP_UNSUPPORTED;
+                break;
+            case 47: // EEXIST
+                message = "File exists";
+                break
+            case 49: // ENAMETOOLONG
+                message = "File name too long";
+                break
+            case 50: // EPERM
+                message = "Operation not permitted";
+                break
+            case 51: // ELOOP
+                message = "Too many symbolic links encountered";
+                break
+            case 52: // EXDEV
+                message = "Cross-device link";
+                break
+            case 53: // ENOTEMPTY
+                message = "Directory not empty";
+                break
+            case 54: // ENOSPC
+                message = "No space left on device";
+                break
+            case 55: // EIO
+                message = "I/O error";
+                break
+            case 56: // EROFS
+                message = "Read-only file system";
+                break
+            case 57: // ENODEV
+                message = "No such device";
+                code = SftpStatusCode.NO_SUCH_FILE;
+                break
+            case 58: // ESPIPE
+                message = "Illegal seek";
+                break;
+            case 59: // ECANCELED
+                message = "Operation canceled";
+                break;
+        }
+
+        this.name = "SftpException";
+        this.message = message;
+        this.code = code;
+        this.errno = errno;
+    }
+}
+
 export class SftpServerSessionCore implements ISession {
 
     private _fs: SafeFilesystem;
     private _host: ISessionHost;
+    private _log: ILogWriter;
     private _handles: SftpHandleInfo[];
     private nextHandle: number;
 
@@ -60,6 +172,7 @@ export class SftpServerSessionCore implements ISession {
     constructor(host: ISessionHost, fs: SafeFilesystem) {
         this._fs = fs;
         this._host = host;
+        this._log = host.log;
         this._handles = new Array<SftpHandleInfo>(SftpServerSessionCore.MAX_HANDLE_COUNT + 1);
         this.nextHandle = 1;
     }
@@ -81,12 +194,21 @@ export class SftpServerSessionCore implements ISession {
         this.send(response);
     }
 
-    private sendError(response: SftpResponse, err: Error): void {
-        var log = this._host.log;
-        if (typeof log === 'object' && typeof log.error === 'function')
-            log.error(err);
+    private sendError(response: SftpResponse, err: Error, isFatal: boolean): void {
+        var message: string;
+        var code: SftpStatusCode;
+        if (!isFatal) {
+            var error = new SftpException(err);
+            code = error.code;
+            message = error.message;
+            this._log.log("Unable to process request #" + response.id + ": " + message);
+        } else {
+            code = SftpStatusCode.FAILURE;
+            message = "Internal server error";
+            this._log.error("Fatal error while processing request #" + response.id + ": " + err);
+        }
 
-        SftpStatus.writeError(response, err);
+        SftpStatus.write(response, code, message);
         this.send(response);
     }
 
@@ -94,7 +216,7 @@ export class SftpServerSessionCore implements ISession {
         if (err == null || typeof err === 'undefined')
             return false;
 
-        this.sendError(response, err);
+        this.sendError(response, err, false);
         return true;
     }
 
@@ -384,7 +506,7 @@ export class SftpServerSessionCore implements ISession {
                     return;
 
                 case SftpPacketType.OPENDIR:
-                    var path = request.readString();
+                    var path = request.readString();z
 
                     handleInfo = this.createHandleInfo();
                     if (handleInfo == null) {
@@ -520,7 +642,7 @@ export class SftpServerSessionCore implements ISession {
                     this.sendStatus(response, SftpStatusCode.OP_UNSUPPORTED, "Not supported");
             }
         } catch (err) {
-            this.sendError(response, err);
+            this.sendError(response, err, true);
         }
     }
 
