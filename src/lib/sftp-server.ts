@@ -281,7 +281,7 @@ export class SftpServerSessionCore implements ISession {
                     var pflags = request.readInt32();
                     var attrs = new SftpAttributes(request);
 
-                    var modes = SftpFlags.fromFlags(pflags);
+                    var modes = SftpFlags.fromNumber(pflags);
 
                     if (modes.length == 0) {
                         this.sendStatus(response, SftpStatusCode.FAILURE, "Unsupported flags");

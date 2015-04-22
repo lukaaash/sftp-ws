@@ -3,6 +3,7 @@ import assert = require('assert');
 import Path = require('path');
 import fs = require('fs');
 import SFTP = require('../lib/sftp');
+import misc = require('../lib/sftp-misc');
 
 import IItem = SFTP.IItem;
 
@@ -106,12 +107,14 @@ describe("Basic Tests", function () {
         done();
     });
 
-    it("todo sync",() => {
-
-        //client.
+    it("flags", () => {
+        for (var flags = 0; flags < 64; flags++) {
+            var aflags = misc.SftpFlags.fromNumber(flags)[0];
+            var nflags = misc.SftpFlags.toNumber(aflags);
+            var sflags = misc.SftpFlags.fromNumber(nflags)[0];
+            assert.equal(aflags, sflags);
+        }
     });
-
-    //client.addListener
 
     it("callback(fail)", done => {
         var message = "Simulated callback error";

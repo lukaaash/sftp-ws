@@ -14,7 +14,10 @@ import IStatsExt = api.IStatsExt;
 
 export class SftpFlags {
 
-    static toFlags(flags: string): SftpOpenFlags {
+    static toNumber(flags: string): SftpOpenFlags {
+        if (typeof flags === 'number')
+            return (<SftpOpenFlags><any>flags) & SftpOpenFlags.ALL;
+
         switch (flags) {
             case 'r':
                 return SftpOpenFlags.READ;
@@ -26,10 +29,10 @@ export class SftpFlags {
                 return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC | SftpOpenFlags.READ;
             case 'wx':
             case 'xw':
-                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC | SftpOpenFlags.EXCL;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.EXCL;
             case 'wx+':
             case 'xw+':
-                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.TRUNC | SftpOpenFlags.EXCL | SftpOpenFlags.READ;
+                return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.EXCL | SftpOpenFlags.READ;
             case 'a':
                 return SftpOpenFlags.WRITE | SftpOpenFlags.CREATE | SftpOpenFlags.APPEND;
             case 'a+':
@@ -45,44 +48,47 @@ export class SftpFlags {
         }
     }
 
-    static fromFlags(flags: number): string[] {
-        var read = ((flags & SftpOpenFlags.READ) != 0);
-        var write = ((flags & SftpOpenFlags.WRITE) != 0);
-        var append = ((flags & SftpOpenFlags.APPEND) != 0);
-        var create = ((flags & SftpOpenFlags.CREATE) != 0);
-        var trunc = ((flags & SftpOpenFlags.TRUNC) != 0);
-        var excl = ((flags & SftpOpenFlags.EXCL) != 0);
+    static fromNumber(flags: number): string[]{
+        flags &= SftpOpenFlags.ALL;
 
-        var modes = [];
+        // 'truncate' does not apply when creating a new file
+        if ((flags & SftpOpenFlags.EXCL) != 0)
+            flags &= SftpOpenFlags.ALL ^ SftpOpenFlags.TRUNC;
 
-        if (create) {
-            if (excl) {
-                modes.push("wx+");
-            } else if (trunc) {
-                modes.push("w+");
-            } else {
-                modes.push("wx+");
-                create = false;
-            }
+        // 'append' does not apply when truncating
+        if ((flags & SftpOpenFlags.TRUNC) != 0)
+            flags &= SftpOpenFlags.ALL ^ SftpOpenFlags.APPEND;
+
+        // 'read' or 'write' must be specified (or both)
+        if ((flags & (SftpOpenFlags.READ | SftpOpenFlags.WRITE)) == 0)
+            flags |= SftpOpenFlags.READ;
+
+        // when not creating a new file, only 'read' or 'write' applies
+        // (and when creating a new file, 'write' is required)
+        if ((flags & SftpOpenFlags.CREATE) == 0)
+            flags &= SftpOpenFlags.READ | SftpOpenFlags.WRITE;
+        else
+            flags |= SftpOpenFlags.WRITE;
+
+        switch (flags) {
+            case 1: return ["r"];
+            case 2:
+            case 3: return ["r+"];
+            case 10: return ["wx", "r+"];
+            case 11: return ["wx+", "r+"];
+            case 14: return ["a"];
+            case 15: return ["a+"];
+            case 26: return ["w"];
+            case 27: return ["w+"];
+            case 42: return ["wx"];
+            case 43: return ["wx+"];
+            case 46: return ["ax"];
+            case 47: return ["ax+"];
         }
 
-        if (!create) {
-            if (append) {
-                if (read) {
-                    modes.push("a+");
-                } else {
-                    modes.push("a");
-                }
-            } else if (write) {
-                modes.push("r+");
-            } else {
-                modes.push("r");
-            }
-        }
-
-        return modes;
+        // this will never occur
+        throw Error("Unsupported flags");
     }
-
 }
 
 export class SftpStatus {

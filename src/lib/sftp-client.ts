@@ -147,7 +147,7 @@ class SftpClientCore implements ISession, IFilesystem {
         var request = this.getRequest(SftpPacketType.OPEN);
 
         request.writeString(path);
-        request.writeInt32(SftpFlags.toFlags(flags));
+        request.writeInt32(SftpFlags.toNumber(flags));
         this.writeStats(request, attrs);
 
         this.execute(request, callback, this.parseHandle);

@@ -51,4 +51,6 @@ export const enum SftpOpenFlags {
     CREATE = 0x0008,
     TRUNC = 0x0010,
     EXCL = 0x0020,
+
+    ALL = 0x003F,
 }
