@@ -69,12 +69,16 @@ export class Channel implements ISessionHost {
         if (this.ws == null)
             return;
 
-        this.ws.send(packet, this.options, err => { //WEB: this.ws.send(packet);
-            if (typeof err !== 'undefined' && err != null) { //WEB: // removed
-                this.log.error("Error while sending:", err.message, err.name); //WEB: // removed
-                this.close(1011); //WEB: // removed
-            } //WEB: // removed
-        }); //WEB: // removed
+        try {
+            this.ws.send(packet, this.options, err => { //WEB: this.ws.send(packet);
+                if (typeof err !== 'undefined' && err != null) { //WEB: // removed
+                    this.log.error("Error while sending:", err.message, err.name); //WEB: // removed
+                    this.close(1011); //WEB: // removed
+                } //WEB: // removed
+            }); //WEB: // removed
+        } catch (error) {
+            this.log.error("Error while sending packet:", error);
+        }
     }
 
     close(reason: number): void {
