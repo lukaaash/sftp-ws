@@ -651,12 +651,8 @@ export class SftpServerSessionCore implements ISession {
 export class SftpServerSession extends SftpServerSessionCore {
 
     constructor(ws: any, fs: SafeFilesystem, log: ILogWriter) {
-
-        var channel = new Channel(this, ws);
-        channel.log = log;
+        var channel = new Channel(this, ws, log);
         super(channel, fs);
-
-        channel.start();
     }
 }
 

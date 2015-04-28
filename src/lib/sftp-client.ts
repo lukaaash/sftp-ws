@@ -482,24 +482,27 @@ export class SftpClient extends FilesystemPlus {
 
     constructor(ws: any, log?: ILogWriter) {
 
-        var sftp = new SftpClientCore();
-        var channel = new Channel(sftp, ws);
-        channel.log = toLogWriter(log);
+        log = toLogWriter(log);
 
+        var sftp = new SftpClientCore();
+        var channel = new Channel(sftp, ws, log);
+        
         super(sftp);
 
-        ws.on("open", () => { //WEB: ws.onopen = () => {
-
-            channel.start();
-
+        channel.once("open",() => {
             sftp._init(channel, err => {
                 if (err != null) {
                     this.emit('error', err);
+                    channel.close(3002);
                 } else {
                     this.emit('ready');
                 }
             });
-        }); //WEB: };
+        });
+
+        channel.once("close",(err) => {
+            this.emit('close', err);
+        });
     }
 
     end(): void {
