@@ -55,6 +55,7 @@ gulp.task('web.ts', () => {
         .pipe(replace(/export const/g, 'const'))
         .pipe(replace(/export class/g, 'class'))
         .pipe(replace(/export interface/g, 'interface'))
+        .pipe(replace(/export function/g, 'function'))
         .pipe(replace(/^(\s*)(.*)WEB\: /gm, '$1'))
         .pipe(replace(/NodeBuffer/g, 'Uint8Array'))
         .pipe(concat('sftp.ts'))
