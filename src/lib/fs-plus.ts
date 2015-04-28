@@ -1,9 +1,13 @@
 ﻿import api = require("./fs-api");
+import util = require("./util");
 import events = require("events"); //WEB: /// <reference path="misc-web.ts" />
 
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
+import IDataSource = util.IDataSource;
+import wrap = util.wrap;
+import toDataSource = util.toDataSource;
 import EventEmitter = events.EventEmitter;
 
 export interface IFilesystemExt extends FilesystemPlus {
@@ -199,6 +203,143 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         callback = this.wrapCallback(callback);
 
         this._fs.symlink(targetpath, linkpath);
+    }
+
+    upload(localPath: string, remotePath: string, callback?: (err: Error) => any): void {
+        callback = this.wrapCallback(callback);
+
+        var start = (source: IDataSource) => {
+            this._upload(source, remotePath, err => {
+                source.close(err2 => {
+                    err = err || err2;
+                    callback(err);
+                });
+            });
+        }
+
+        var source = toDataSource(localPath,(err, source) => wrap(err, callback,() => {
+            start(source);
+        }));
+
+        if (source) {
+            try {
+                start(source);
+            } catch (err) {
+                process.nextTick(() => {
+                    callback(err);
+                });
+            }
+        }
+    }
+
+    private _upload(source: IDataSource, remotePath: string, callback?: (err: Error) => any): void {
+
+        var sftp = this._fs;
+        var position = 0;
+        var handle = null;
+
+        var maxRequests = 4;
+        var requests = 0;
+        var chunkSize = 0x8000;
+        var eof = false;
+        var reading = false;
+        var closing = false;
+        var error: Error;
+
+        sftp.open(remotePath, "w",(err, h) => {
+            if (err) return callback(err);
+            handle = h;
+            source.ondata = chunk;
+            read();
+        });
+
+        function next(): void {
+            if (requests >= maxRequests)
+                return;
+
+            if (reading || closing)
+                return;
+
+            if (eof || error) {
+                if (handle) {
+                    close();
+                } else if (requests <= 0) {
+                    callback(error);
+                }
+                return;
+            }
+
+            read();
+        }
+
+        function read(): void {
+            console.log("read");
+            try {
+                requests++;
+                reading = true;
+                source.read(chunkSize);
+            } catch (err) {
+                error = error || err;
+                reading = false;
+                requests--;
+                next();
+            }
+        }
+
+        function chunk(err: Error, buffer: NodeBuffer, bytesRead: number) {
+            reading = false;
+
+            if (err) {
+                error = error || err;
+                requests--;
+            } else if (bytesRead > 0) {
+                write(buffer, bytesRead);
+            } else {
+                console.log("eof");
+                eof = true;
+                requests--;
+            }
+
+            next();
+        }
+
+        function write(buffer: NodeBuffer, bytesRead: number): void {
+            try {
+                var p = position;
+                console.log("write", p, bytesRead);
+                position += bytesRead;
+                sftp.write(handle, buffer, 0, bytesRead, p, err => {
+                    error = error || err;
+                    requests--;
+                    console.log("done");
+                    next();
+                });
+            } catch (err) {
+                error = error || err;
+                requests--;
+                next();
+            }
+
+            //TODO: progress reporting
+        }
+
+        function close(): void {
+            try {
+                closing = true;
+                sftp.close(handle, err => {
+                    error = error || err;
+                    closing = false;
+                    handle = null;
+                    next();
+                });
+            } catch (err) {
+                error = error || err;
+                closing = false;
+                handle = null;
+                next();
+            }
+        }
+
     }
 
 
