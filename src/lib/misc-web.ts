@@ -64,3 +64,44 @@ class EventEmitter {
         }
     }
 }
+
+class process {
+    static nextTick(callback: Function): void {
+        window.setTimeout(callback, 0);
+    }
+}
+
+class BlobDataSource {
+
+    private blob: Blob;
+    private pos: number;
+    private reader: FileReader;
+
+    constructor(blob: Blob, position: number) {
+        this.blob = blob;
+        this.pos = position;
+        this.reader = new FileReader();
+
+        this.reader.onload = (e: any) => {
+            var buffer = new Uint8Array(e.target.result);
+            this.ondata(null, buffer, buffer.length);
+        };
+    }
+
+    ondata: (err: Error, buffer: Uint8Array, bytesRead: number) => void;
+
+    read(bytesToRead: number): void {
+        var slice = this.blob.slice(this.pos, this.pos + bytesToRead);
+        this.pos += bytesToRead;
+        this.reader.readAsArrayBuffer(slice);
+    }
+
+    close(callback: (err: Error) => void): void {
+        callback(null);
+    }
+
+}
+
+function openBlobDataSource(blob: Blob, callback: (err: Error, source?: BlobDataSource) => void): BlobDataSource {
+    return new BlobDataSource(blob, 0);
+}
