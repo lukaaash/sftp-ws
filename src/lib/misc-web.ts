@@ -58,7 +58,6 @@ class EventEmitter {
         if (!Array.isArray(list))
             return;
 
-        args = Array.prototype.slice.call(args, 1);
         for (var i = 0; i < list.length; i++) {
             list[i].apply(this, args);
         }
