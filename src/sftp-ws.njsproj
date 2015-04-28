@@ -44,8 +44,8 @@
     <TypeScriptCompile Include="lib\fs-local.ts" />
     <TypeScriptCompile Include="lib\fs-plus.ts" />
     <TypeScriptCompile Include="lib\fs-safe.ts" />
-    <None Include="lib\misc-web.ts" />
     <TypeScriptCompile Include="lib\util-node.ts" />
+    <None Include="lib\util-web.ts" />
     <TypeScriptCompile Include="lib\util.ts" />
     <TypeScriptCompile Include="lib\sftp-client.ts" />
     <TypeScriptCompile Include="lib\sftp-enums.ts" />

@@ -22,7 +22,7 @@ var tsWeb = ts.createProject({
 
 var src = {
     lib: ['lib/*.ts', 'tests/*.ts','!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
-    lib_web: ['lib/misc-web.ts', 'lib/util.ts', 'lib/fs-api.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
+    lib_web: ['lib/util-web.ts', 'lib/util.ts', 'lib/fs-api.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
     pkg: ['package.json'],
 };
 

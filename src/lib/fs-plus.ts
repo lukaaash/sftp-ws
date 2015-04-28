@@ -1,6 +1,6 @@
 ﻿import api = require("./fs-api");
 import util = require("./util");
-import events = require("events"); //WEB: /// <reference path="misc-web.ts" />
+import events = require("events");
 
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
