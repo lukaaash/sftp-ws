@@ -75,11 +75,13 @@ class BlobDataSource {
     private blob: Blob;
     private pos: number;
     private reader: FileReader;
+    private finished: boolean;
 
     constructor(blob: Blob, position: number) {
         this.blob = blob;
         this.pos = position;
         this.reader = new FileReader();
+        this.finished = false;
 
         this.reader.onload = (e: any) => {
             var buffer = new Uint8Array(e.target.result);
@@ -87,20 +89,35 @@ class BlobDataSource {
         };
     }
 
+    name: string;
+
     ondata: (err: Error, buffer: Uint8Array, bytesRead: number) => void;
 
     read(bytesToRead: number): void {
         var slice = this.blob.slice(this.pos, this.pos + bytesToRead);
-        this.pos += bytesToRead;
+        this.pos += slice.size;
         this.reader.readAsArrayBuffer(slice);
     }
 
+    next(callback: (err: Error, finished: boolean) => void): void {
+        process.nextTick(() => {
+            var finished = this.finished;
+            this.finished = true;
+            callback(null, finished);
+        });
+    }
+
     close(callback: (err: Error) => void): void {
-        callback(null);
+        process.nextTick(() => {
+            this.finished = true;
+            callback(null);
+        });
     }
 
 }
 
-function openBlobDataSource(blob: Blob, callback: (err: Error, source?: BlobDataSource) => void): BlobDataSource {
-    return new BlobDataSource(blob, 0);
+function openBlobDataSource(blob: Blob, callback: (err: Error, source?: BlobDataSource) => void): void {
+    process.nextTick(() => {
+        callback(null, new BlobDataSource(blob, 0));
+    });
 }

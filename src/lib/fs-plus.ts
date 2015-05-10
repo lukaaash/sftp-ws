@@ -205,30 +205,45 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.symlink(targetpath, linkpath);
     }
 
-    upload(localPath: string, remotePath: string, callback?: (err: Error) => any): void {
+    upload(localPath: string|string[], remotePath: string, callback?: (err: Error) => any)
+    upload(input: any, remotePath: string, callback?: (err: Error) => any): void {
         callback = this.wrapCallback(callback);
 
-        var start = (source: IDataSource) => {
-            this._upload(source, remotePath, err => {
-                source.close(err2 => {
-                    err = err || err2;
-                    callback(err);
-                });
-            });
+        var _this = this;
+        var source = <IDataSource>null;
+
+        toDataSource(input,(err, src) => {
+            if (err) return callback(err);
+            source = src;
+            next();
+        });
+
+        function next() {
+            try {
+                source.next(upload);
+            } catch (err) {
+                callback(err);
+            }
         }
 
-        var source = toDataSource(localPath,(err, source) => wrap(err, callback,() => {
-            start(source);
-        }));
+        function upload(err: Error, finished: boolean) {
+            if (err || finished) return callback(err);
 
-        if (source) {
-            try {
-                start(source);
-            } catch (err) {
-                process.nextTick(() => {
-                    callback(err);
-                });
-            }
+            _this._upload(source, remotePath, err => {
+                if (err) {
+                    try {
+                        source.close(err2 => {
+                            //TODO: log err2
+                            callback(err);
+                        });
+                    } catch (err2) {
+                        //TODO: log err2
+                        callback(err);
+                    }
+                } else {
+                    next();
+                }
+            });
         }
     }
 
@@ -244,14 +259,24 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         var eof = false;
         var reading = false;
         var closing = false;
-        var error: Error;
+        var error = <Error>null;
 
-        sftp.open(remotePath, "w",(err, h) => {
-            if (err) return callback(err);
-            handle = h;
-            source.ondata = chunk;
-            read();
-        });
+        try {
+            if (remotePath.length > 0 && remotePath != '/') {
+                if (remotePath[remotePath.length - 1] != '/')
+                    remotePath += "/";
+            }
+            remotePath += source.name;
+
+            sftp.open(remotePath, "w",(err, h) => {
+                if (err) return callback(err);
+                handle = h;
+                source.ondata = chunk;
+                read();
+            });
+        } catch (err) {
+            return process.nextTick(() => callback(err));
+        }
 
         function next(): void {
             if (requests >= maxRequests)
@@ -286,7 +311,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             }
         }
 
-        function chunk(err: Error, buffer: NodeBuffer, bytesRead: number) {
+        function chunk(err: Error, buffer: NodeBuffer, bytesRead: number): void {
             reading = false;
 
             if (err) {

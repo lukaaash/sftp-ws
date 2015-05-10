@@ -1,20 +1,30 @@
 ﻿import fs = require("fs");
+import Path = require("path");
+import Stats = fs.Stats;
 
 class FileDataSource {
 
+    private localPath: string;
+    private stats: Stats;
     private fd: number;
     private pos: number;
     private buffers: NodeBuffer[];
 
-    constructor(fd: number, position: number) {
-        this.fd = fd;
+    constructor(localPath: string, stats: Stats, position: number) {
+        this.localPath = localPath;
+        this.stats = stats;
+        this.fd = null;
         this.pos = position;
         this.buffers = [];
     }
 
+    name: string;
+
     ondata: (err: Error, buffer: NodeBuffer, bytesRead: number) => void;
 
     read(bytesToRead: number): void {
+        if (this.fd == null)
+            throw new Error("Call next first");
 
         bytesToRead = Math.min(bytesToRead, 0x20000);
 
@@ -39,23 +49,40 @@ class FileDataSource {
         });
     }
 
+    next(callback: (err: Error, finished: boolean) => void): void {
+        if (this.fd == null) {
+            fs.open(this.localPath, "r",(err, fd) => {
+                if (err) return callback(err, true);
+
+                this.name = Path.basename(this.localPath);
+                this.fd = fd;
+                callback(null, false);
+            });
+        } else {
+            fs.close(this.fd, err => {
+                callback(err, true);
+            });
+        }
+    }
+
     close(callback: (err: Error) => void): void {
-        fs.close(this.fd, callback);
+        if (this.fd == null) {
+            process.nextTick(() => callback(null));
+        } else {
+            fs.close(this.fd, err => {
+                callback(err);
+            });
+        }
     }
 
 }
 
-export function openFileDataSource(localPath: string, callback: (err: Error, source?: FileDataSource) => void): FileDataSource {
+export function openFileDataSource(localPath: string, callback: (err: Error, source?: FileDataSource) => void): void {
 
     fs.stat(localPath,(err, stats) => {
         if (err) return callback(err);
         if (!stats.isFile()) return callback(new Error("Specified item is not a file"));
 
-        fs.open(localPath, "r", (err, fd) => {
-            if (err) return callback(err);
-            callback(null, new FileDataSource(fd, 0));
-        });
+        callback(null, new FileDataSource(localPath, stats, 0));
     });
-
-    return null;
 }
