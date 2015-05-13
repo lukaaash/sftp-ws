@@ -1,14 +1,15 @@
 ﻿import api = require("./fs-api");
 import misc = require("./fs-misc");
+import transfers = require("./fs-transfers");
 import util = require("./util");
 import events = require("events");
 
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
-import IDataSource = util.IDataSource;
+import IDataSource = transfers.IDataSource;
 import wrap = util.wrap;
-import toDataSource = util.toDataSource;
+import toDataSource = transfers.toDataSource;
 import EventEmitter = events.EventEmitter;
 import readdir = misc.readdir;
 
@@ -187,7 +188,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         var _this = this;
         var source = <IDataSource>null;
 
-        toDataSource(input,(err, src) => {
+        toDataSource(this._local, input,(err, src) => {
             if (err) return callback(err);
             source = src;
             next();
