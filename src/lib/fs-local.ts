@@ -27,7 +27,12 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
-        var mode = typeof attrs === 'object' ? attrs.mode : undefined;
+        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+            callback = <any>attrs;
+            attrs = null;
+        }
+
+        var mode = attrs ? attrs.mode : undefined;
         fs.open(path, flags, mode, (err, fd) => callback(err, fd));
         //LATER: pay attemtion to attrs other than mode (low priority - many SFTP servers ignore these as well)
     }
@@ -268,6 +273,11 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+            callback = <any>attrs;
+            attrs = null;
+        }
+
         var mode = typeof attrs === 'object' ? attrs.mode : undefined;
         fs.mkdir(path, mode, callback);
         //LATER: pay attemtion to attrs other than mode (low priority - many SFTP servers ignore these as well)
