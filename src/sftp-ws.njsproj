@@ -42,6 +42,7 @@
     <TypeScriptCompile Include="gulpfile.ts" />
     <TypeScriptCompile Include="lib\channel.ts" />
     <TypeScriptCompile Include="lib\fs-local.ts" />
+    <TypeScriptCompile Include="lib\fs-misc.ts" />
     <TypeScriptCompile Include="lib\fs-plus.ts" />
     <TypeScriptCompile Include="lib\fs-safe.ts" />
     <TypeScriptCompile Include="lib\util-node.ts" />

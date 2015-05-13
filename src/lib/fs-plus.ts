@@ -1,4 +1,5 @@
 ﻿import api = require("./fs-api");
+import misc = require("./fs-misc");
 import util = require("./util");
 import events = require("events");
 
@@ -9,6 +10,7 @@ import IDataSource = util.IDataSource;
 import wrap = util.wrap;
 import toDataSource = util.toDataSource;
 import EventEmitter = events.EventEmitter;
+import readdir = misc.readdir;
 
 export interface IFilesystemExt extends FilesystemPlus {
 }
@@ -115,44 +117,15 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.opendir(path, callback);
     }
 
-    readdir(path: string, callback?: (err: Error, items: IItem[]|boolean) => any)
-    readdir(handle: any, callback?: (err: Error, items: IItem[]) => any): void {
+    readdir(path: string, callback?: (err: Error, items: IItem[]) => any)
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any)
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
         callback = this.wrapCallback(callback);
 
         if (typeof handle !== 'string')
             return this._fs.readdir(handle, callback);
 
-        var path = <string>handle;
-        var list: IItem[] = [];
-
-        var next = (err, items: IItem[]|boolean) => {
-
-            if (err != null) {
-                this.close(handle);
-                callback(err, list);
-                return;
-            }
-
-            if (items === false) {
-                this.close(handle, err => {
-                    callback(err, list);
-                });
-                return;
-            }
-
-            list = list.concat(<IItem[]>items);
-            this._fs.readdir(handle, next);
-        };
-
-        this.opendir(path,(err, h) => {
-            if (err != null) {
-                callback(err, null);
-                return;
-            }
-
-            handle = h;
-            next(null, []);
-        });
+        readdir(this._fs, <string>handle, callback);
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
