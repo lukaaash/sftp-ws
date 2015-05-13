@@ -480,14 +480,14 @@ class SftpClientCore implements ISession, IFilesystem {
 
 export class SftpClient extends FilesystemPlus {
 
-    constructor(ws: any, log?: ILogWriter) {
+    constructor(ws: any, local: IFilesystem, log?: ILogWriter) {
 
         log = toLogWriter(log);
 
         var sftp = new SftpClientCore();
         var channel = new Channel(sftp, ws, log);
-        
-        super(sftp);
+
+        super(sftp, local);
 
         channel.once("open",() => {
             sftp._init(channel, err => {

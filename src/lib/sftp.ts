@@ -62,8 +62,10 @@ module SFTP {
                 options.protocol = 'sftp';
             }
 
+            var fsl = new local.LocalFilesystem();
+
             var ws = new WebSocket(address, options);
-            super(ws, options.log);
+            super(ws, fsl, options.log);
         }
     }
 

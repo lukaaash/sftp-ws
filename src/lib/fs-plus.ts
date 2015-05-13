@@ -16,10 +16,12 @@ export interface IFilesystemExt extends FilesystemPlus {
 export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
     protected _fs: IFilesystem;
+    protected _local: IFilesystem;
 
-    constructor(fs: IFilesystem) {
+    constructor(fs: IFilesystem, local: IFilesystem) {
         super();
         this._fs = fs;
+        this._local = local;
     }
 
     private wrapCallback(callback: any): any {

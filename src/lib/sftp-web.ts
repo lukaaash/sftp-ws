@@ -25,6 +25,6 @@ export class Client extends SftpClient {
         var ws = new WebSocket(address, protocols);
         ws.binaryType = "arraybuffer";
 
-        super(ws, options.log);
+        super(ws, null, options.log);
     }
 }
