@@ -446,9 +446,8 @@ class SftpClientCore implements ISession, IFilesystem {
         length = data.length;
 
         data.copy(buffer, offset, 0, length); //WEB: buffer.set(data, offset);
-        var view = buffer.slice(offset, offset + length); //WEB: var view = buffer.subarray(offset, offset + length); 
 
-        callback(null, length, view); //TODO: make sure that this corresponds to the behavior of fs.read
+        callback(null, length, buffer);
     }
 
     private parseItems(response: SftpPacketReader, callback?: (err: Error, items: IItem[]|boolean) => any): void {

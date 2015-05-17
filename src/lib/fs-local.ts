@@ -76,7 +76,7 @@ export class LocalFilesystem implements IFilesystem {
                 }
 
                 if (typeof callback === 'function')
-                    callback(err, totalBytes, buffer.slice(initialOffset, initialOffset + totalBytes));
+                    callback(err, totalBytes, buffer);
             });
         };
 
