@@ -312,11 +312,11 @@ class SftpClientCore implements ISession, IFilesystem {
     }
 
     private toHandle(handle: { _handle: NodeBuffer; _this: SftpClientCore }): NodeBuffer {
-        if (typeof handle === 'object') {
+        if (!handle) {
+            throw new Error("Missing handle");
+        } else if (typeof handle === 'object') {
             if (SftpPacket.isBuffer(handle._handle) && handle._this == this)
                 return handle._handle;
-        } else if (handle == null || typeof handle === 'undefined') {
-            throw new Error("Missing handle");
         }
 
         throw new Error("Invalid handle");
