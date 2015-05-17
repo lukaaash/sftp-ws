@@ -4,12 +4,11 @@ import misc = require("./fs-misc");
 import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
-import isFile = misc.isFile;
-import isDirectory = misc.isDirectory;
-import readdir = misc.readdir;
+import FileUtil = misc.FileUtil;
 
 interface IItemExt extends IItem {
-    path?: string;
+    path: string;
+    relativePath: string;
 }
 
 interface IDirInfo {
@@ -19,10 +18,14 @@ interface IDirInfo {
 
 export function search(fs: IFilesystem, path: string, callback: (err: Error, items?: IItemExt[]) => void): void {
 
+    if (path.length == 0)
+        throw new Error("Empty path");
+
     // on windows, normalize backslashes
     var windows = process.platform == "win32";
-    if (windows)
+    if (windows) {
         path = path.replace(/\\/g, "/");
+    }
 
     // append a wildcard to slash-ended paths
     if (path[path.length - 1] == '/') path += "*";
@@ -45,7 +48,10 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
         // wildcard present -> split the path into base path and mask
         w = path.lastIndexOf('/', w);
         var mask = path.substr(w + 1);
-        path = path.substr(0, w);
+        if (w >= 0)
+            path = path.substr(0, w);
+        else
+            path = ".";
 
         // start matching
         start(path, mask);
@@ -55,15 +61,21 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
             if (err) return callback(err, null);
 
             try {
-                if (isDirectory(stats)) {
+                if (FileUtil.isDirectory(stats)) {
                     // if it's a directory, start matching
                     start(path, "*");
                 } else {
-                    if (isFile(stats)) {
+                    if (FileUtil.isFile(stats)) {
                         // if it's a file, add it to the results
                         w = path.lastIndexOf('/');
-                        var name = (w < 0) ? path : path.substr(0, w + 1);
-                        results.push({ filename: name, path: path, stats: stats });
+                        var name;
+                        if (w < 0) {
+                            name = path;
+                            path = "./" + name;
+                        } else {
+                            name = path.substr(w + 1);
+                        }
+                        results.push({ filename: name, path: path, relativePath: name, stats: stats });
                     }
 
                     // and we are done
@@ -143,13 +155,13 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
         }
 
         // list directory and process its items
-        readdir(fs, basePath + path,(err, items) => {
+        FileUtil.readdir(fs, basePath + path,(err, items) => {
             if (err) return callback(err, null);
 
             try {
-                items.forEach(item => {
-                    var matchDir = matchDirs && (isDirectory(item.stats));
-                    var matchFile = matchFiles && (isFile(item.stats));
+                (<IItemExt[]>items).forEach(item => {
+                    var matchDir = matchDirs && (FileUtil.isDirectory(item.stats));
+                    var matchFile = matchFiles && (FileUtil.isFile(item.stats));
                     if (!matchFile && !matchDir)
                         return;
 
@@ -169,7 +181,8 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
 
                     if (matchFile) {
                         // add matched file to the list
-                        (<IItemExt>item).path = itemPath;
+                        item.path = basePath + itemPath;
+                        item.relativePath = itemPath.substr(1);
                         results.push(item);
                     } else if (matchDir) {
                         // add matched directory to queue
