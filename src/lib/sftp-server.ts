@@ -201,7 +201,7 @@ export class SftpServerSessionCore implements ISession {
             var error = new SftpException(err);
             code = error.code;
             message = error.message;
-            this._log.log("Unable to process request #" + response.id + ": " + message);
+            this._log.log("Unable to process request #" + response.id + ": " + err);
         } else {
             code = SftpStatusCode.FAILURE;
             message = "Internal server error";
@@ -300,6 +300,10 @@ export class SftpServerSessionCore implements ISession {
 
     private deleteHandleInfo(handleInfo: SftpHandleInfo): void {
         var h = handleInfo.h;
+        if (h < 0)
+            return;
+
+        handleInfo.h = -1;
         var handleInfo = this._handles[h];
         if (typeof handleInfo !== 'object')
             throw new Error("Handle not found");
@@ -369,13 +373,18 @@ export class SftpServerSessionCore implements ISession {
             handleInfo.locked = true;
             this.processRequest(request, response, handleInfo);
         } else {
-            handleInfo.tasks.push(() => this.processRequest(request, response, handleInfo));
+            handleInfo.tasks.push(() => {
+                if (handleInfo.h < 0)
+                    this.sendStatus(response, SftpStatusCode.FAILURE, "Invalid handle");
+                else
+                    this.processRequest(request, response, handleInfo);
+            });
         }
     }
 
     private processNext(handleInfo: SftpHandleInfo) {
         if (handleInfo.tasks.length > 0) {
-            var task = handleInfo.tasks.pop();
+            var task = handleInfo.tasks.shift();
             task();
         } else {
             handleInfo.locked = false;
