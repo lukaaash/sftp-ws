@@ -149,16 +149,6 @@ class SftpPacketReader extends SftpPacket {
         this.position = end;
     }
 
-    readDadta(clone: boolean): Uint8Array {
-        var length = this.readInt32();
-        this.check(length);
-
-        var start = this.position;
-        var end = start + length;
-        this.position = end;
-        return this.buffer.subarray(start, end);
-    }
-
     readData(clone: boolean): Uint8Array {
         var length = this.readInt32();
         this.check(length);
