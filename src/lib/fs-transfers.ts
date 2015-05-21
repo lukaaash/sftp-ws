@@ -353,9 +353,6 @@ export class FileDataSource extends DataSource {
     }
 
     read(): NodeBuffer {
-        if (this.queue.length == 0)
-            return null;
-
         var chunk = this.queue[0];
         if (chunk && chunk.position == this.expectedPosition) {
             this.expectedPosition += chunk.length;
