@@ -7,11 +7,13 @@ import events = require("events");
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
-import IDataSource = transfers.IDataSource;
-import wrap = util.wrap;
+import DataSource = misc.DataSource;
+import DataTarget = misc.DataTarget;
+import FileUtil = misc.FileUtil;
+import FileDataTarget = transfers.FileDataTarget;
 import toDataSource = transfers.toDataSource;
+import wrap = util.wrap;
 import EventEmitter = events.EventEmitter;
-import readdir = misc.readdir;
 
 export interface IFilesystemExt extends FilesystemPlus {
 }
@@ -126,7 +128,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         if (typeof handle !== 'string')
             return this._fs.readdir(handle, callback);
 
-        readdir(this._fs, <string>handle, callback);
+        FileUtil.readdir(this._fs, <string>handle, callback);
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
@@ -181,167 +183,104 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.symlink(targetpath, linkpath);
     }
 
-    upload(localPath: string|string[], remotePath: string, callback?: (err: Error) => any)
+    upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
+    upload(input: any, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
-
-        var _this = this;
-        var source = <IDataSource>null;
-
-        toDataSource(this._local, input,(err, src) => {
-            if (err) return callback(err);
-            source = src;
-            next();
-        });
-
-        function next() {
-            try {
-                source.next(upload);
-            } catch (err) {
-                callback(err);
-            }
-        }
-
-        function upload(err: Error, finished: boolean) {
-            if (err || finished) return callback(err);
-
-            _this._upload(source, remotePath, err => {
-                if (err) {
-                    try {
-                        source.close(err2 => {
-                            //TODO: log err2
-                            callback(err);
-                        });
-                    } catch (err2) {
-                        //TODO: log err2
-                        callback(err);
-                    }
-                } else {
-                    next();
-                }
-            });
-        }
+        this._copy(input, this._local, remotePath, this._fs, callback);
     }
 
-    private _upload(source: IDataSource, remotePath: string, callback?: (err: Error) => any): void {
+    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): void {
+        this._copy(remotePath, this._fs, localPath, this._local, callback);
+    }
 
-        var sftp = this._fs;
-        var position = 0;
-        var handle = null;
+    private _copy(from: any, fromFs: IFilesystem, toPath: string, toFs: IFilesystem, callback?: (err: Error) => any): void {
+        callback = this.wrapCallback(callback);
 
-        var maxRequests = 4;
-        var requests = 0;
-        var chunkSize = 0x8000;
-        var eof = false;
-        var reading = false;
-        var closing = false;
-        var error = <Error>null;
+        var sources = <DataSource[]>null;
 
-        try {
-            if (remotePath.length > 0 && remotePath != '/') {
-                if (remotePath[remotePath.length - 1] != '/')
-                    remotePath += "/";
-            }
-            remotePath += source.name;
+        toPath = FileUtil.normalize(toPath, (<any>toFs).isWindows == true);
 
-            sftp.open(remotePath, "w",(err, h) => {
+        toFs.stat(toPath, prepare);
+
+        var directories = {};
+
+        function prepare(err: Error, stats: IStats): void {
+            if (err) return callback(err);
+
+            if (!FileUtil.isDirectory(stats))
+                return callback(new Error("Target path is not a directory"));
+
+            toDataSource(fromFs, from,(err, src) => {
                 if (err) return callback(err);
-                handle = h;
-                source.ondata = chunk;
-                read();
+
+                sources = src;
+
+                sources.forEach(source => {
+                    //TODO: calculate total size
+                    //TODO: make sure that source.name is valid on target fs
+                    //console.log("TODO:", source.name);
+                });
+
+                next();
             });
-        } catch (err) {
-            return process.nextTick(() => callback(err));
         }
 
         function next(): void {
-            if (requests >= maxRequests)
-                return;
+            var source = sources.shift();
+            if (!source) return callback(null);
 
-            if (reading || closing)
-                return;
+            checkParent(source.name, err => {
+                if (err) return callback(err);
 
-            if (eof || error) {
-                if (handle) {
-                    close();
-                } else if (requests <= 0) {
-                    callback(error);
+                var target = new FileDataTarget(toFs, toPath + source.name);
+
+                console.log(source.name, source.length);
+
+                FileUtil.copy(source, target, err => {
+                    if (err) return callback(err);
+                    console.log("-----------------------");
+                    next();
+                });
+            });
+        }
+
+        function checkParent(path: string, callback: (err: Error) => void) {
+            var parent = FileUtil.getDirectoryName(path);
+            if (parent.length == 0 || parent == "/") return callback(null);
+
+            var exists = directories[parent];
+            if (exists) return callback(null);
+
+            checkParent(parent, err => {
+                if (err) return callback(err);
+
+                try {
+                    toFs.stat(toPath + parent,(err, stats) => {
+                        if (!err) {
+                            if (FileUtil.isDirectory(stats)) {
+                                directories[parent] = true;
+                                return callback(null);
+                            }
+                            return callback(new Error("Path is not a directory"));
+                        }
+
+                        if ((<any>err).code != "ENOENT") return callback(err);
+
+                        try {
+                            toFs.mkdir(toPath + parent, null, err => {
+                                if (err) return callback(err);
+                                directories[parent] = true;
+                                callback(null);
+                            });
+                        } catch (err) {
+                            callback(err);
+                        }
+                    });
+                } catch (err) {
+                    callback(err);
                 }
-                return;
-            }
-
-            read();
+            });
         }
-
-        function read(): void {
-            console.log("read");
-            try {
-                requests++;
-                reading = true;
-                source.read(chunkSize);
-            } catch (err) {
-                error = error || err;
-                reading = false;
-                requests--;
-                next();
-            }
-        }
-
-        function chunk(err: Error, buffer: NodeBuffer, bytesRead: number): void {
-            reading = false;
-
-            if (err) {
-                error = error || err;
-                requests--;
-            } else if (bytesRead > 0) {
-                write(buffer, bytesRead);
-            } else {
-                console.log("eof");
-                eof = true;
-                requests--;
-            }
-
-            next();
-        }
-
-        function write(buffer: NodeBuffer, bytesRead: number): void {
-            try {
-                var p = position;
-                console.log("write", p, bytesRead);
-                position += bytesRead;
-                sftp.write(handle, buffer, 0, bytesRead, p, err => {
-                    error = error || err;
-                    requests--;
-                    console.log("done");
-                    next();
-                });
-            } catch (err) {
-                error = error || err;
-                requests--;
-                next();
-            }
-
-            //TODO: progress reporting
-        }
-
-        function close(): void {
-            try {
-                closing = true;
-                sftp.close(handle, err => {
-                    error = error || err;
-                    closing = false;
-                    handle = null;
-                    next();
-                });
-            } catch (err) {
-                error = error || err;
-                closing = false;
-                handle = null;
-                next();
-            }
-        }
-
     }
-
 
 }
