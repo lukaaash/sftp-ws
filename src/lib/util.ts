@@ -1,4 +1,5 @@
-﻿
+﻿/// <reference path="../typings/node/node.d.ts" />
+
 export interface ILogWriter {
     info(message?: any, ...optionalParams: any[]): void;
     warn(message?: any, ...optionalParams: any[]): void;
