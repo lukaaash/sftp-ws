@@ -92,58 +92,58 @@ class SftpException implements Error {
                 break;
             case 24: // ENFILE
                 message = "File table overflow";
-                break
+                break;
             case 25: // ENOBUFS
                 message = "No buffer space available";
-                break
+                break;
             case 26: // ENOMEM
                 message = "Out of memory";
-                break
+                break;
             case 27: // ENOTDIR
                 message = "Not a directory";
-                break
+                break;
             case 28: // EISDIR
                 message = "Is a directory";
-                break
+                break;
             case 34: // ENOENT
                 message = "No such file or directory";
                 code = SftpStatusCode.NO_SUCH_FILE;
-                break
+                break;
             case 35: // ENOSYS
                 message = "Function not implemented";
                 code = SftpStatusCode.OP_UNSUPPORTED;
                 break;
             case 47: // EEXIST
                 message = "File exists";
-                break
+                break;
             case 49: // ENAMETOOLONG
                 message = "File name too long";
-                break
+                break;
             case 50: // EPERM
                 message = "Operation not permitted";
-                break
+                break;
             case 51: // ELOOP
                 message = "Too many symbolic links encountered";
-                break
+                break;
             case 52: // EXDEV
                 message = "Cross-device link";
-                break
+                break;
             case 53: // ENOTEMPTY
                 message = "Directory not empty";
-                break
+                break;
             case 54: // ENOSPC
                 message = "No space left on device";
-                break
+                break;
             case 55: // EIO
                 message = "I/O error";
-                break
+                break;
             case 56: // EROFS
                 message = "Read-only file system";
-                break
+                break;
             case 57: // ENODEV
                 message = "No such device";
                 code = SftpStatusCode.NO_SUCH_FILE;
-                break
+                break;
             case 58: // ESPIPE
                 message = "Illegal seek";
                 break;
