@@ -212,7 +212,7 @@ class SftpClientCore implements ISession, IFilesystem {
         request.writeInt64(position);
         request.writeInt32(length);
 
-        this.execute(request, callback,(response, cb) => this.parseData(response, callback, h, buffer, offset, length, position), { command: "read", handle: handle });
+        this.execute(request, callback,(response, cb) => this.parseData(response, callback, 0, h, buffer, offset, length, position), { command: "read", handle: handle });
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
@@ -408,6 +408,11 @@ class SftpClientCore implements ISession, IFilesystem {
         if (nativeCode == SftpStatusCode.OK)
             return null;
 
+        var info = response.info;
+        return this.createError(nativeCode, message, info);
+    }
+
+    private createError(nativeCode: number, message: string, info: SftpCommandInfo) {
         var code;
         var errno;
         switch (nativeCode) {
@@ -437,7 +442,6 @@ class SftpClientCore implements ISession, IFilesystem {
                 break;
         }
 
-        var info = response.info;
         var command = info.command;
         var arg = info.path || info.handle;
         if (typeof arg === "string")
@@ -515,8 +519,17 @@ class SftpClientCore implements ISession, IFilesystem {
         callback(null, path);
     }
 
-    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, h: NodeBuffer, buffer: NodeBuffer, offset: number, length: number, position: number): void {
-        if (!this.checkResponse(response, SftpPacketType.DATA, callback))
+    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, retries: number, h: NodeBuffer, buffer: NodeBuffer, offset: number, length: number, position: number): void {
+        if (response.type == SftpPacketType.STATUS) {
+            var error = this.readStatus(response);
+            if (error != null) {
+                if (error['nativeCode'] == SftpStatusCode.EOF)
+                    callback(null, 0, buffer);
+                else
+                    callback(error, 0, null);
+                return;
+            }
+        }
 
         var data = response.readData(false);
 
@@ -524,6 +537,26 @@ class SftpClientCore implements ISession, IFilesystem {
             throw new Error("Received too much data");
 
         length = data.length;
+        if (length == 0) {
+            // workaround for broken servers such as Globalscape 7.1.x that occasionally send empty data
+
+            if (retries > 4) {
+                var error = this.createError(SftpStatusCode.FAILURE, "Unable to read data", response.info);
+                error['code'] = "EIO";
+                error['errno'] = 55;
+
+                callback(error, 0, null);
+                return;
+            }
+
+            var request = this.getRequest(SftpPacketType.READ);
+            request.writeData(h);
+            request.writeInt64(position);
+            request.writeInt32(length);
+
+            this.execute(request, callback,(response, cb) => this.parseData(response, callback, retries + 1, h, buffer, offset, length, position), response.info);
+            return;
+        }
 
         data.copy(buffer, offset, 0, length); //WEB: buffer.set(data, offset);
 

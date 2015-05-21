@@ -476,6 +476,11 @@ export class SftpServerSessionCore implements ISession {
                         if (this.sendIfError(response, err))
                             return;
 
+                        if (bytesRead == 0) {
+                            this.sendStatus(response, SftpStatusCode.EOF, "EOF");
+                            return;
+                        }
+
                         response.writeInt32(bytesRead);
                         response.skip(bytesRead);
                         this.send(response);
