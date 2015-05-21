@@ -294,7 +294,12 @@ describe("Basic Tests", function () {
                         var body2 = buffer.toString();
                         assert.equal(body2, "9876543210" + "abc" + "12233445566778899" + "ABCDE", "File content mismatch");
 
-                        client.close(handle, done);
+                        client.read(handle, buffer, 0, 10, 1000,(err, bytesRead, buf) => check(err, done,() => {
+                            assert.equal(buf, buffer, "Buffer mismatch");
+                            assert.equal(bytesRead, 0, "Unexpected bytesRead");
+
+                            client.close(handle, done);
+                        }));
                     }));
                 }));
             }));
