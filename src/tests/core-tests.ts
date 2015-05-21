@@ -67,7 +67,7 @@ function check(err: Error, done: Function, cb: Function) {
     }
 }
 
-function error(err: Error, done: Function, expectedCode: number, expectedDescription?: string) {
+function error(err: Error, done: Function, expectedCode: string, expectedDescription?: string) {
     try {
         assert.ok(err, "Error expected");
 
@@ -137,7 +137,7 @@ describe("Basic Tests", function () {
 
     it("realpath(no-path)", done => {
         var name = "dir000/subdir";
-        client.realpath(name,(err) => error(err, done, 2, wrongPath));
+        client.realpath(name,(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("realpath(path)", done => {
@@ -149,7 +149,7 @@ describe("Basic Tests", function () {
 
     it("mkdir(no-path)", done => {
         var name = "dir000/subdir";
-        client.mkdir(name,(err) => error(err, done, 2, wrongPath));
+        client.mkdir(name,(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("mkdir(path)", done => {
@@ -164,7 +164,7 @@ describe("Basic Tests", function () {
     it("rmdir(no-path)", done => {
         var name = "dir000";
 
-        client.rmdir(name,(err) => error(err, done, 2, wrongPath));
+        client.rmdir(name,(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rmdir(path)", done => {
@@ -181,7 +181,7 @@ describe("Basic Tests", function () {
     it("opendir(no-path)", done => {
         var name = "dir000";
 
-        client.opendir(name,(err, handle) => error(err, done, 2, wrongPath));
+        client.opendir(name,(err, handle) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("opendir(path)/readdir/close", done => {
@@ -223,7 +223,7 @@ describe("Basic Tests", function () {
         var name1 = "dir000/file.txt";
         var name2 = "file011.txt";
 
-        client.rename(name1, name2,(err) => error(err, done, 2, wrongPath));
+        client.rename(name1, name2,(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rename(path1, no-path)", done => {
@@ -233,7 +233,7 @@ describe("Basic Tests", function () {
 
         fs.writeFileSync(Path.join(tmp, name1), body);
 
-        client.rename(name1, name2,(err) => error(err, done, 2, wrongPath));
+        client.rename(name1, name2,(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rename(path1, path2)", done => {
@@ -255,7 +255,7 @@ describe("Basic Tests", function () {
     it("unlink(no-path)", done => {
         var name = "file013.txt";
 
-        client.unlink(name,(err) => error(err, done, 2, wrongPath));
+        client.unlink(name,(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("unlink(path)", done => {
@@ -273,7 +273,7 @@ describe("Basic Tests", function () {
     it("open(no-path, 'r+')", done => {
         var name = "file015.txt";
 
-        client.open(name, "r+", (err, handle) => error(err, done, 2, wrongPath));
+        client.open(name, "r+",(err, handle) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("open(path, 'r+')/read/close", done => {
@@ -364,7 +364,7 @@ describe("Basic Tests", function () {
     it("stat(no-path)", done => {
         var name = "dir000/file.txt";
 
-        client.stat(name, (err, attrs) => error(err, done, 2, wrongPath));
+        client.stat(name,(err, attrs) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("stat(path)", done => {
@@ -383,7 +383,7 @@ describe("Basic Tests", function () {
     it("lstat(no-path)", done => {
         var name = "dir000/file.txt";
 
-        client.lstat(name,(err, attrs) => error(err, done, 2, wrongPath));
+        client.lstat(name,(err, attrs) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("lstat(path)", done => {
@@ -406,7 +406,7 @@ describe("Basic Tests", function () {
 
             client.close(handle, err => check(err, done,() => {
 
-                client.fstat(handle,(err, attrs) => error(err, done, 4, "Invalid handle"));
+                client.fstat(handle,(err, attrs) => error(err, done, 'EFAILURE', "Invalid handle"));
             }));
         }));
     });
@@ -430,7 +430,7 @@ describe("Basic Tests", function () {
     it("setstat(no-path)", done => {
         var name = "dir000/file.txt";
 
-        client.setstat(name, { size: 12 },(err) => error(err, done, 2, wrongPath));
+        client.setstat(name, { size: 12 },(err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("setstat(path)", done => {
