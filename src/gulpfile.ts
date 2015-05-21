@@ -22,7 +22,7 @@ var tsWeb = ts.createProject({
 
 var src = {
     lib: ['lib/*.ts', 'tests/*.ts','!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
-    lib_web: ['lib/util-web.ts', 'lib/util.ts', 'lib/fs-api.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
+    lib_web: ['lib/util-web.ts', 'lib/util.ts', 'lib/fs-api.ts', 'lib/fs-misc.ts', 'lib/fs-glob.ts', 'lib/fs-transfers.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet-web.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
     pkg: ['package.json'],
 };
 
@@ -52,12 +52,12 @@ gulp.task('web.ts', () => {
         //.pipe(replace(/import (.*) = require\(\"\.\/(.*)\"\);.*\r?\n/g, '/// <reference path="$2.ts" />\r\n'))
         .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\r?\n/g, ''))
         .pipe(replace(/import (.*) = (.*);.*\r?\n/g, ''))
+        .pipe(replace(/\/\/\/(.*).*\r?\n/g, ''))
         .pipe(replace(/export const/g, 'const'))
         .pipe(replace(/export class/g, 'class'))
         .pipe(replace(/export interface/g, 'interface'))
         .pipe(replace(/export function/g, 'function'))
         .pipe(replace(/^(\s*)(.*)WEB\: /gm, '$1'))
-        .pipe(replace(/NodeBuffer/g, 'Uint8Array'))
         .pipe(concat('sftp.ts'))
         .pipe(replace(/class Client /g, 'export class Client '))
         .pipe(replace(/^/g, 'module SFTP {'))

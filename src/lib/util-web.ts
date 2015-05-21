@@ -10,6 +10,9 @@ interface ErrnoException extends Error {
     errno?: number;
 }
 
+type NodeBuffer = Uint8Array;
+var Buffer = Uint8Array;
+
 class EventEmitter {
     constructor() {
         this._events = {};
@@ -26,6 +29,15 @@ class EventEmitter {
 
     on(event: string, listener: Function): EventEmitter {
         return this.addListener(event, listener);
+    }
+
+    once(event: string, listener: Function): EventEmitter {
+        var wrapper = (...args: any[]) => {
+            this.removeListener(event, wrapper);
+            listener.apply(this, args);
+        }
+
+        return this.addListener(event, wrapper);
     }
 
     removeListener(event: string, listener: Function): EventEmitter {
@@ -68,6 +80,8 @@ class process {
     static nextTick(callback: Function): void {
         window.setTimeout(callback, 0);
     }
+
+    static platform = "browser";
 }
 
 class BlobDataSource {

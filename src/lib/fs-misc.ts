@@ -151,8 +151,7 @@ export class FileUtil {
             eof = true;
 
             // if the source file was empty, 'send' at least one empty block to make sure the file is created
-            if (total == 0)
-                target.write(new Buffer(0)); // WEB: target.write(new UInt8Array(0));
+            if (total == 0) target.write(new Buffer(0));
             target.end();
         });
 
