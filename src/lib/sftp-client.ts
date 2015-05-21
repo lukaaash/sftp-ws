@@ -41,6 +41,27 @@ interface SftpCommandInfo extends Object {
     handle?: any;
 }
 
+class SftpHandle {
+    _handle: NodeBuffer;
+    _this: SftpClientCore;
+
+    constructor(handle: NodeBuffer, owner: SftpClientCore) {
+        this._handle = handle;
+        this._this = owner;
+    }
+
+    toString(): string {
+        var value = "0x";
+        for (var i = 0; i < this._handle.length; i++) {
+            var b = this._handle[i];
+            var c = b.toString(16);
+            if (b < 16) value += "0";
+            value += c;
+        }
+        return value;
+    }
+}
+
 class SftpClientCore implements ISession, IFilesystem {
 
     private _host: ISessionHost
@@ -167,17 +188,17 @@ class SftpClientCore implements ISession, IFilesystem {
     }
 
     close(handle: any, callback?: (err: Error) => any): void {
-        handle = this.toHandle(handle);
+        var h = this.toHandle(handle);
 
         var request = this.getRequest(SftpPacketType.CLOSE);
 
-        request.writeData(handle);
+        request.writeData(h);
 
         this.execute(request, callback, this.parseStatus, { command: "close", handle: handle });
     }
 
     read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
-        handle = this.toHandle(handle);
+        var h = this.toHandle(handle);
         this.checkBuffer(buffer, offset, length);
         this.checkPosition(position);
 
@@ -187,15 +208,15 @@ class SftpClientCore implements ISession, IFilesystem {
 
         var request = this.getRequest(SftpPacketType.READ);
         
-        request.writeData(handle);
+        request.writeData(h);
         request.writeInt64(position);
         request.writeInt32(length);
 
-        this.execute(request, callback,(response, cb) => this.parseData(response, <any>cb, handle, buffer, offset, length, position), { command: "read", handle: handle });
+        this.execute(request, callback,(response, cb) => this.parseData(response, callback, h, buffer, offset, length, position), { command: "read", handle: handle });
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
-        handle = this.toHandle(handle);
+        var h = this.toHandle(handle);
         this.checkBuffer(buffer, offset, length);
         this.checkPosition(position);
 
@@ -204,7 +225,7 @@ class SftpClientCore implements ISession, IFilesystem {
 
         var request = this.getRequest(SftpPacketType.WRITE);
         
-        request.writeData(handle);
+        request.writeData(h);
         request.writeInt64(position);
         request.writeData(buffer, offset, offset + length);
 
@@ -218,11 +239,11 @@ class SftpClientCore implements ISession, IFilesystem {
     }
 
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
-        handle = this.toHandle(handle);
+        var h = this.toHandle(handle);
 
         var request = this.getRequest(SftpPacketType.FSTAT);
 
-        request.writeData(handle);
+        request.writeData(h);
 
         this.execute(request, callback, this.parseAttribs, { command: "fstat", handle: handle });
     }
@@ -239,11 +260,11 @@ class SftpClientCore implements ISession, IFilesystem {
     }
 
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
-        handle = this.toHandle(handle);
+        var h = this.toHandle(handle);
 
         var request = this.getRequest(SftpPacketType.FSETSTAT);
 
-        request.writeData(handle);
+        request.writeData(h);
         this.writeStats(request, attrs);
 
         this.execute(request, callback, this.parseStatus, { command: "fsetstat", handle: handle });
@@ -256,11 +277,11 @@ class SftpClientCore implements ISession, IFilesystem {
     }
 
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
-        handle = this.toHandle(handle);
+        var h = this.toHandle(handle);
 
         var request = this.getRequest(SftpPacketType.READDIR);
 
-        request.writeData(handle);
+        request.writeData(h);
 
         this.execute(request, callback, this.parseItems, { command: "readdir", handle: handle });
     }
@@ -478,7 +499,7 @@ class SftpClientCore implements ISession, IFilesystem {
 
         var handle = response.readData(true);
 
-        callback(null, { _handle: handle, _this: this });
+        callback(null, new SftpHandle(handle, this));
     }
 
     private parsePath(response: SftpResponse, callback?: (err: Error, path?: string) => any): void {
@@ -494,7 +515,7 @@ class SftpClientCore implements ISession, IFilesystem {
         callback(null, path);
     }
 
-    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, handle: any, buffer: NodeBuffer, offset: number, length: number, position: number): void {
+    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, h: NodeBuffer, buffer: NodeBuffer, offset: number, length: number, position: number): void {
         if (!this.checkResponse(response, SftpPacketType.DATA, callback))
 
         var data = response.readData(false);
