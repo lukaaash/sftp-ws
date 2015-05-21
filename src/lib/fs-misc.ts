@@ -89,6 +89,12 @@ export class FileUtil {
         return path.substr(0, n);
     }
 
+    static normalize(path: string, isWindows: boolean): string {
+        // replace backslashes with slashes on Windows filesystems
+        if (isWindows) path = path.replace(/\\/g, "/");
+        return path;
+    }
+
     static addTrailingSlash(path: string): string {
         if (path.length > 0 && path[path.length - 1] != '/') path += "/";
         return path;

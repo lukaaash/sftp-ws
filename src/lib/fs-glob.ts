@@ -22,10 +22,8 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
         throw new Error("Empty path");
 
     // on windows, normalize backslashes
-    var windows = process.platform == "win32";
-    if (windows) {
-        path = path.replace(/\\/g, "/");
-    }
+    var windows = (<any>fs).isWindows == true;
+    path = FileUtil.normalize(path, windows);
 
     // append a wildcard to slash-ended paths
     if (path[path.length - 1] == '/') path += "*";
