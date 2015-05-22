@@ -400,6 +400,113 @@ export class FileDataSource extends DataSource {
     }
 }
 
+class BlobDataSource extends DataSource {
+    private blob: Blob;
+    private pos: number;
+    private reader: FileReader;
+    private busy: boolean;
+    private readable: boolean;
+    private finished: boolean;
+    private ended: boolean;
+    private queue: NodeBuffer[];
+
+    constructor(blob: Blob, position: number) {
+        super();
+        this.name = (<any>blob).name;
+        this.length = blob.size;
+        this.stats = {};
+
+        this.blob = blob;
+        this.pos = position;
+        this.reader = new FileReader();
+        this.busy = false;
+        this.readable = false;
+        this.finished = false;
+        this.ended = false;
+        this.queue = [];
+
+        this.reader.onload = (e: any) => {
+            this.busy = false;
+
+            if (!this.finished) {
+                var chunk = new Buffer(e.target.result);
+                if (chunk.length > 0) {
+                    this.queue.push(chunk);
+                    if (!this.readable) {
+                        this.readable = true;
+                        super.emit('readable');
+                    }
+                } else {
+                    this.finished = true;
+                }
+            }
+
+            this.flush();
+        };
+    }
+
+    protected flush(): void {
+        try {
+            if (this.finished) {
+                if (!this.ended) {
+                    this.ended = true;
+                    process.nextTick(() => super.emit('end'));
+                }
+
+                return;
+            }
+
+            if (!this.busy && this.queue.length < 4) {
+                var slice = this.blob.slice(this.pos, this.pos + 0x8000);
+                this.pos += slice.size;
+                this.busy = true;
+                this.reader.readAsArrayBuffer(slice);
+            }
+
+        } catch (err) {
+            this.finished = true;
+            this.ended = true;
+            this.queue = [];
+            process.nextTick(() => super.emit('error', err));
+        }
+    }
+
+    read(): NodeBuffer {
+        var chunk = this.queue.shift();
+        if (!chunk) {
+            chunk = null;
+            this.readable = false;
+        }
+        
+        this.flush();
+        return chunk;
+    }
+
+    close(): void {
+        this.finished = true;
+        this.flush();
+    }
+}
+
+function openBlobDataSource(blob: Blob, callback: (err: Error, source?: DataSource[]) => void): void {
+    process.nextTick(() => {
+        var source = <DataSource><any>new BlobDataSource(blob, 0);
+        callback(null, [source]);
+    });
+}
+
+
+function isFileBlob(input: any) {
+    return (typeof input === "object" && typeof input.size === "number" && typeof input.name === "string" && typeof input.slice == "function");
+}
+
+function isArray(input: any) {
+    if (Array.isArray(input)) return true;
+    if (typeof input !== "object" || typeof input.length !== "number") return false;
+    if (input.length == 0) return true;
+    return isFileBlob(input[0]);
+}
+
 function toArrayDataSource(fs: IFilesystem, input: any[], callback: (err: Error, source?: DataSource[]) => void): void {
     var source = <DataSource[]>[];
     var array = <any[]>[];
@@ -410,7 +517,7 @@ function toArrayDataSource(fs: IFilesystem, input: any[], callback: (err: Error,
         var item = array.shift();
         if (!item) return callback(null, source);
 
-        if (Array.isArray(item)) return process.nextTick(() => callback(new Error("Unsupported array of arrays data source")));
+        if (isArray(item)) return process.nextTick(() => callback(new Error("Unsupported array of arrays data source")));
 
         if (typeof item === "string")
             toPathDataSource(fs, <string>item, false, add);
@@ -462,13 +569,13 @@ function toPathDataSource(fs: IFilesystem, path: string, glob: boolean, callback
 export function toDataSource(fs: IFilesystem, input: any, callback: (err: Error, source?: DataSource[]) => void): void {
 
     // arrays
-    if (Array.isArray(input)) return toArrayDataSource(fs, <any[]>input, callback);
+    if (isArray(input)) return toArrayDataSource(fs, <any[]>input, callback);
 
     // string paths
     if (typeof input === "string") return toPathDataSource(fs, <string>input, true, callback);
 
-    //WEB: Blob objects
-    //WEB: if (typeof input === "object" && typeof input.size == "number" && typeof input.slice == "function") return openBlobDataSource(input, callback);
+    // Blob objects
+    if (isFileBlob(input)) return openBlobDataSource(input, callback);
 
     process.nextTick(() => callback(new Error("Unsupported data source")));
 }
