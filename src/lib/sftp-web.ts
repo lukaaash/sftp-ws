@@ -6,6 +6,7 @@ import util = require("./util");
 import SftpClient = client.SftpClient;
 import IFilesystem = api.IFilesystem;
 import ILogWriter = util.ILogWriter;
+import Channel = channel.Channel;
 
 export interface IClientOptions {
     protocol?: string;
@@ -14,7 +15,17 @@ export interface IClientOptions {
 
 export class Client extends SftpClient {
 
-    constructor(address: string, options?: IClientOptions) {
+    constructor() {
+        super(null);
+    }
+
+    connect(address: string, options?: IClientOptions, callback?: (err: Error) => void): void {
+        options = options || {};
+
+        if (typeof options.protocol == 'undefined') {
+            options.protocol = 'sftp';
+        }
+
         var protocols = [];
         if (typeof options !== 'object' || typeof options.protocol == 'undefined') {
             protocols.push('sftp');
@@ -25,6 +36,8 @@ export class Client extends SftpClient {
         var ws = new WebSocket(address, protocols);
         ws.binaryType = "arraybuffer";
 
-        super(ws, null, options.log);
+        var channel = new Channel(ws, options.log);
+
+        super.bind(channel, callback);
     }
 }
