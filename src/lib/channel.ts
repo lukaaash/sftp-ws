@@ -4,28 +4,23 @@ import WebSocket = require("ws");
 
 import ILogWriter = util.ILogWriter;
 
-export interface ISessionHost {
+export interface IChannel {
+    on(event: string, listener: Function): IChannel;
     send(packet: NodeBuffer): void;
     close(reason?: number, description?: string): void;
     log?: ILogWriter;
 }
 
-export interface ISession {
-    _process(packet: NodeBuffer): void;
-    _end(): void;
-}
-
-export class Channel implements ISessionHost {
-
+export class Channel implements IChannel {
     log: ILogWriter;
 
-    private session: ISession;
     private ws: WebSocket;
     private options: any; //WEB: // removed
     private wasConnected: boolean;
     private failed: boolean;
     private onopen: () => void;
     private onclose: (err: Error) => void;
+    private onmessage: (packet: NodeBuffer) => void;
 
     private open(callback: () => void): void {
         if (typeof callback !== "function")
@@ -70,21 +65,24 @@ export class Channel implements ISessionHost {
         }); //WEB: };
     }
 
-    once(event: string, listener: Function): void {
+    on(event: string, listener: Function): IChannel {
         switch (event) {
-            case "open":
+            case "ready":
                 this.open(<any>listener);
+                break;
+            case "message":
+                this.onmessage = <any>listener;
                 break;
             case "close":
                 this.onclose = <any>listener;
                 break;
             default:
-                throw new Error("Unsupported event");                
+                break;
         }
+        return this;
     }
 
-    constructor(session: ISession, ws: WebSocket, log: ILogWriter) {
-        this.session = session;
+    constructor(ws: WebSocket, log: ILogWriter) {
         this.ws = ws;
         this.options = { binary: true }; //WEB: // removed
         this.log = log;
@@ -110,17 +108,13 @@ export class Channel implements ISessionHost {
                 return;
             }
 
-            this.message(packet);
+            try {
+                if (typeof this.onmessage === "function") this.onmessage(packet);
+            } catch (error) {
+                this.log.error("Error while processing packet:", error);
+                this.close(3011, "Error while processing packet");
+            }
         }); //WEB: };
-    }
-
-    private message(packet: NodeBuffer): void {
-        try {
-            this.session._process(packet);
-        } catch (error) {
-            this.log.error("Error while processing packet:", error);
-            this.close(3011, "Error while processing packet");
-        }
     }
 
     close(reason: number, description?: string): void {
@@ -137,16 +131,6 @@ export class Channel implements ISessionHost {
                 this.log.info("Error while closing WebSocket:", err);
             } finally {
                 this.ws = null;
-            }
-        }
-
-        if (this.session != null) {
-            try {
-                this.session._end();
-            } catch (err) {
-                this.log.error("Error while closing session:", err);
-            } finally {
-                this.session = null;
             }
         }
 

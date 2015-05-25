@@ -15,6 +15,7 @@ import util = require("./util");
 import SftpClient = client.SftpClient;
 import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
+import ISessionHost = channel.IChannel;
 import Channel = channel.Channel;
 import SftpServerSession = server.SftpServerSession
 
@@ -52,20 +53,21 @@ module SFTP {
 
     export class Client extends SftpClient {
 
-        constructor(address: string, options?: IClientOptions) {
+        constructor() {
+            var localFs = new local.LocalFilesystem();
+            super(localFs);
+        }
 
-            if (typeof options == 'undefined') {
-                options = {};
-            }
+        connect(address: string, options?: IClientOptions, callback?: (err: Error) => void): void {
+            options = options || {};
 
             if (typeof options.protocol == 'undefined') {
                 options.protocol = 'sftp';
             }
 
-            var fsl = new local.LocalFilesystem();
-
             var ws = new WebSocket(address, options);
-            super(ws, fsl, options.log);
+            var channel = new Channel(ws, options.log);
+            super.bind(channel, callback);
         }
     }
 

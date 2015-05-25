@@ -10,8 +10,7 @@ import SafeFilesystem = safe.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import ILogWriter = util.ILogWriter;
-import ISession = channel.ISession;
-import ISessionHost = channel.ISessionHost;
+import IChannel = channel.IChannel;
 import Channel = channel.Channel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
@@ -159,17 +158,17 @@ class SftpException implements Error {
     }
 }
 
-export class SftpServerSessionCore implements ISession {
+export class SftpServerSessionCore {
 
     private _fs: SafeFilesystem;
-    private _host: ISessionHost;
+    private _host: IChannel;
     private _log: ILogWriter;
     private _handles: SftpHandleInfo[];
     private nextHandle: number;
 
     private static MAX_HANDLE_COUNT = 512;
 
-    constructor(host: ISessionHost, fs: SafeFilesystem) {
+    constructor(host: IChannel, fs: SafeFilesystem) {
         this._fs = fs;
         this._host = host;
         this._log = host.log;
@@ -665,8 +664,12 @@ export class SftpServerSessionCore implements ISession {
 export class SftpServerSession extends SftpServerSessionCore {
 
     constructor(ws: any, fs: SafeFilesystem, log: ILogWriter) {
-        var channel = new Channel(this, ws, log);
+        var channel = new Channel(ws, log);
+        
         super(channel, fs);
+
+        channel.on("message", packet => super._process(packet));
+        channel.on("close", err => super._end());
     }
 }
 

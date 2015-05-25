@@ -51,7 +51,8 @@ var server = new SFTP.Server({
     virtualRoot: tmp,
 });
 
-var client = new SFTP.Client("ws://localhost:3022", {
+var client = new SFTP.Client();
+client.connect("ws://localhost:3022", {
     log: console,
 });
 

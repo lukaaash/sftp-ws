@@ -10,10 +10,8 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import IFilesystem = api.IFilesystem;
 import FilesystemPlus = plus.FilesystemPlus;
-import ISession = channel.ISession;
-import ISessionHost = channel.ISessionHost;
+import IChannel = channel.IChannel;
 import ILogWriter = util.ILogWriter;
-import Channel = channel.Channel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -62,9 +60,9 @@ class SftpHandle {
     }
 }
 
-class SftpClientCore implements ISession, IFilesystem {
+class SftpClientCore implements IFilesystem {
 
-    private _host: ISessionHost
+    private _host: IChannel
     private _id: number;
     private _requests: SftpRequest[];
     private _ready: boolean;
@@ -107,7 +105,6 @@ class SftpClientCore implements ISession, IFilesystem {
     }
 
     private execute(request: SftpPacketWriter, callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
-
         if (typeof callback !== 'function') {
             // use dummy callback to prevent having to check this later
             callback = function () { };
@@ -120,10 +117,9 @@ class SftpClientCore implements ISession, IFilesystem {
         this._host.send(packet);
 
         this._requests[request.id] = { callback: callback, responseParser: responseParser, info: info };
-
     }
 
-    _init(host: ISessionHost, callback: (err: Error) => any): void {
+    _init(host: IChannel, callback: (err: Error) => any): void {
         this._host = host;
 
         var request = this.getRequest(SftpPacketType.INIT);
@@ -133,12 +129,14 @@ class SftpClientCore implements ISession, IFilesystem {
         this.execute(request, callback,(response, cb) => {
 
             if (response.type != SftpPacketType.VERSION) {
+                host.close(3002);
                 callback(new Error("Protocol violation"));
                 return;
             }
 
             var version = response.readInt32();
             if (version != 3) {
+                host.close(3002);
                 callback(new Error("Protocol violation"));
                 return;
             }
@@ -592,32 +590,35 @@ class SftpClientCore implements ISession, IFilesystem {
 
 export class SftpClient extends FilesystemPlus {
 
-    constructor(ws: any, local: IFilesystem, log?: ILogWriter) {
-
-        log = toLogWriter(log);
-
+    constructor(local: IFilesystem) {
         var sftp = new SftpClientCore();
-        var channel = new Channel(sftp, ws, log);
-
         super(sftp, local);
+    }
 
-        channel.once("open",() => {
+    bind(channel: IChannel, callback?: (err: Error) => void): void {
+        var sftp = <SftpClientCore>this._fs;
+        
+        channel.on("ready",() => {
             sftp._init(channel, err => {
-                if (err != null) {
-                    this.emit('error', err);
-                    channel.close(3002);
-                } else {
-                    this.emit('ready');
+                if (err) {
+                    if (typeof callback === "function") return callback(err);
+                    this.emit("error", err);
+                    return;
                 }
+                this.emit('ready');
             });
         });
 
-        channel.once("close",(err) => {
+        channel.on("message", packet => sftp._process(packet));
+
+        channel.on("close",(err) => {
+            sftp._end();
             this.emit('close', err);
         });
     }
 
     end(): void {
-        (<SftpClientCore>this._fs).end();
+        var sftp = <SftpClientCore>this._fs;
+        sftp.end();
     }
 }
