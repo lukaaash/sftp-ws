@@ -110,6 +110,14 @@ class SftpClientCore implements IFilesystem {
             callback = function () { };
         }
 
+        if (!this._host) {
+            process.nextTick(() => {
+                var error = this.createError(SftpStatusCode.NO_CONNECTION, "Not connected", info);
+                callback(error);
+            });
+            return;
+        }
+
         if (typeof this._requests[request.id] !== 'undefined')
             throw new Error("Duplicate request");
 
@@ -158,14 +166,31 @@ class SftpClientCore implements IFilesystem {
 
         response.info = request.info;
 
-        request.responseParser.call(this, response, request.callback);
+        try {
+            request.responseParser.call(this, response, request.callback);
+        } catch (err) {
+            request.callback(err);
+        }
     }
 
     _end(): void {
+        var requests = this._requests;
+
+        this._requests = [];
+        this._host = null;
+        
+        requests.forEach(request => {
+            var error = this.createError(SftpStatusCode.CONNECTION_LOST, "Connection lost", request.info);
+            request.callback(error);
+        });
     }
 
     end(): void {
-        this._host.close();
+        var host = this._host;
+        if (host) {
+            this._host = null;
+            host.close();
+        }
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
@@ -418,21 +443,35 @@ class SftpClientCore implements IFilesystem {
                 code = "EOF";
                 errno = 1;
                 break;
+            case SftpStatusCode.NO_SUCH_FILE:
+                code = "ENOENT";
+                errno = 34;
+                break;
             case SftpStatusCode.PERMISSION_DENIED:
                 code = "EACCES";
                 errno = 3;
                 break;
-            case SftpStatusCode.NO_SUCH_FILE:
-                code = "ENOENT";
-                errno = 34;
+            case SftpStatusCode.OK:
+            case SftpStatusCode.FAILURE:
+            case SftpStatusCode.BAD_MESSAGE:
+                code = "EFAILURE";
+                errno = -2;
+                break;
+            case SftpStatusCode.NO_CONNECTION:
+                code = "ENOTCONN";
+                errno = 31;
+                break;
+            case SftpStatusCode.CONNECTION_LOST:
+                code = "ESHUTDOWN";
+                errno = 46;
                 break;
             case SftpStatusCode.OP_UNSUPPORTED:
                 code = "ENOSYS";
                 errno = 35;
                 break;
-            case SftpStatusCode.FAILURE:
-                code = "EFAILURE";
-                errno = -2;
+            case SftpStatusCode.BAD_MESSAGE:
+                code = "ESHUTDOWN";
+                errno = 46;
                 break;
             default:
                 code = "UNKNOWN";
