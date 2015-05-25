@@ -73,16 +73,10 @@ gulp.task('web.js', ['web.ts'], () => {
         sourceRoot: "./",
     };
 
-    var uglifyOptions = {
-        mangle: false,
-        compress: true,
-    };
-
-    gulp.src(out.lib_web + '/sftp.ts')
+    return gulp.src(out.lib_web + '/sftp.ts')
         .pipe(sourcemaps.init())
         .pipe(ts(tsWeb)).js
         .pipe(replace(/^.*\n.*\n.*\n.*\n.*\n.*\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\n'))
-//        .pipe(uglify(uglifyOptions))
         .pipe(sourcemaps.write(".", mapOptions))
         .pipe(gulp.dest(out.lib_web));
 
@@ -90,6 +84,15 @@ gulp.task('web.js', ['web.ts'], () => {
 
 gulp.task('web', ['web.js'],() => {
 
+    var uglifyOptions = {
+        mangle: true,
+        compress: true,
+    };
+
+    return gulp.src(out.lib_web + '/sftp.js')
+        .pipe(rename(path => path.basename = "sftp.min.js"))
+        .pipe(uglify(uglifyOptions))
+        .pipe(gulp.dest(out.lib_web));
 });
 
 
