@@ -8,7 +8,8 @@
     <NodejsPort>1984</NodejsPort>
     <NodeExeArguments>
     </NodeExeArguments>
-    <ScriptArguments>tests</ScriptArguments>
+    <ScriptArguments>
+    </ScriptArguments>
     <ToolsVersionPromptShown>1.4</ToolsVersionPromptShown>
     <TypeScriptToolsVersion>1.4</TypeScriptToolsVersion>
   </PropertyGroup>
@@ -18,7 +19,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>534896ed-d8eb-43e7-93e1-30e80471977e</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>node_modules\mocha\bin\_mocha</StartupFile>
+    <StartupFile>main.js</StartupFile>
     <StartWebBrowser>False</StartWebBrowser>
     <SearchPath>
     </SearchPath>
