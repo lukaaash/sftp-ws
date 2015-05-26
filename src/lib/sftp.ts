@@ -4,6 +4,7 @@
 import WebSocket = require("ws");
 import http = require("http");
 import path = require("path");
+import events = require("events");
 import client = require("./sftp-client");
 import server = require("./sftp-server");
 import safe = require("./fs-safe");
@@ -16,7 +17,7 @@ import SftpClient = client.SftpClient;
 import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
 import ISessionHost = channel.IChannel;
-import Channel = channel.Channel;
+import WebSocketChannel = channel.WebSocketChannel;
 import SftpServerSession = server.SftpServerSession
 
 module SFTP {
@@ -66,7 +67,7 @@ module SFTP {
             }
 
             var ws = new WebSocket(address, options);
-            var channel = new Channel(ws, options.log);
+            var channel = new WebSocketChannel(ws);
             super.bind(channel, callback);
         }
     }
@@ -97,7 +98,7 @@ module SFTP {
         };
     }
 
-    export class Server {
+    export class Server extends events.EventEmitter {
 
         private _wss: WebSocketServer;
         private _virtualRoot: string;
@@ -107,6 +108,8 @@ module SFTP {
         private _verifyClient: Function;
 
         constructor(options?: IServerOptions) {
+            super();
+
             var serverOptions: WebSocket.IServerOptions = {};
 
             var noServer = false;
@@ -157,7 +160,6 @@ module SFTP {
             if (!noServer) {
                 this._wss = new WebSocketServer(serverOptions);
                 this._wss.on('connection', ws => this.accept(ws));
-                //this._wss.on('error', err => this.error(err)); //TODO
             }
         }
 
@@ -224,11 +226,12 @@ module SFTP {
 
             log.info("Connection accepted.");
 
-            var options = { binary: true };
-
             var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
-            var session = new SftpServerSession(ws, fs, log);
+            var channel = new WebSocketChannel(ws);
+
+            var session = new SftpServerSession(channel, fs, this, log);
+            this.emit("startedSession", this);
             (<any>ws).session = session;
         }
 

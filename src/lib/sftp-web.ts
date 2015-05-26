@@ -6,7 +6,7 @@ import util = require("./util");
 import SftpClient = client.SftpClient;
 import IFilesystem = api.IFilesystem;
 import ILogWriter = util.ILogWriter;
-import Channel = channel.Channel;
+import WebSocketChannel = channel.WebSocketChannel;
 
 export interface IClientOptions {
     protocol?: string;
@@ -36,7 +36,7 @@ export class Client extends SftpClient {
         var ws = new WebSocket(address, protocols);
         ws.binaryType = "arraybuffer";
 
-        var channel = new Channel(ws, options.log);
+        var channel = new WebSocketChannel(ws);
 
         super.bind(channel, callback);
     }

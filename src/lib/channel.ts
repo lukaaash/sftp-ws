@@ -8,12 +8,9 @@ export interface IChannel {
     on(event: string, listener: Function): IChannel;
     send(packet: NodeBuffer): void;
     close(reason?: number, description?: string): void;
-    log?: ILogWriter;
 }
 
-export class Channel implements IChannel {
-    log: ILogWriter;
-
+export class WebSocketChannel implements IChannel {
     private ws: WebSocket;
     private options: any; //WEB: // removed
     private wasConnected: boolean;
@@ -21,6 +18,7 @@ export class Channel implements IChannel {
     private onopen: () => void;
     private onclose: (err: Error) => void;
     private onmessage: (packet: NodeBuffer) => void;
+    private onerror: (err: Error) => void;
 
     private open(callback: () => void): void {
         if (typeof callback !== "function")
@@ -76,16 +74,18 @@ export class Channel implements IChannel {
             case "close":
                 this.onclose = <any>listener;
                 break;
+            case "error":
+                this.onerror = <any>listener;
+                break;
             default:
                 break;
         }
         return this;
     }
 
-    constructor(ws: WebSocket, log: ILogWriter) {
+    constructor(ws: WebSocket) {
         this.ws = ws;
         this.options = { binary: true }; //WEB: // removed
-        this.log = log;
         this.failed = false;
         this.wasConnected = (ws.readyState == WebSocket.OPEN);
 
@@ -104,17 +104,17 @@ export class Channel implements IChannel {
             if (flags.binary) { //WEB: if (true) { //TODO: handle text messages
                 packet = <NodeBuffer>data; //WEB: packet = new Uint8Array(message.data);
             } else {
-                this.close(3008, "Closed due to unsupported text packet");
+                this.reportError(new Error("Closed due to unsupported text packet"));
                 return;
             }
 
-            try {
-                if (typeof this.onmessage === "function") this.onmessage(packet);
-            } catch (error) {
-                this.log.error("Error while processing packet:", error);
-                this.close(3011, "Error while processing packet");
-            }
+            if (typeof this.onmessage === "function") this.onmessage(packet);
         }); //WEB: };
+    }
+
+    private reportError(err: Error): void {
+        if (typeof this.onerror === "function") this.onerror(err);
+        else throw err;
     }
 
     close(reason: number, description?: string): void {
@@ -128,7 +128,7 @@ export class Channel implements IChannel {
             try {
                 this.ws.close();
             } catch (err) {
-                this.log.info("Error while closing WebSocket:", err);
+                this.reportError(err);
             } finally {
                 this.ws = null;
             }
@@ -160,13 +160,7 @@ export class Channel implements IChannel {
                 err.reason = reason;
             }
 
-            this.log.info(message + " (" + reason + ")");
-
-            try {
-                onclose(err);
-            } catch (err) {
-                this.log.error("Error in close event listener:", err);
-            }
+            onclose(err);
         }
     }
 
@@ -176,15 +170,11 @@ export class Channel implements IChannel {
 
         try {
             this.ws.send(packet, this.options, err => { //WEB: this.ws.send(packet);
-                if (typeof err !== 'undefined' && err != null) { //WEB: // removed
-                    this.log.error("Error while sending:", err.message, err.name); //WEB: // removed
-                    this.close(3011, "Error while sending packet"); //WEB: // removed
-                } //WEB: // removed
+                if (err) this.reportError(err); //WEB: // removed
             }); //WEB: // removed
-        } catch (error) {
+        } catch (err) {
             process.nextTick(() => {
-                this.log.error("Error while sending packet:", error);
-                this.close(3011, "Error while sending packet");
+                this.reportError(err);
             });
         }
     }

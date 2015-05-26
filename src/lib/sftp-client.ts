@@ -21,7 +21,6 @@ import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
 import SftpItem = misc.SftpItem;
-import toLogWriter = util.toLogWriter;
 
 interface SftpRequest {
     callback: Function;
@@ -107,7 +106,9 @@ class SftpClientCore implements IFilesystem {
     private execute(request: SftpPacketWriter, callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
         if (typeof callback !== 'function') {
             // use dummy callback to prevent having to check this later
-            callback = function () { };
+            callback = function (err) {
+                if (err) throw err;
+            };
         }
 
         if (!this._host) {
@@ -128,30 +129,34 @@ class SftpClientCore implements IFilesystem {
     }
 
     _init(host: IChannel, callback: (err: Error) => any): void {
+        if (this._host) throw new Error("Already bound");
+
         this._host = host;
 
         var request = this.getRequest(SftpPacketType.INIT);
 
         request.writeInt32(3); // SFTPv3
 
+        var info = { command: "init" };
+
         this.execute(request, callback,(response, cb) => {
 
             if (response.type != SftpPacketType.VERSION) {
                 host.close(3002);
-                callback(new Error("Protocol violation"));
-                return;
+                var error = this.createError(SftpStatusCode.BAD_MESSAGE, "Unexpected message", info);
+                return callback(new Error("Protocol violation"));
             }
 
             var version = response.readInt32();
             if (version != 3) {
                 host.close(3002);
-                callback(new Error("Protocol violation"));
-                return;
+                var error = this.createError(SftpStatusCode.BAD_MESSAGE, "Unexpected protocol version", info);
+                return callback(error);
             }
 
             this._ready = true;
             callback(null);
-        }, { command: "init" });
+        }, info);
     }
 
     _process(packet: NodeBuffer): void {
@@ -166,23 +171,13 @@ class SftpClientCore implements IFilesystem {
 
         response.info = request.info;
 
-        try {
-            request.responseParser.call(this, response, request.callback);
-        } catch (err) {
-            request.callback(err);
-        }
+        request.responseParser.call(this, response, request.callback);
     }
 
     _end(): void {
-        var requests = this._requests;
-
-        this._requests = [];
-        this._host = null;
-        
-        requests.forEach(request => {
-            var error = this.createError(SftpStatusCode.CONNECTION_LOST, "Connection lost", request.info);
-            request.callback(error);
-        });
+        var host = this._host;
+        if (host) this._host = null;
+        this.failRequests(SftpStatusCode.CONNECTION_LOST, "Connection lost");
     }
 
     end(): void {
@@ -191,6 +186,17 @@ class SftpClientCore implements IFilesystem {
             this._host = null;
             host.close();
         }
+        this.failRequests(SftpStatusCode.CONNECTION_LOST, "Connection closed");
+    }
+
+    private failRequests(code: SftpStatusCode, message: string): void {
+        var requests = this._requests;
+        this._requests = [];
+        
+        requests.forEach(request => {
+            var error = this.createError(code, message, request.info);
+            request.callback(error);
+        });
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
@@ -629,6 +635,8 @@ class SftpClientCore implements IFilesystem {
 
 export class SftpClient extends FilesystemPlus {
 
+    private _bound: boolean;
+
     constructor(local: IFilesystem) {
         var sftp = new SftpClientCore();
         super(sftp, local);
@@ -636,22 +644,52 @@ export class SftpClient extends FilesystemPlus {
 
     bind(channel: IChannel, callback?: (err: Error) => void): void {
         var sftp = <SftpClientCore>this._fs;
-        
+
+        if (this._bound) throw new Error("Already bound");
+        this._bound = true;
+
         channel.on("ready",() => {
-            sftp._init(channel, err => {
-                if (err) {
-                    if (typeof callback === "function") return callback(err);
-                    this.emit("error", err);
+            sftp._init(channel, error => {
+                if (error) {
+                    sftp._end();
+                    this._bound = false;
+                }
+
+                if (typeof callback === "function") {
+                    try {
+                        callback(error);
+                        error = null;
+                    } catch (err) {
+                        error = err;
+                    }
+                }
+
+                if (error) {
+                    this.emit("error", error);
                     return;
                 }
+
                 this.emit('ready');
             });
         });
 
-        channel.on("message", packet => sftp._process(packet));
+        channel.on("message", packet => {
+            try {
+                sftp._process(packet);
+            } catch (err) {
+                this.emit("error", err);
+                sftp.end();
+            }
+        });
 
-        channel.on("close",(err) => {
+        channel.on("error", err => {
+            this.emit("error", err);
+            sftp.end();
+        });
+
+        channel.on("close", err => {
             sftp._end();
+            this._bound = false;
             this.emit('close', err);
         });
     }

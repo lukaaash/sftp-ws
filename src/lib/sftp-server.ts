@@ -11,7 +11,6 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import ILogWriter = util.ILogWriter;
 import IChannel = channel.IChannel;
-import Channel = channel.Channel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -158,29 +157,48 @@ class SftpException implements Error {
     }
 }
 
-export class SftpServerSessionCore {
+export class SftpServerSession {
 
     private _fs: SafeFilesystem;
-    private _host: IChannel;
+    private _channel: IChannel;
     private _log: ILogWriter;
     private _handles: SftpHandleInfo[];
     private nextHandle: number;
 
     private static MAX_HANDLE_COUNT = 512;
 
-    constructor(host: IChannel, fs: SafeFilesystem) {
+    constructor(channel: IChannel, fs: SafeFilesystem, emitter: NodeEventEmitter, log: ILogWriter) {
         this._fs = fs;
-        this._host = host;
-        this._log = host.log;
-        this._handles = new Array<SftpHandleInfo>(SftpServerSessionCore.MAX_HANDLE_COUNT + 1);
+        this._channel = channel;
+        this._log = log;
+        this._handles = new Array<SftpHandleInfo>(SftpServerSession.MAX_HANDLE_COUNT + 1);
         this.nextHandle = 1;
+
+        channel.on("message", packet => {
+            try {
+                this._process(packet);
+            } catch (err) {
+                emitter.emit("error", err, this);
+                this.end();
+            }
+        });
+
+        channel.on("error", err => {
+            emitter.emit("error", err, this);
+            this.end();
+        });
+
+        channel.on("close", err => {
+            this._end();
+            emitter.emit("closedSession", this, err);
+        });
     }
 
     private send(response: SftpResponse): void {
 
         // send packet
         var packet = response.finish();
-        this._host.send(packet);
+        this._channel.send(packet);
 
         // start next task
         if (typeof response.handleInfo === 'object') {
@@ -200,7 +218,7 @@ export class SftpServerSessionCore {
             var error = new SftpException(err);
             code = error.code;
             message = error.message;
-            this._log.log("Unable to process request #" + response.id + ": " + err);
+            //this._log.log("Unable to process request #" + response.id + ": " + err);
         } else {
             code = SftpStatusCode.FAILURE;
             message = "Internal server error";
@@ -278,7 +296,7 @@ export class SftpServerSessionCore {
 
     private createHandleInfo() {
         var h = this.nextHandle;
-        var max = SftpServerSessionCore.MAX_HANDLE_COUNT;
+        var max = SftpServerSession.MAX_HANDLE_COUNT;
 
         for (var i = 0; i < max; i++) {
             var next = (h % max) + 1; // 1..MAX_HANDLE_COUNT
@@ -311,7 +329,7 @@ export class SftpServerSessionCore {
     }
 
     end(): void {
-        this._host.close();
+        this._channel.close();
     }
 
     _end(): void {
@@ -659,17 +677,5 @@ export class SftpServerSessionCore {
         }
     }
 
-}
-
-export class SftpServerSession extends SftpServerSessionCore {
-
-    constructor(ws: any, fs: SafeFilesystem, log: ILogWriter) {
-        var channel = new Channel(ws, log);
-        
-        super(channel, fs);
-
-        channel.on("message", packet => super._process(packet));
-        channel.on("close", err => super._end());
-    }
 }
 
