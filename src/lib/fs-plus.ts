@@ -12,7 +12,7 @@ import DataTarget = misc.DataTarget;
 import FileUtil = misc.FileUtil;
 import FileDataTarget = transfers.FileDataTarget;
 import toDataSource = transfers.toDataSource;
-import wrap = util.wrap;
+import wrapCallback = util.wrapCallback;
 import EventEmitter = events.EventEmitter;
 
 export interface IFilesystemExt extends FilesystemPlus {
@@ -27,21 +27,6 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         super();
         this._fs = fs;
         this._local = local;
-    }
-
-    private wrapCallback(callback: any): any {
-        if (typeof callback !== 'function') {
-            // use dummy callback to prevent having to check this later
-            return function () { };
-        } else {
-            return () => {
-                try {
-                    callback.apply(this, arguments);
-                } catch (error) {
-                    this.emit("error", error);
-                }
-            };
-        }
     }
 
     on(event: 'error', listener: (err: Error) => void): EventEmitter;
@@ -67,55 +52,55 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             callback = <any>attrs;
             attrs = null;
         }
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.open(path, flags, attrs, callback);
     }
 
     close(handle: any, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.close(handle, callback);
     }
 
     read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.read(handle, buffer, offset, length, position, callback);
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.write(handle, buffer, offset, length, position, callback);
     }
 
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.lstat(path, callback);
     }
 
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.fstat(handle, callback);
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.setstat(path, attrs, callback);
     }
 
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.fsetstat(handle, attrs, callback);
     }
 
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.opendir(path, callback);
     }
@@ -123,7 +108,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     readdir(path: string, callback?: (err: Error, items: IItem[]) => any)
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any)
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         if (typeof handle !== 'string')
             return this._fs.readdir(handle, callback);
@@ -132,7 +117,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.unlink(path, callback);
     }
@@ -142,43 +127,43 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             callback = <any>attrs;
             attrs = null;
         }
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.mkdir(path, attrs, callback);
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.rmdir(path, callback);
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.realpath(path, callback);
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.stat(path, callback);
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.rename(oldPath, newPath, callback);
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.readlink(path, callback);
     }
 
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         this._fs.symlink(targetpath, linkpath);
     }
@@ -194,7 +179,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     private _copy(from: any, fromFs: IFilesystem, toPath: string, toFs: IFilesystem, callback?: (err: Error) => any): void {
-        callback = this.wrapCallback(callback);
+        callback = wrapCallback(this, callback);
 
         var sources = <DataSource[]>null;
 

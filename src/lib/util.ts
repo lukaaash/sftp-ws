@@ -34,15 +34,18 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
     return fix ? fixed : writer;
 }
 
-export function wrap(err: Error, callback: Function, action: Function) {
-    if (err) {
-        callback(err);
-        return;
-    }
+export function wrapCallback(obj: NodeEventEmitter, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
+    return function () {
+        var error = arguments[0];
+        if (typeof callback === 'function') {
+            try {
+                callback.apply(obj, arguments);
+                error = null;
+            } catch (err) {
+                error = err;
+            }
+        }
 
-    try {
-        action();
-    } catch (err) {
-        callback(err);
-    }
+        if (error) obj.emit("error", error);
+    };
 }
