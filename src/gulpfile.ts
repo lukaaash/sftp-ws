@@ -76,7 +76,7 @@ gulp.task('web.js', ['web.ts'], () => {
     return gulp.src(out.lib_web + '/sftp.ts')
         .pipe(sourcemaps.init())
         .pipe(ts(tsWeb)).js
-        .pipe(replace(/^.*\n.*\n.*\n.*\n.*\n.*\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\n'))
+        .pipe(replace(/^.*\n.*\n.*\n.*\n.*\n.*\nvar SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
         .pipe(sourcemaps.write(".", mapOptions))
         .pipe(gulp.dest(out.lib_web));
 
@@ -85,8 +85,25 @@ gulp.task('web.js', ['web.ts'], () => {
 gulp.task('web', ['web.js'],() => {
 
     var uglifyOptions = {
-        mangle: true,
-        compress: true,
+        mangle: {
+            except: ['SftpItem'],
+            screw_ie8: true,
+        },
+        compress: {
+            sequences: true,
+            dead_code: true,
+            conditionals: true,
+            booleans: true,
+            unused: true,
+            if_return: true,
+            join_vars: true,
+            drop_console: true,
+        },
+        output: {
+            preamble: "// http://github.com/lukaaash/sftp-ws/",
+            //comments: "all",
+            //beautify: true,
+        }
     };
 
     return gulp.src(out.lib_web + '/sftp.js')
