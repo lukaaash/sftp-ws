@@ -391,6 +391,13 @@ class SftpClientCore implements IFilesystem {
         this.command(SftpPacketType.SYMLINK, [targetPath, linkPath], callback, this.parseStatus, { command: "symlink", targetPath: targetPath, linkPath: linkPath });
     }
 
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        oldPath = this.toPath(oldPath, 'oldPath');
+        newPath = this.toPath(newPath, 'newPath');
+
+        this.command(SftpExtensions.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
+    }
+
     private toHandle(handle: { _handle: NodeBuffer; _this: SftpClientCore }): NodeBuffer {
         if (!handle) {
             throw new Error("Missing handle");

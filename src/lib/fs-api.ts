@@ -36,4 +36,5 @@ export interface IFilesystem {
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
 }

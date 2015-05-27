@@ -337,4 +337,20 @@ export class SafeFilesystem implements IFilesystem {
             callback(err);
         }
     }
+
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        if (this.isReadOnly()) {
+            this.reportReadOnly(callback);
+            return;
+        }
+
+        oldPath = this.toRealPath(oldPath);
+        newPath = this.toRealPath(newPath);
+
+        try {
+            this.fs.link(oldPath, newPath, callback);
+        } catch (err) {
+            callback(err);
+        }
+    }
 }

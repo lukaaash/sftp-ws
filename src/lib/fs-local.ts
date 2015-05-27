@@ -311,4 +311,9 @@ export class LocalFilesystem implements IFilesystem {
         fs.symlink(linkpath, targetpath, 'file', callback);
     }
 
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        fs.link(oldPath, newPath, callback);
+    }
+
+
 }

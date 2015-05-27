@@ -669,6 +669,13 @@ export class SftpServerSession {
                     fs.symlink(targetpath, linkpath, err => this.sendSuccess(response, err));
                     return;
 
+                case SftpExtensions.HARDLINK:
+                    var oldpath = request.readString();
+                    var newpath = request.readString();
+
+                    fs.link(oldpath, newpath, err => this.sendSuccess(response, err));
+                    return;
+
                 default:
                     this.sendStatus(response, SftpStatusCode.OP_UNSUPPORTED, "Not supported");
             }

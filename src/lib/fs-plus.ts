@@ -168,6 +168,12 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.symlink(targetpath, linkpath);
     }
 
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        callback = wrapCallback(this, callback);
+
+        this._fs.link(oldPath, newPath);
+    }
+
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any): void {
