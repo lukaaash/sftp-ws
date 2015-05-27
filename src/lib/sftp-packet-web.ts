@@ -20,12 +20,12 @@ class SftpPacket {
     }
 
     skip(count: number): void {
-        this.check(length);
+        this.check(count);
         this.position += count;
     }
 
     static isBuffer(obj: any): boolean {
-        return obj && obj.buffer instanceof ArrayBuffer && obj.byteLength !== undefined
+        return obj && obj.buffer instanceof ArrayBuffer && obj.byteLength !== undefined;
     }
 }
 

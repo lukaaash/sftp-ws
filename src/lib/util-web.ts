@@ -10,8 +10,10 @@ interface ErrnoException extends Error {
     errno?: number;
 }
 
+//WEB: type NodeEventEmitter = EventEmitter;
 //WEB: type NodeBuffer = Uint8Array;
 //WEB: var Buffer = Uint8Array;
+//WEB: var undefined;
 
 class EventEmitter {
     constructor() {
