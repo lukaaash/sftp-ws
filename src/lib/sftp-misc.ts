@@ -11,6 +11,7 @@ import SftpOpenFlags = enums.SftpOpenFlags;
 import IItem = api.IItem;
 import IStats = api.IStats;
 import IStatsExt = api.IStatsExt;
+import FileType = api.FileType;
 
 export class SftpFlags {
 
@@ -185,16 +186,6 @@ const enum SftpAttributeFlags {
     EXTENDED     = 0x80000000,
 }
 
-const enum PosixFlags {
-    FIFO              = 0x1000,
-    CHARACTER_DEVICE  = 0x2000,
-    DIRECTORY         = 0x4000,
-    BLOCK_DEVICE      = 0x6000,
-    REGULAR_FILE      = 0x8000,
-    SYMLINK           = 0xA000,
-    SOCKET            = 0XC000,
-}
-
 export class SftpAttributes implements IStats {
 
     //uint32   flags
@@ -322,26 +313,26 @@ export class SftpAttributes implements IStats {
         var attrs = this.mode;
 
         var perms;
-        switch (attrs & 0xE000) {
-            case PosixFlags.CHARACTER_DEVICE:
+        switch (attrs & FileType.ALL) {
+            case FileType.CHARACTER_DEVICE:
                 perms = "c";
                 break;
-            case PosixFlags.DIRECTORY:
+            case FileType.DIRECTORY:
                 perms = "d";
                 break;
-            case PosixFlags.BLOCK_DEVICE:
+            case FileType.BLOCK_DEVICE:
                 perms = "b";
                 break;
-            case PosixFlags.REGULAR_FILE:
+            case FileType.REGULAR_FILE:
                 perms = "-";
                 break;
-            case PosixFlags.SYMLINK:
+            case FileType.SYMLINK:
                 perms = "l";
                 break;
-            case PosixFlags.SOCKET:
+            case FileType.SOCKET:
                 perms = "s";
                 break;
-            case PosixFlags.FIFO:
+            case FileType.FIFO:
                 perms = "p";
                 break;
             default:

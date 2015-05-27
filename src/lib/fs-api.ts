@@ -1,4 +1,16 @@
 ﻿
+export const enum FileType {
+    FIFO = 0x1000,
+    CHARACTER_DEVICE = 0x2000,
+    DIRECTORY = 0x4000,
+    BLOCK_DEVICE = 0x6000,
+    REGULAR_FILE = 0x8000,
+    SYMLINK = 0xA000,
+    SOCKET = 0XC000,
+
+    ALL = 0xF000,
+}
+
 export interface IStats {
     mode?: number;
     uid?: number;

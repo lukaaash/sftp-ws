@@ -4,6 +4,7 @@ import events = require("events");
 import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
+import FileType = api.FileType;
 import EventEmitter = events.EventEmitter;
 
 export class DataTarget extends EventEmitter {
@@ -69,11 +70,11 @@ export class DataSource extends EventEmitter {
 export class FileUtil {
 
     static isDirectory(stats: IStats): boolean {
-        return stats ? (stats.mode & 0xE000) == 0x4000 : false; // directory
+        return stats ? (stats.mode & FileType.ALL) == FileType.DIRECTORY : false; // directory
     }
 
     static isFile(stats: IStats): boolean {
-        return stats ? (stats.mode & 0xE000) == 0x8000 : false; // regular file
+        return stats ? (stats.mode & FileType.ALL) == FileType.REGULAR_FILE : false; // regular file
     }
 
     static getFileName(path: string): string {
