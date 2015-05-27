@@ -21,6 +21,7 @@ import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
 import SftpItem = misc.SftpItem;
+import SftpExtensions = misc.SftpExtensions;
 
 interface SftpRequest {
     callback: Function;
@@ -65,12 +66,13 @@ class SftpClientCore implements IFilesystem {
     private _id: number;
     private _requests: SftpRequest[];
     private _ready: boolean;
+    private _extensions: Object;
 
     private _maxReadBlockLength: number;
     private _maxWriteBlockLength: number;
 
-    private getRequest(type: number): SftpPacketWriter {
-        var request = new SftpPacketWriter(this._maxWriteBlockLength + 1024); //TODO: cache buffers
+    private getRequest(type: SftpPacketType|string): SftpPacketWriter {
+        var request = new SftpPacketWriter(this._maxWriteBlockLength + 1024);
 
         request.type = type;
         request.id = this._id;
@@ -98,6 +100,7 @@ class SftpClientCore implements IFilesystem {
         this._id = null;
         this._ready = false;
         this._requests = [];
+        this._extensions = {};
 
         this._maxWriteBlockLength = 32 * 1024;
         this._maxReadBlockLength = 256 * 1024;
@@ -132,6 +135,7 @@ class SftpClientCore implements IFilesystem {
         if (this._host) throw new Error("Already bound");
 
         this._host = host;
+        this._extensions = {};
 
         var request = this.getRequest(SftpPacketType.INIT);
 
@@ -152,6 +156,19 @@ class SftpClientCore implements IFilesystem {
                 host.close(3002);
                 var error = this.createError(SftpStatusCode.BAD_MESSAGE, "Unexpected protocol version", info);
                 return callback(error);
+            }
+
+            while ((response.length - response.position) >= 4) {
+                var extensionName = response.readString();
+                var value: any;
+                if (SftpExtensions.isKnown(extensionName)) {
+                    value = response.readString();
+                } else {
+                    value = response.readData(true);
+                }
+                var values = <any[]>this._extensions[extensionName] || [];
+                values.push(value);
+                this._extensions[extensionName] = values;
             }
 
             this._ready = true;
@@ -421,7 +438,7 @@ class SftpClientCore implements IFilesystem {
             throw new Error("Invalid position");
     }
 
-    private command(command: number, args: string[], callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
+    private command(command: SftpPacketType|string, args: string[], callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
         var request = this.getRequest(command);
 
         for (var i = 0; i < args.length; i++) {

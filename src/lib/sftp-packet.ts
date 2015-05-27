@@ -3,7 +3,7 @@
 import SftpPacketType = enums.SftpPacketType;
 
 export class SftpPacket {
-    type: SftpPacketType;
+    type: SftpPacketType|string;
     id: number;
 
     buffer: NodeBuffer;
@@ -47,6 +47,10 @@ export class SftpPacketReader extends SftpPacket {
             this.id = null;
         } else {
             this.id = this.readInt32();
+
+            if (this.type == SftpPacketType.EXTENDED) {
+                this.type = this.readString();
+            }
         }
     }
 
@@ -130,12 +134,21 @@ export class SftpPacketWriter extends SftpPacket {
     start(): void {
         this.position = 0;
         this.writeInt32(0); // length placeholder
-        this.writeByte(this.type | 0);
+
+        if (typeof this.type === "number") {
+            this.writeByte(<number>this.type);
+        } else {
+            this.writeByte(<number>SftpPacketType.EXTENDED);
+        }
 
         if (this.type == SftpPacketType.INIT || this.type == SftpPacketType.VERSION) {
             // these packets don't have an id
         } else {
             this.writeInt32(this.id | 0);
+
+            if (typeof this.type !== "number") {
+                this.writeString(<string>this.type);
+            }
         }
     }
 
@@ -167,6 +180,7 @@ export class SftpPacketWriter extends SftpPacket {
     }
 
     writeString(value: string): void {
+        if (typeof value !== "string") value = "" + value;
         var offset = this.position;
         this.writeInt32(0); // will get overwritten later
         var charLength = value.length;

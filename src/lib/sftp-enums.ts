@@ -23,6 +23,7 @@
     RENAME = 18,
     READLINK = 19,
     SYMLINK = 20,
+    EXTENDED = 200,
 
     // responses
     STATUS = 101,
@@ -30,6 +31,7 @@
     DATA = 103,
     NAME = 104,
     ATTRS = 105,
+    EXTENDED_REPLY = 201,
 }
 
 export const enum SftpStatusCode {

@@ -20,7 +20,7 @@ import SftpItem = misc.SftpItem;
 import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;
 import SftpFlags = misc.SftpFlags;
-
+import SftpExtensions = misc.SftpExtensions;
 
 class SftpResponse extends SftpPacketWriter {
 

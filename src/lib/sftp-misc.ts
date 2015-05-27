@@ -91,6 +91,28 @@ export class SftpFlags {
     }
 }
 
+export class SftpExtensions {
+    public static POSIX_RENAME = "posix-rename@openssh.com"; // "1"
+    public static STATVFS = "statvfs@openssh.com"; // "2"
+    public static FSTATVFS = "fstatvfs@openssh.com"; // "2"
+    public static HARDLINK = "hardlink@openssh.com"; // "1"
+    public static FSYNC = "fsync@openssh.com"; // "1"
+    public static NEWLINE = "newline@sftp.ws"; // "\n"
+    public static CHARSET = "charset@sftp.ws"; // "utf-8"
+
+    private static _constructor = (() => {
+        for (var name in SftpExtensions) {
+            if (SftpExtensions.hasOwnProperty(name)) {
+                SftpExtensions["_" + SftpExtensions[name]] = true;
+            }
+        }
+    })();
+
+    static isKnown(name: string): boolean {
+        return SftpExtensions.hasOwnProperty("_" + name);
+    }
+}
+
 export class SftpStatus {
 
 
