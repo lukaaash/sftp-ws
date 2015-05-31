@@ -2,16 +2,18 @@
 import misc = require("./fs-misc");
 import glob = require("./fs-glob");
 import util = require("./util");
+import events = require("events");
 
 import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
-import DataSource = misc.DataSource;
-import DataTarget = misc.DataTarget;
+import IDataSource = misc.IDataSource;
+import IDataTarget = misc.IDataTarget;
 import search = glob.search;
+import EventEmitter = events.EventEmitter;
 
-export class FileDataTarget extends DataTarget {
+export class FileDataTarget extends EventEmitter implements IDataTarget {
     private fs: IFilesystem;
     private path: string;
 
@@ -29,6 +31,10 @@ export class FileDataTarget extends DataTarget {
     private ended: boolean;
     private finished: boolean;
     private failed: boolean;
+
+    on(event: string, listener: Function): NodeEventEmitter {
+        return super.on(event, listener);
+    }
 
     constructor(fs: IFilesystem, path: string) {
         super();
@@ -151,6 +157,10 @@ export class FileDataTarget extends DataTarget {
         process.nextTick(() => super.emit('error', err));
     }
 
+    start(): boolean {
+        return this.write(new Buffer(0));
+    }
+
     write(chunk: NodeBuffer): boolean {
         // don't accept more data if ended
         if (this.ended)
@@ -206,7 +216,12 @@ interface IChunk extends NodeBuffer {
     position: number;
 }
 
-export class FileDataSource extends DataSource {
+export class FileDataSource extends EventEmitter implements IDataSource {
+    name: string;
+    path: string;
+    length: number;
+    stats: IStats;
+
     private fs: IFilesystem;
 
     private handle: any;
@@ -242,7 +257,12 @@ export class FileDataSource extends DataSource {
         this.failed = false;
     }
 
-    protected flush(): void {
+    on(event: string, listener: Function): NodeEventEmitter {
+        this.flush();
+        return super.on(event, listener);
+    }
+
+    private flush(): void {
         try {
             if (this.closed || this.eof) {
                 // if there are still outstanding requests, do nothing yet
@@ -400,7 +420,10 @@ export class FileDataSource extends DataSource {
     }
 }
 
-class BlobDataSource extends DataSource {
+class BlobDataSource extends EventEmitter implements IDataSource {
+    name: string;
+    length: number;
+
     private blob: Blob;
     private pos: number;
     private reader: FileReader;
@@ -413,9 +436,7 @@ class BlobDataSource extends DataSource {
     constructor(blob: Blob, position: number) {
         super();
         this.name = (<any>blob).name;
-        this.path = this.name;
         this.length = blob.size;
-        this.stats = {};
 
         this.blob = blob;
         this.pos = position;
@@ -446,7 +467,12 @@ class BlobDataSource extends DataSource {
         };
     }
 
-    protected flush(): void {
+    on(event: string, listener: Function): NodeEventEmitter {
+        this.flush();
+        return super.on(event, listener);
+    }
+
+    private flush(): void {
         try {
             if (this.finished) {
                 if (!this.ended) {
@@ -489,7 +515,7 @@ class BlobDataSource extends DataSource {
     }
 }
 
-export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmitter, callback: (err: Error, sources?: DataSource[]) => void): void {
+export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmitter, callback: (err: Error, sources?: IDataSource[]) => void): void {
     try
     {
         toAnyDataSource(input, callback);
@@ -497,7 +523,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
         process.nextTick(() => callback(err));
     }
 
-    function toAnyDataSource(input: any, callback: (err: Error, source?: DataSource[]) => void): void {
+    function toAnyDataSource(input: any, callback: (err: Error, source?: IDataSource[]) => void): void {
         // arrays
         if (isArray(input)) return toArrayDataSource(<any[]>input);
 
@@ -512,7 +538,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
 
     function openBlobDataSource(blob: Blob): void {
         process.nextTick(() => {
-            var source = <DataSource><any>new BlobDataSource(blob, 0);
+            var source = <IDataSource><any>new BlobDataSource(blob, 0);
             callback(null, [source]);
         });
     }
@@ -533,7 +559,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
     }
 
     function toArrayDataSource(input: any[]): void {
-        var source = <DataSource[]>[];
+        var source = <IDataSource[]>[];
         var array = <any[]>[];
         Array.prototype.push.apply(array, input);
         next();
@@ -554,14 +580,14 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
             }
         }
 
-        function add(err: Error, src: DataSource[]): void {
+        function add(err: Error, src: IDataSource[]): void {
             if (err) return callback(err, null);
             Array.prototype.push.apply(source, src);
             next();
         }
     }
 
-    function toItemDataSource(path: string, callback: (err: Error, source?: DataSource[]) => void): void {
+    function toItemDataSource(path: string, callback: (err: Error, source?: IDataSource[]) => void): void {
         if (!fs) throw new Error("Source file system not available");
 
         fs.stat(path,(err, stats) => {
@@ -578,7 +604,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
         search(fs, path, emitter, {},(err, items) => {
             if (err) return callback(err, null);
 
-            var source = <DataSource[]>[];
+            var source = <IDataSource[]>[];
             items.forEach(it => {
                 var item = new FileDataSource(fs, it.path, it.relativePath, it.stats, 0);
                 source.push(item);

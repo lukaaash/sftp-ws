@@ -8,8 +8,8 @@ import events = require("events");
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
-import DataSource = misc.DataSource;
-import DataTarget = misc.DataTarget;
+import IDataSource = misc.IDataSource;
+import IDataTarget = misc.IDataTarget;
 import FileUtil = misc.FileUtil;
 import FileDataTarget = transfers.FileDataTarget;
 import toDataSource = transfers.toDataSource;
@@ -203,7 +203,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
-        var sources = <DataSource[]>null;
+        var sources = <IDataSource[]>null;
 
         toPath = FileUtil.normalize(toPath, (<any>toFs).isWindows == true);
 
@@ -244,6 +244,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             var source = sources.shift();
             if (!source) return callback(null);
 
+            var sourcePath = source.path || source.name;
+                
             checkParent(source.name, transfer);
 
             function transfer(err: Error): void {
@@ -251,9 +253,9 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
                 var targetPath = toPath + source.name;
 
-                task.emit("transferring", source.path, source.length);
+                task.emit("transferring", sourcePath, source.length);
 
-                if (source.isDirectory()) {
+                if (FileUtil.isDirectory(source.stats)) {
                     FileUtil.mkdir(toFs, targetPath, transferred);
                 } else {
                     var target = new FileDataTarget(toFs, targetPath);
@@ -263,7 +265,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
             function transferred(err: Error): void {
                 if (err) return callback(err);
-                task.emit("transferred", source.path, source.length);
+                task.emit("transferred", sourcePath, source.length);
                 next();
             }
         }

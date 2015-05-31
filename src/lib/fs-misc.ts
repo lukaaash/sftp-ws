@@ -1,77 +1,36 @@
 ﻿import api = require("./fs-api");
 import util = require("./util");
-import events = require("events");
 
 import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import FileType = api.FileType;
-import EventEmitter = events.EventEmitter;
 
-export class DataTarget extends EventEmitter {
-    on(event: 'drain', listener: () => void): EventEmitter;
-    on(event: 'progress', listener: (bytesTransferred: number) => void): EventEmitter;
-    on(event: 'error', listener: (err: Error) => void): EventEmitter;
-    on(event: 'finish', listener: () => void): EventEmitter;
-    on(event: string, listener: Function): EventEmitter;
-    on(event: string, listener: Function): EventEmitter {
-        return super.on(event, listener);
-    }
+export interface IDataTarget {
+    on(event: 'drain', listener: () => void): NodeEventEmitter;
+    on(event: 'progress', listener: (bytesTransferred: number) => void): NodeEventEmitter;
+    on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
+    on(event: 'finish', listener: () => void): NodeEventEmitter;
+    on(event: string, listener: Function): NodeEventEmitter;
 
-    once(event: 'drain', listener: () => void): EventEmitter;
-    once(event: 'error', listener: (err: Error) => void): EventEmitter;
-    once(event: 'finish', listener: () => void): EventEmitter;
-    once(event: string, listener: Function): EventEmitter;
-    once(event: string, listener: Function): EventEmitter {
-        return super.once(event, listener);
-    }
-
-    write(chunk: NodeBuffer): boolean {
-        return false;
-    }
-
-    end(): void {
-    }
+    start(): boolean;
+    write(chunk: NodeBuffer): boolean;
+    end(): void;
 }
 
-export class DataSource extends EventEmitter {
+export interface IDataSource {
     name: string;
-    path: string;
     length: number;
-    stats: IStats;
+    stats?: IStats;
+    path?: string;
 
-    isDirectory(): boolean {
-        if (!this.stats) return false;
-        return FileUtil.isDirectory(this.stats);
-    }
+    on(event: 'readable', listener: () => void): NodeEventEmitter;
+    on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
+    on(event: 'end', listener: () => void): NodeEventEmitter;
+    on(event: string, listener: Function): NodeEventEmitter;
 
-    on(event: 'readable', listener: () => void): EventEmitter;
-    on(event: 'error', listener: (err: Error) => void): EventEmitter;
-    on(event: 'end', listener: () => void): EventEmitter;
-    on(event: string, listener: Function): EventEmitter;
-    on(event: string, listener: Function): EventEmitter {
-        this.flush();
-        return super.on(event, listener);
-    }
-
-    once(event: 'readable', listener: () => void): EventEmitter;
-    once(event: 'error', listener: (err: Error) => void): EventEmitter;
-    once(event: 'end', listener: () => void): EventEmitter;
-    once(event: string, listener: Function): EventEmitter;
-    once(event: string, listener: Function): EventEmitter {
-        this.flush();
-        return super.once(event, listener);
-    }
-
-    protected flush(): void {
-    }
-
-    read(): NodeBuffer {
-        return new Buffer(0);
-    }
-
-    close(): void {
-    }
+    read(): NodeBuffer;
+    close(): void;
 }
 
 export class FileUtil {
@@ -121,8 +80,9 @@ export class FileUtil {
         });
     }
 
-    static copy(source: DataSource, target: DataTarget, emitter: NodeEventEmitter, callback?: (err: Error) => any): void {
+    static copy(source: IDataSource, target: IDataTarget, emitter: NodeEventEmitter, callback?: (err: Error) => any): void {
         var writable = true;
+        var started = false;
         var eof = false;
         var done = false;
         var error = <Error>null;
@@ -130,15 +90,17 @@ export class FileUtil {
 
         source.on("readable",() => {
             //console.log("readable");
+            if (!started) {
+                started = true;
+                target.start();
+            }
+
             copy();
         });
 
         source.on("end",() => {
             //console.log("ended");
             eof = true;
-
-            // if the source file was empty, 'send' at least one empty block to make sure the file is created
-            if (total == 0) target.write(new Buffer(0));
             target.end();
         });
 
