@@ -232,19 +232,20 @@ export class LocalFilesystem implements IFilesystem {
 
         var items = [];
         if (err == null) {
-            var list = <Array<string>>handle;
+            var paths = (<string[]>handle).splice(0, 64);
 
-            if (list.length > 0) {
+            if (paths.length > 0) {
 
-                var next = function () {
-                    if (items.length >= 64 || list.length == 0) {
+                function next(): void {
+                    var name = paths.shift();
+
+                    if (!name) {
                         if (typeof callback == 'function') {
                             callback(null,(items.length > 0) ? items : false);
                         }
                         return;
                     }
 
-                    var name = list.shift();
                     var itemPath = Path.join(path, name);
 
                     fs.stat(itemPath, (err, stats) => {
@@ -261,7 +262,6 @@ export class LocalFilesystem implements IFilesystem {
                 return;
             }
         }
-
 
         if (typeof callback == 'function') {
             process.nextTick(function () {
