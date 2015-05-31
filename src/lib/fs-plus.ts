@@ -2,6 +2,7 @@
 import misc = require("./fs-misc");
 import transfers = require("./fs-transfers");
 import util = require("./util");
+import glob = require("./fs-glob");
 import events = require("events");
 
 import IFilesystem = api.IFilesystem;
@@ -12,8 +13,10 @@ import DataTarget = misc.DataTarget;
 import FileUtil = misc.FileUtil;
 import FileDataTarget = transfers.FileDataTarget;
 import toDataSource = transfers.toDataSource;
+import Task = util.Task;
 import wrapCallback = util.wrapCallback;
 import EventEmitter = events.EventEmitter;
+import search = glob.search;
 
 export interface IFilesystemExt extends FilesystemPlus {
 }
@@ -52,55 +55,55 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             callback = <any>attrs;
             attrs = null;
         }
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.open(path, flags, attrs, callback);
     }
 
     close(handle: any, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.close(handle, callback);
     }
 
     read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.read(handle, buffer, offset, length, position, callback);
     }
 
     write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.write(handle, buffer, offset, length, position, callback);
     }
 
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.lstat(path, callback);
     }
 
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.fstat(handle, callback);
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.setstat(path, attrs, callback);
     }
 
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.fsetstat(handle, attrs, callback);
     }
 
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.opendir(path, callback);
     }
@@ -108,16 +111,19 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     readdir(path: string, callback?: (err: Error, items: IItem[]) => any)
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any)
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
-        callback = wrapCallback(this, callback);
+        if (typeof handle === 'string') {
+            var path = <string>handle;
+            this.list(path, callback); //TODO: supply an option that turns off wildcards
+            return;
+        }
 
-        if (typeof handle !== 'string')
-            return this._fs.readdir(handle, callback);
+        callback = wrapCallback(this, null, callback);
 
-        FileUtil.readdir(this._fs, <string>handle, callback);
+        return this._fs.readdir(handle, callback);
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.unlink(path, callback);
     }
@@ -127,65 +133,75 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             callback = <any>attrs;
             attrs = null;
         }
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.mkdir(path, attrs, callback);
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.rmdir(path, callback);
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.realpath(path, callback);
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.stat(path, callback);
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.rename(oldPath, newPath, callback);
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
         this._fs.readlink(path, callback);
     }
 
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
-        this._fs.symlink(targetpath, linkpath);
+        this._fs.symlink(targetpath, linkpath, callback);
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+        callback = wrapCallback(this, null, callback);
 
-        this._fs.link(oldPath, newPath);
+        this._fs.link(oldPath, newPath, callback);
+    }
+
+    list(remotePath: string, callback?: (err: Error, items: IItem[]) => any): Task {
+        var task = new Task();
+        callback = wrapCallback(this, task, callback);
+
+        search(this._fs, remotePath, task, {}, callback);
+
+        return task;
     }
 
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any)
-    upload(input: any, remotePath: string, callback?: (err: Error) => any): void {
-        this._copy(input, this._local, remotePath, this._fs, callback);
+    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task {
+        return this._copy(input, this._local, remotePath, this._fs, callback);
     }
 
-    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): void {
-        this._copy(remotePath, this._fs, localPath, this._local, callback);
+    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task {
+        return this._copy(remotePath, this._fs, localPath, this._local, callback);
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: string, toFs: IFilesystem, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, callback);
+    private _copy(from: any, fromFs: IFilesystem, toPath: string, toFs: IFilesystem, callback?: (err: Error) => any): Task {
+        var task = new Task();
+        callback = wrapCallback(this, task, callback);
 
         var sources = <DataSource[]>null;
 
@@ -195,44 +211,61 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
         var directories = {};
 
+        return task;
+
         function prepare(err: Error, stats: IStats): void {
             if (err) return callback(err);
 
             if (!FileUtil.isDirectory(stats))
                 return callback(new Error("Target path is not a directory"));
 
-            toDataSource(fromFs, from,(err, src) => {
-                if (err) return callback(err);
+            try {
+                toDataSource(fromFs, from, task,(err, src) => {
+                    if (err) return callback(err);
 
-                sources = src;
+                    try {
+                        sources = src;
+                        sources.forEach(source => {
+                            //TODO: calculate total size
+                            //TODO: make sure that source.name is valid on target fs
+                        });
 
-                sources.forEach(source => {
-                    //TODO: calculate total size
-                    //TODO: make sure that source.name is valid on target fs
-                    //console.log("TODO:", source.name);
+                        next();
+                    } catch (err) {
+                        callback(err);
+                    }
                 });
-
-                next();
-            });
+            } catch (err) {
+                callback(err);
+            }
         }
 
         function next(): void {
             var source = sources.shift();
             if (!source) return callback(null);
 
-            checkParent(source.name, err => {
+            checkParent(source.name, transfer);
+
+            function transfer(err: Error): void {
                 if (err) return callback(err);
 
-                var target = new FileDataTarget(toFs, toPath + source.name);
+                var targetPath = toPath + source.name;
 
-                console.log(source.name, source.length);
+                task.emit("transferring", source.path, source.length);
 
-                FileUtil.copy(source, target, err => {
-                    if (err) return callback(err);
-                    console.log("-----------------------");
-                    next();
-                });
-            });
+                if (source.isDirectory()) {
+                    FileUtil.mkdir(toFs, targetPath, transferred);
+                } else {
+                    var target = new FileDataTarget(toFs, targetPath);
+                    FileUtil.copy(source, target, task, transferred);
+                }
+            }
+
+            function transferred(err: Error): void {
+                if (err) return callback(err);
+                task.emit("transferred", source.path, source.length);
+                next();
+            }
         }
 
         function checkParent(path: string, callback: (err: Error) => void) {
@@ -246,26 +279,10 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 if (err) return callback(err);
 
                 try {
-                    toFs.stat(toPath + parent,(err, stats) => {
-                        if (!err) {
-                            if (FileUtil.isDirectory(stats)) {
-                                directories[parent] = true;
-                                return callback(null);
-                            }
-                            return callback(new Error("Path is not a directory"));
-                        }
-
-                        if ((<any>err).code != "ENOENT") return callback(err);
-
-                        try {
-                            toFs.mkdir(toPath + parent, null, err => {
-                                if (err) return callback(err);
-                                directories[parent] = true;
-                                callback(null);
-                            });
-                        } catch (err) {
-                            callback(err);
-                        }
+                    FileUtil.mkdir(toFs, toPath + parent, err => {
+                        if (err) return callback(err);
+                        directories[parent] = true;
+                        callback(null);
                     });
                 } catch (err) {
                     callback(err);

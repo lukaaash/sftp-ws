@@ -1,4 +1,5 @@
 ﻿import api = require("./fs-api");
+import util = require("./util");
 import events = require("events");
 
 import IFilesystem = api.IFilesystem;
@@ -35,8 +36,14 @@ export class DataTarget extends EventEmitter {
 
 export class DataSource extends EventEmitter {
     name: string;
+    path: string;
     length: number;
     stats: IStats;
+
+    isDirectory(): boolean {
+        if (!this.stats) return false;
+        return FileUtil.isDirectory(this.stats);
+    }
 
     on(event: 'readable', listener: () => void): EventEmitter;
     on(event: 'error', listener: (err: Error) => void): EventEmitter;
@@ -101,41 +108,20 @@ export class FileUtil {
         return path;
     }
 
-    static readdir(fs: IFilesystem, path: string, callback?: (err: Error, items: IItem[]) => any): void {
-        var list: IItem[] = [];
-        var handle;
-
-        function next(err, items: IItem[]|boolean): void {
-
-            if (err != null) {
-                fs.close(handle);
-                callback(err, list);
-                return;
+    static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {
+        fs.stat(path,(err, stats) => {
+            if (!err) {
+                if (FileUtil.isDirectory(stats)) return callback(null);
+                return callback(new Error("Path is not a directory")); //TODO: better error
             }
 
-            if (items === false) {
-                fs.close(handle, err => {
-                    callback(err, list);
-                });
-                return;
-            }
+            if ((<any>err).code != "ENOENT") return callback(err);
 
-            list = list.concat(<IItem[]>items);
-            fs.readdir(handle, next);
-        };
-
-        fs.opendir(path,(err, h) => {
-            if (err != null) {
-                callback(err, null);
-                return;
-            }
-
-            handle = h;
-            next(null, []);
+            fs.mkdir(path, null, callback);
         });
     }
 
-    static copy(source: DataSource, target: DataTarget, callback?: (err: Error) => any): void {
+    static copy(source: DataSource, target: DataTarget, emitter: NodeEventEmitter, callback?: (err: Error) => any): void {
         var writable = true;
         var eof = false;
         var done = false;
@@ -170,7 +156,7 @@ export class FileUtil {
         });
 
         target.on("progress", bytesTransferred => {
-            console.log("transferred", bytesTransferred);
+            emitter.emit("progress", source.path, bytesTransferred, source.length);
         });
 
         target.on("finish",() => {

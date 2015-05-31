@@ -1,4 +1,7 @@
 ﻿/// <reference path="../typings/node/node.d.ts" />
+import events = require("events");
+
+import EventEmitter = events.EventEmitter;
 
 export interface ILogWriter {
     info(message?: any, ...optionalParams: any[]): void;
@@ -34,18 +37,63 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
     return fix ? fixed : writer;
 }
 
-export function wrapCallback(obj: NodeEventEmitter, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
-    return function () {
+export class Task extends EventEmitter {
+    constructor() {
+        super();
+    }
+}
+
+export function wrapCallback(owner: NodeEventEmitter, task: Task, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
+    return finish;
+
+    function finish(err: Error, ...args: any[]): void {
         var error = arguments[0];
-        if (typeof callback === 'function') {
-            try {
-                callback.apply(obj, arguments);
+        try {
+            if (typeof callback === 'function') {
+                callback.apply(owner, arguments);
                 error = null;
-            } catch (err) {
-                error = err;
+            } else if (task) {
+                if (!error) {
+                    switch (arguments.length) {
+                        case 0:
+                        case 1:
+                            task.emit("success");
+                            task.emit("finish", error);
+                            break;
+                        case 2:
+                            task.emit("success", arguments[1]);
+                            task.emit("finish", error, arguments[1]);
+                            break;
+                        case 3:
+                            task.emit("success", arguments[1], arguments[2]);
+                            task.emit("finish", error, arguments[1], arguments[2]);
+                            break;
+                        default:
+                            arguments[0] = "success";
+                            task.emit.apply(task, arguments);
+
+                            if (EventEmitter.listenerCount(task, "finish") > 0) {
+                                arguments[0] = "finish";
+                                Array.prototype.splice.call(arguments, 1, 0, error);
+                                task.emit.apply(task, arguments);
+                            }
+                            break;
+                    }
+
+                } else {
+                    if (EventEmitter.listenerCount(task, "error")) {
+                        task.emit("error", error);
+                        error = null;
+                    }
+
+                    task.emit("finish", error);
+                }
             }
+        } catch (err) {
+            if (error) owner.emit("error", error);
+            error = err;
         }
 
-        if (error) obj.emit("error", error);
-    };
+        if (error) owner.emit("error", error);
+    }
 }

@@ -1,6 +1,7 @@
 ﻿import api = require("./fs-api");
 import misc = require("./fs-misc");
 import glob = require("./fs-glob");
+import util = require("./util");
 
 import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
@@ -207,7 +208,6 @@ interface IChunk extends NodeBuffer {
 
 export class FileDataSource extends DataSource {
     private fs: IFilesystem;
-    private path: string;
 
     private handle: any;
     private nextChunkPosition: number;
@@ -413,6 +413,7 @@ class BlobDataSource extends DataSource {
     constructor(blob: Blob, position: number) {
         super();
         this.name = (<any>blob).name;
+        this.path = this.name;
         this.length = blob.size;
         this.stats = {};
 
@@ -488,69 +489,93 @@ class BlobDataSource extends DataSource {
     }
 }
 
-function openBlobDataSource(blob: Blob, callback: (err: Error, source?: DataSource[]) => void): void {
-    process.nextTick(() => {
-        var source = <DataSource><any>new BlobDataSource(blob, 0);
-        callback(null, [source]);
-    });
-}
-
-
-function isFileBlob(input: any) {
-    return (typeof input === "object" && typeof input.size === "number" && typeof input.name === "string" && typeof input.slice == "function");
-}
-
-function isArray(input: any) {
-    if (Array.isArray(input)) return true;
-    if (typeof input !== "object" || typeof input.length !== "number") return false;
-    if (input.length == 0) return true;
-    return isFileBlob(input[0]);
-}
-
-function toArrayDataSource(fs: IFilesystem, input: any[], callback: (err: Error, source?: DataSource[]) => void): void {
-    var source = <DataSource[]>[];
-    var array = <any[]>[];
-    Array.prototype.push.apply(array, input);
-    next();
-
-    function next(): void {
-        var item = array.shift();
-        if (!item) return callback(null, source);
-
-        if (isArray(item)) return process.nextTick(() => callback(new Error("Unsupported array of arrays data source")));
-
-        if (typeof item === "string")
-            toPathDataSource(fs, <string>item, false, add);
-        else
-            toDataSource(fs, item, add);
+export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmitter, callback: (err: Error, sources?: DataSource[]) => void): void {
+    try
+    {
+        toAnyDataSource(input, callback);
+    } catch (err) {
+        process.nextTick(() => callback(err));
     }
 
-    function add(err: Error, src: DataSource[]): void {
-        if (err) return callback(err, null);
-        Array.prototype.push.apply(source, src);
+    function toAnyDataSource(input: any, callback: (err: Error, source?: DataSource[]) => void): void {
+        // arrays
+        if (isArray(input)) return toArrayDataSource(<any[]>input);
+
+        // string paths
+        if (isString(input)) return toPatternDataSource(<string>input);
+
+        // Blob objects
+        if (isFileBlob(input)) return openBlobDataSource(input);
+
+        throw new Error("Unsupported source");
+    }
+
+    function openBlobDataSource(blob: Blob): void {
+        process.nextTick(() => {
+            var source = <DataSource><any>new BlobDataSource(blob, 0);
+            callback(null, [source]);
+        });
+    }
+
+    function isFileBlob(input: any): boolean {
+        return (typeof input === "object" && typeof input.size === "number" && typeof input.name === "string" && typeof input.slice == "function");
+    }
+
+    function isString(input: any): boolean {
+        return typeof input === "string";
+    }
+
+    function isArray(input: any) {
+        if (Array.isArray(input)) return true;
+        if (typeof input !== "object" || typeof input.length !== "number") return false;
+        if (input.length == 0) return true;
+        return isString(input) || isFileBlob(input[0]);
+    }
+
+    function toArrayDataSource(input: any[]): void {
+        var source = <DataSource[]>[];
+        var array = <any[]>[];
+        Array.prototype.push.apply(array, input);
         next();
-    }
-}
 
-function toPathDataSource(fs: IFilesystem, path: string, glob: boolean, callback: (err: Error, source?: DataSource[]) => void): void {
-    if (!fs) return process.nextTick(() => callback(new Error("File system not available")));
+        function next(): void {
+            try {
+                var item = array.shift();
+                if (!item) return callback(null, source);
 
-    try {
-        if (!glob) {
+                if (isArray(item)) throw new Error("Unsupported array of arrays data source");
 
-            fs.stat(path,(err, stats) => {
-                if (err) return callback(err, null);
-
-                // make sure it's a regular file
-                if (!FileUtil.isFile(stats)) return callback(new Error("Item is not a file: " + path), null);
-
-                var item = new FileDataSource(fs, path, FileUtil.getFileName(path), stats, 0);
-                callback(null, [item]);
-            });
-            return;
+                if (isString(item))
+                    toItemDataSource(<string>item, add);
+                else
+                    toAnyDataSource(item, add);
+            } catch (err) {
+                process.nextTick(() => callback(err));
+            }
         }
 
-        search(fs, path,(err, items) => {
+        function add(err: Error, src: DataSource[]): void {
+            if (err) return callback(err, null);
+            Array.prototype.push.apply(source, src);
+            next();
+        }
+    }
+
+    function toItemDataSource(path: string, callback: (err: Error, source?: DataSource[]) => void): void {
+        if (!fs) throw new Error("Source file system not available");
+
+        fs.stat(path,(err, stats) => {
+            if (err) return callback(err, null);
+
+            var item = new FileDataSource(fs, path, FileUtil.getFileName(path), stats, 0);
+            callback(null, [item]);
+        });
+    }
+
+    function toPatternDataSource(path: string): void {
+        if (!fs) throw new Error("Source file system not available");
+
+        search(fs, path, emitter, {},(err, items) => {
             if (err) return callback(err, null);
 
             var source = <DataSource[]>[];
@@ -561,23 +586,7 @@ function toPathDataSource(fs: IFilesystem, path: string, glob: boolean, callback
 
             callback(null, source);
         });
-    } catch (err) {
-        process.nextTick(() => callback(err));
     }
-}
-
-export function toDataSource(fs: IFilesystem, input: any, callback: (err: Error, source?: DataSource[]) => void): void {
-
-    // arrays
-    if (isArray(input)) return toArrayDataSource(fs, <any[]>input, callback);
-
-    // string paths
-    if (typeof input === "string") return toPathDataSource(fs, <string>input, true, callback);
-
-    // Blob objects
-    if (isFileBlob(input)) return openBlobDataSource(input, callback);
-
-    process.nextTick(() => callback(new Error("Unsupported data source")));
 }
 
 

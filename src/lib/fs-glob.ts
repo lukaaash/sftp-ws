@@ -16,7 +16,15 @@ interface IDirInfo {
     pattern: number;
 }
 
-export function search(fs: IFilesystem, path: string, callback: (err: Error, items?: IItemExt[]) => void): void {
+interface IEventEmitter {
+    emit(event: string, ...args: any[]): boolean;
+}
+
+interface ISearchOptions {
+    skipDirectories?: boolean;
+}
+
+export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, options: ISearchOptions, callback: (err: Error, items?: IItemExt[]) => void): void {
 
     if (path.length == 0)
         throw new Error("Empty path");
@@ -33,6 +41,7 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
 
     // important variables
     var basePath: string;
+    var matchDirectories = (!options || !options.skipDirectories);
     var glob: RegExp;
     var queue = <IDirInfo[]>[];
     var patterns = <RegExp[]>[];
@@ -102,7 +111,10 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
             } else if (mask[gs + 3] == '/') {
                 globmask = mask.substr(gs + 4);
                 mask = mask.substr(0, gs);
+                matchDirectories = matchDirectories && (globmask.lastIndexOf("/**") == (globmask.length - 3));
             }
+        } else {
+            matchDirectories = false;
         }
 
         var masks = mask.split('/');
@@ -129,70 +141,117 @@ export function search(fs: IFilesystem, path: string, callback: (err: Error, ite
         var current = queue.shift();
 
         // if no more to process, we are done
-        if (!current) return callback(null, results);
+        if (!current) {
+            return callback(null, results);
+        }
 
-        // prepare vars
-        var path = current.path;
-        var index = current.pattern;
-        var regex = patterns[index];
+        var path: string;
+        var index: number;
+        var regex: RegExp;
 
         var nextIndex;
         var matchFiles;
         var matchDirs;
-        if (regex) {
-            //console.log("Matching (r): ", basePath, path, regex.source);
-            nextIndex = index + 1;
-            var isLast = (nextIndex == patterns.length);
-            matchFiles = isLast && glob == null;
-            matchDirs = !isLast;
-        } else {
-            //console.log("Matching (g): ", basePath, path, glob.source);
-            nextIndex = index;
-            matchFiles = true;
-            matchDirs = true;
+
+        try {
+            // prepare vars
+            path = current.path;
+            index = current.pattern;
+            regex = patterns[index];
+
+            if (regex) {
+                //console.log("Matching (r): ", basePath, path, regex.source);
+                nextIndex = index + 1;
+                var isLast = (nextIndex == patterns.length);
+                matchFiles = isLast && glob == null;
+                matchDirs = !isLast;
+            } else {
+                //console.log("Matching (g): ", basePath, path, glob.source);
+                nextIndex = index;
+                matchFiles = true;
+                matchDirs = true;
+            }
+
+            var fullPath = basePath + path;
+
+            // list directory and process its items
+            fs.opendir(fullPath,(err, handle) => {
+                if (err) return callback(err, null);
+
+                emitter.emit("traversing", fullPath);
+
+                // send 1 read request
+                var error = null;
+                var requests = 1;
+                fs.readdir(handle, read);
+
+                function read(err: Error, items: IItem[]|boolean): void {
+                    try {
+                        requests--;
+                        error = error || err;
+                        if (error || !items) {
+                            if (requests > 0) return;
+
+                            // when done, close the handle
+                            fs.close(handle, err => {
+                                error = error || err;
+                                if (err) return callback(error, null);
+
+                                emitter.emit("traversed", fullPath);
+
+                                // process next directory
+                                next();
+                            });
+                            return;
+                        }
+
+                        // process items
+                        (<IItemExt[]>items).forEach(process);
+
+                        // read next items using several parallel readdir requests
+                        while (requests < 2) {
+                            fs.readdir(handle, read);
+                            requests++;
+                        }
+                    } catch (err) {
+                        error = error || err;
+                        return callback(error, null);
+                    }
+                }
+            });
+        } catch (err) {
+            return callback(err, null);
         }
 
-        // list directory and process its items
-        FileUtil.readdir(fs, basePath + path,(err, items) => {
-            if (err) return callback(err, null);
+        // process a single item
+        function process(item: IItemExt): void {
+            var isMatchedDir = matchDirs && (FileUtil.isDirectory(item.stats));
+            var isMatchedFile = matchFiles && (FileUtil.isFile(item.stats));
+            if (!isMatchedFile && !isMatchedDir) return;
 
-            try {
-                (<IItemExt[]>items).forEach(item => {
-                    var matchDir = matchDirs && (FileUtil.isDirectory(item.stats));
-                    var matchFile = matchFiles && (FileUtil.isFile(item.stats));
-                    if (!matchFile && !matchDir)
-                        return;
+            var itemPath = path + "/" + item.filename;
 
-                    var itemPath = path + "/" + item.filename;
-
-                    var isMatch;
-                    if (regex) {
-                        // mask matching
-                        isMatch = regex.test(item.filename);
-                    } else {
-                        // globstar matching
-                        isMatch = matchDir || glob.test(path + item.filename);
-                    }
-
-                    if (!isMatch)
-                        return;
-
-                    if (matchFile) {
-                        // add matched file to the list
-                        item.path = basePath + itemPath;
-                        item.relativePath = itemPath.substr(1);
-                        results.push(item);
-                    } else if (matchDir) {
-                        // add matched directory to queue
-                        queue.push({ path: itemPath, pattern: nextIndex });
-                    }
-                });
-
-                next();
-            } catch (err) {
-                return callback(err, null);
+            if (regex) {
+                // mask matching
+                if (!regex.test(item.filename)) return;
+            } else {
+                // globstar matching
+                if (isMatchedFile || matchDirectories) isMatchedFile = glob.test(path + item.filename);
             }
-        });
+
+            if (isMatchedFile) {
+                // add matched file to the list
+                item.path = basePath + itemPath;
+                item.relativePath = itemPath.substr(1);
+                results.push(item);
+                emitter.emit("item", item);
+            }
+
+            if (isMatchedDir) {
+                // add matched directory to queue
+                queue.push({ path: itemPath, pattern: nextIndex });
+            }
+        }        
     }
 
     // convert mask pattern to regular expression
