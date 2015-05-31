@@ -21,6 +21,13 @@ class EventEmitter {
 
     private _events: Object;
 
+    static listenerCount(emitter: EventEmitter, event: string): number {
+        if (!emitter || typeof emitter._events === "undefined") return 0;
+        var list = <Function[]>emitter._events[event];
+        if (!list) return 0;
+        return list.length;
+    }
+
     addListener(event: string, listener: Function): EventEmitter {
         var list = <Function[]>this._events[event] || [];
         list.push(listener);
@@ -66,14 +73,17 @@ class EventEmitter {
         return this._events[event];
     }
 
-    emit(event: string, ...args: any[]): void {
+    emit(event: string, ...args: any[]): boolean {
         var list = <Function[]>this._events[event];
-        if (!Array.isArray(list))
-            return;
-
-        for (var i = 0; i < list.length; i++) {
-            list[i].apply(this, args);
+        var called = false;
+        if (Array.isArray(list)) {
+            for (var i = 0; i < list.length; i++) {
+                list[i].apply(this, args);
+                called = true;
+            }
         }
+        if (!called && event == "error") throw args[0];
+        return called;
     }
 }
 
