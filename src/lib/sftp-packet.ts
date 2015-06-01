@@ -191,16 +191,14 @@ export class SftpPacketWriter extends SftpPacket {
         var charLength = value.length; //WEB: // removed
         (<any>this.buffer)._charsWritten = 0; //WEB: // removed
         var bytesWritten = this.buffer.write(value, this.position, undefined, 'utf-8'); //WEB: // removed
-        this.position += bytesWritten; //WEB: // removed
         //WEB: if (bytesWritten < 0)
         if ((<any>Buffer)._charsWritten != charLength) //WEB: // removed
             throw new Error("Not enough space in the buffer");
 
-        // write number of bytes
-        //WEB: var position = this.position;
+        // write number of bytes and seek back to the end
         //WEB: this.position = offset;
-        this.buffer.writeInt32BE(bytesWritten, offset, true); //WEB: this.writeInt32(length);
-        //WEB: this.position = position;
+        this.buffer.writeInt32BE(bytesWritten, offset, true); //WEB: this.writeInt32(bytesWritten);
+        this.position += bytesWritten;
     }
 
     writeData(data: NodeBuffer, start?: number, end?: number): void {
