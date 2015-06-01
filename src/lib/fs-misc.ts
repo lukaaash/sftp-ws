@@ -8,14 +8,14 @@ import FileType = api.FileType;
 
 export interface IDataTarget {
     on(event: 'drain', listener: () => void): NodeEventEmitter;
-    on(event: 'progress', listener: (bytesTransferred: number) => void): NodeEventEmitter;
     on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
     on(event: 'finish', listener: () => void): NodeEventEmitter;
     on(event: string, listener: Function): NodeEventEmitter;
 
-    start(): boolean;
-    write(chunk: NodeBuffer): boolean;
+    write(chunk: NodeBuffer, callback?: () => void): boolean;
     end(): void;
+
+    acceptsEmptyBlocks?: boolean;
 }
 
 export interface IDataSource {
@@ -81,8 +81,8 @@ export class FileUtil {
     }
 
     static copy(source: IDataSource, target: IDataTarget, emitter: NodeEventEmitter, callback?: (err: Error) => any): void {
+        var empty = true;
         var writable = true;
-        var started = false;
         var eof = false;
         var done = false;
         var error = <Error>null;
@@ -90,17 +90,15 @@ export class FileUtil {
 
         source.on("readable",() => {
             //console.log("readable");
-            if (!started) {
-                started = true;
-                target.start();
+            while (writable) {
+                if (!copy()) break;
             }
-
-            copy();
         });
 
         source.on("end",() => {
             //console.log("ended");
             eof = true;
+            if (empty && target.acceptsEmptyBlocks) target.write(new Buffer(0));
             target.end();
         });
 
@@ -114,11 +112,9 @@ export class FileUtil {
         target.on("drain",() => {
             //console.log("drained");
             writable = true;
-            copy();
-        });
-
-        target.on("progress", bytesTransferred => {
-            emitter.emit("progress", source.path, bytesTransferred, source.length);
+            do {
+                if (!copy()) break;
+            } while (writable);
         });
 
         target.on("finish",() => {
@@ -132,18 +128,24 @@ export class FileUtil {
             exit();
         });
 
-        function copy(): void {
-            while (writable) {
-                var chunk = source.read();
-                if (!chunk) break;
+        function copy(): boolean {
+            var chunk = source.read();
+            if (!chunk) return false;
 
+            empty = false;
+            writable = target.write(chunk,() => {
+                // The fact that write requests might in theory be completed in different order
+                // doesn't concern us much because a transferred byte is still a transferred byte
+                // and it will all add up to proper number in the end.
                 total += chunk.length;
-                writable = target.write(chunk);
-            }
+                emitter.emit("progress", source.path, total, source.length);
+            });
+
+            return writable;
         }
 
         function exit(): void {
-            if (!eof) source.close();
+            if (!eof) return source.close();
 
             if (!done) {
                 done = true;

@@ -23,14 +23,13 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
     private queue: IChunk[];
     private requests: number;
 
-    private bytesTransferred: number;
-
-    private opening: boolean;
-    private report: boolean;
+    private started: boolean;
     private ready: boolean;
     private ended: boolean;
     private finished: boolean;
     private failed: boolean;
+
+    acceptsEmptyBlocks: boolean;
 
     on(event: string, listener: Function): NodeEventEmitter {
         return super.on(event, listener);
@@ -48,48 +47,37 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
         this.queue = [];
         this.requests = 0;
 
-        this.bytesTransferred = 0;
-
-        this.opening = false;
-        this.report = false;
+        this.started = false;
         this.ready = false;
         this.ended = false;
         this.finished = false;
+        FileDataTarget.prototype.acceptsEmptyBlocks = true;
     }
 
-    private flush(sync: boolean) {
-        try {
-            if (this.opening)
-                return;
+    private flush(sync: boolean): void {
+        if (this.ended) {
+            // if there are no outstanding requests or queued data, do the cleanup
+            if (this.requests == 0 && this.queue.length == 0) {
 
-            if (this.ended) {
-                // if there are still no outstanding requests or queued data, do the cleanup
-                if (this.requests == 0 && this.queue.length == 0) {
+                // if the file is still open, close it
+                if (this.handle != null) return this.close();
 
-                    // if the file is still open, close it
-                    if (this.handle != null) {
-                        var handle = this.handle;
-                        this.handle = null;
-                        this.fs.close(handle, err => {
-                            if (err) return this.error(err);
-                            this.flush(false);
-                        });
-                        return;
-                    }
-
-                    // finish when there is nothing else to wait for
-                    if (!this.finished) {
-                        this.finished = true;
-                        if (sync)
-                            process.nextTick(() => super.emit('finish'));
-                        else
-                            super.emit('finish');
-                    }
-
-                    return;
+                // finish when there is nothing else to wait for
+                if (!this.finished) {
+                    this.finished = true;
+                    if (sync)
+                        process.nextTick(() => super.emit('finish'));
+                    else
+                        super.emit('finish');
                 }
-            }
 
+                return;
+            }
+        }
+
+        if (!this.handle) return;
+
+        try {
             // with maximum of active write requests, we are not ready to send more
             if (this.requests >= 4) {
                 this.ready = false;
@@ -111,8 +99,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
                 this.ready = true;
 
                 // don't emit if called synchronously
-                if (!sync)
-                    super.emit('drain');
+                if (!sync) super.emit('drain');
             }
         } catch (err) {
             this.error(err);
@@ -131,14 +118,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 
                 if (err) return this.error(err);
 
-                // report progress
-                if (this.report) {
-                    // The fact that write requests might in theory be completed in different order
-                    // doesn't concern us much because a transferred byte is still a transferred byte
-                    // and it will all add up to proper number in the end.
-                    this.bytesTransferred += bytesToWrite;
-                    super.emit('progress', this.bytesTransferred);
-                }
+                if (typeof chunk.callback === "function") chunk.callback();
 
                 this.flush(false);
             });
@@ -157,22 +137,20 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
         process.nextTick(() => super.emit('error', err));
     }
 
-    start(): boolean {
-        return this.write(new Buffer(0));
-    }
-
-    write(chunk: NodeBuffer): boolean {
+    write(chunk: NodeBuffer, callback?: () => void): boolean {
         // don't accept more data if ended
         if (this.ended)
             return false;
 
         // enqueue the chunk for processing
-        if (chunk.length > 0)
+        if (chunk.length > 0) {
+            (<IChunk>chunk).callback = callback;
             this.queue.push(<IChunk>chunk);
+        }
 
-        // open the file if not open yet
-        if (this.handle == null) {
-            if (!this.opening) this.open();
+        // open the file if not started yet
+        if (!this.started) {
+            this.open();
             return false;
         }
 
@@ -181,26 +159,32 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
     }
 
     private open(): void {
-        this.opening = true;
+        if (this.started) return;
+
+        this.started = true;
         try {
             this.fs.open(this.path, "w",(err, handle) => {
-                this.opening = false;
-
                 if (err) return this.error(err);
-
-                // determine whether to report progress
-                if (super.listeners('progress').length > 0) {
-                    this.report = true;
-                        
-                    // report progress of 0 bytes
-                    super.emit('progress', 0);
-                }
 
                 this.handle = handle;
                 this.flush(false);
             });
         } catch (err) {
-            this.opening = false;
+            this.error(err);
+        }
+    }
+
+    private close(): void {
+        if (!this.handle) return;
+
+        var handle = this.handle;
+        this.handle = null;
+        try {
+            this.fs.close(handle, err => {
+                if (err) return this.error(err);
+                this.flush(false);
+            });
+        } catch (err) {
             this.error(err);
         }
     }
@@ -214,6 +198,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 
 interface IChunk extends NodeBuffer {
     position: number;
+    callback?: () => void;
 }
 
 export class FileDataSource extends EventEmitter implements IDataSource {
