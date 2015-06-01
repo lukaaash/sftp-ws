@@ -78,11 +78,15 @@ class EventEmitter {
         var called = false;
         if (Array.isArray(list)) {
             for (var i = 0; i < list.length; i++) {
-                list[i].apply(this, args);
+                list[i].apply(null, args);
                 called = true;
             }
         }
-        if (!called && event == "error") throw args[0];
+        if (!called && event == "error") {
+            var error = <Error>args[0];
+            console.error(error);
+            throw error;
+        }
         return called;
     }
 }
