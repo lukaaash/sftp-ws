@@ -13,7 +13,6 @@ import api = require("./fs-api");
 import channel = require("./channel");
 import util = require("./util");
 
-import SftpClient = client.SftpClient;
 import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
 import ISessionHost = channel.IChannel;
@@ -52,8 +51,16 @@ module SFTP {
         log?: ILogWriter;
     }
 
-    export class Client extends SftpClient {
+    export class Client extends client.SftpClient implements client.ISftpClientEvents<Client> {
 
+        on(event: string, listener: Function): Client {
+            return <any>super.on(event, listener);
+        }
+
+        once(event: string, listener: Function): Client {
+            return <any>super.on(event, listener);
+        }
+        
         constructor() {
             var localFs = new local.LocalFilesystem();
             super(localFs);

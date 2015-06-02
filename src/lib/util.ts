@@ -38,6 +38,14 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
 }
 
 export class Task extends EventEmitter {
+    on(event: 'success', listener: (...args: any[]) => void): Task;
+    on(event: 'error', listener: (err: Error) => void): Task;
+    on(event: 'finish', listener: (err: Error, ...args: any[]) => void): Task;
+    on(event: string, listener: Function): Task;
+    on(event: string, listener: Function): Task {
+        return super.on(event, listener);
+    }
+
     constructor() {
         super();
     }

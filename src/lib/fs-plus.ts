@@ -32,24 +32,6 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._local = local;
     }
 
-    on(event: 'error', listener: (err: Error) => void): EventEmitter;
-    on(event: string, listener: Function): EventEmitter;
-    on(event: string, listener: Function): EventEmitter {
-        return super.on(event, listener);
-    }
-
-    once(event: 'error', listener: (err: Error) => void): EventEmitter; //WEB: // removed
-    once(event: string, listener: Function): EventEmitter; //WEB: // removed
-    once(event: string, listener: Function): EventEmitter { //WEB: // removed
-        return super.once(event, listener); //WEB: // removed
-    } //WEB: // removed
-
-    addListener(event: 'error', listener: (err: Error) => void): EventEmitter;
-    addListener(event: string, listener: Function): EventEmitter;
-    addListener(event: string, listener: Function): EventEmitter {
-        return super.addListener(event, listener);
-    }
-
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;

@@ -4,6 +4,7 @@ import channel = require("./channel");
 import util = require("./util");
 
 import SftpClient = client.SftpClient;
+import ISftpClientEvents = client.ISftpClientEvents;
 import IFilesystem = api.IFilesystem;
 import ILogWriter = util.ILogWriter;
 import WebSocketChannel = channel.WebSocketChannel;
@@ -13,7 +14,15 @@ export interface IClientOptions {
     log?: ILogWriter;
 }
 
-export class Client extends SftpClient {
+export class Client extends SftpClient implements ISftpClientEvents<Client> {
+
+    on(event: string, listener: Function): Client {
+        return <any>super.on(event, listener);
+    }
+
+    once(event: string, listener: Function): Client {
+        return <any>super.on(event, listener);
+    }
 
     constructor() {
         super(null);

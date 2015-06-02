@@ -657,6 +657,18 @@ class SftpClientCore implements IFilesystem {
     }
 }
 
+export interface ISftpClientEvents<T> {
+    on(event: 'ready', listener: () => void): T;
+    on(event: 'error', listener: (err: Error) => void): T;
+    on(event: 'close', listener: (err: Error) => void): T;
+    on(event: string, listener: Function): T;
+
+    once(event: 'ready', listener: () => void): T;
+    once(event: 'error', listener: (err: Error) => void): T;
+    once(event: 'close', listener: (err: Error) => void): T;
+    once(event: string, listener: Function): T;
+}
+
 export class SftpClient extends FilesystemPlus {
 
     private _bound: boolean;
