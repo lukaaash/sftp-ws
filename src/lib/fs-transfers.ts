@@ -358,7 +358,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         if (chunk && chunk.position == this.expectedPosition) {
             this.expectedPosition += chunk.length;
             this.queue.shift();
-            if (this.queue.length == 0)
+            if (this.queue.length == 0 || this.queue[0].position != this.expectedPosition)
                 this.readable = false;
         } else {
             chunk = null;
