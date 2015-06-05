@@ -187,7 +187,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
         var sources = <IDataSource[]>null;
 
-        toPath = FileUtil.normalize(toPath, (<any>toFs).isWindows == true);
+        toPath = FileUtil.normalize(toPath,(<any>toFs).isWindows == true);
+        toPath = FileUtil.removeTrailingSlash(toPath);
 
         toFs.stat(toPath, prepare);
 
@@ -200,6 +201,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
             if (!FileUtil.isDirectory(stats))
                 return callback(new Error("Target path is not a directory"));
+
+            toPath = FileUtil.addTrailingSlash(toPath);
 
             try {
                 toDataSource(fromFs, from, task,(err, src) => {

@@ -63,7 +63,14 @@ export class FileUtil {
     }
 
     static addTrailingSlash(path: string): string {
-        if (path.length > 0 && path[path.length - 1] != '/') path += "/";
+        var len = path.length;
+        if (len > 0 && path[len - 1] != '/') path += "/";
+        return path;
+    }
+
+    static removeTrailingSlash(path: string): string {
+        var len = path.length;
+        if (len > 0 && path[len - 1] == '/') path = path.substr(0, len - 1);
         return path;
     }
 
