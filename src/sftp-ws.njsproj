@@ -42,6 +42,7 @@
   <ItemGroup>
     <TypeScriptCompile Include="gulpfile.ts" />
     <TypeScriptCompile Include="lib\channel.ts" />
+    <TypeScriptCompile Include="lib\charsets.ts" />
     <TypeScriptCompile Include="lib\fs-local.ts" />
     <TypeScriptCompile Include="lib\fs-misc.ts" />
     <TypeScriptCompile Include="lib\fs-plus.ts" />
@@ -57,6 +58,7 @@
     <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
+    <TypeScriptCompile Include="tests\encoding.ts" />
     <TypeScriptCompile Include="tests\core-tests.ts">
       <SubType>Code</SubType>
       <TestFramework>Mocha</TestFramework>
