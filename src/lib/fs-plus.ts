@@ -13,8 +13,11 @@ import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import FileUtil = misc.FileUtil;
 import FileDataTarget = targets.FileDataTarget;
-import FileDataSource = transfers.FileDataSource;
-import toDataSource = transfers.toDataSource;
+import BlobDataTarget = targets.BlobDataTarget;
+import StringDataTarget = targets.StringDataTarget;
+import BufferDataTarget = targets.BufferDataTarget;
+import FileDataSource = sources.FileDataSource;
+import toDataSource = sources.toDataSource;
 import Task = util.Task;
 import wrapCallback = util.wrapCallback;
 import EventEmitter = events.EventEmitter;
@@ -169,6 +172,51 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         callback = wrapCallback(this, task, callback);
 
         search(this._fs, remotePath, task, {}, callback);
+
+        return task;
+    }
+
+    readFile(remotePath: string, options: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task {
+        var task = new Task();
+        callback = wrapCallback(this, task, callback);
+
+        // process options
+        options = options || {};
+        var type = options.type;
+        var encoding = options.encoding
+        if (type) {
+            type = (type + "").toLowerCase();
+            if (type == "string" || type == "text") encoding = encoding || "utf8";
+        } else {
+            type = encoding ? "string" : "buffer";
+        }
+
+        // create appropriate target
+        var target: IDataTarget;
+        switch (type) {
+            case "text":
+            case "string":
+                target = new StringDataTarget(encoding);
+                break;
+            case "array":
+            case "buffer":
+                target = new BufferDataTarget();
+                break;
+            case "blob":
+                // WEB: target = new BlobDataTarget(options.mimeType);
+                // WEB: break;
+            default:
+                throw new Error("Unsupported data kind: " + options.type);
+        }
+
+        // create source
+        var source = new FileDataSource(this._fs, remotePath);
+
+        // copy file data
+        FileUtil.copy(source, target, task, err => {
+            if (err) return callback(err, null);
+            callback(null, (<any>target).result());
+        });
 
         return task;
     }

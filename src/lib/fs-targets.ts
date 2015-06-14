@@ -1,5 +1,6 @@
 ﻿import api = require("./fs-api");
 import misc = require("./fs-misc");
+import charsets = require("./charsets");
 import events = require("events");
 
 import IFilesystem = api.IFilesystem;
@@ -7,6 +8,9 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
 import IDataTarget = misc.IDataTarget;
+import Encoding = charsets.Encoding;
+import IStringDecoder = charsets.IStringDecoder;
+import IStringEncoder = charsets.IStringEncoder;
 import EventEmitter = events.EventEmitter;
 
 interface IChunk extends NodeBuffer {
@@ -194,5 +198,115 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
         this.ready = false;
         this.ended = true;
         this._flush(true);
+    }
+}
+
+export class DataTarget extends EventEmitter implements IDataTarget {
+    constructor() {
+        super();
+    }
+
+    on(event: string, listener: Function): NodeEventEmitter {
+        return super.on(event, listener);
+    }
+
+    protected _data(chunk: NodeBuffer): void {
+        super.emit('data', chunk);
+    }
+
+    protected _end(): void {
+        super.emit('end');
+    }
+
+    write(chunk: NodeBuffer, callback?: () => void): boolean {
+        // we don't have to do this in the next tick because our caller doesn't need that either
+        this._data(chunk);
+        if (typeof callback === "function") callback();
+        return true;
+    }
+
+    end(): void {
+        // we don't have to do this in the next tick because our caller doesn't need that either
+        this._end();
+        super.emit('finish');
+    }
+}
+
+export class StringDataTarget extends DataTarget {
+    private _decoder: IStringDecoder;
+
+    constructor(encoding: string) {
+        super();
+        this._decoder = new Encoding(encoding).getDecoder();
+    }
+
+    protected _data(chunk: NodeBuffer): void {
+        this._decoder.write(chunk, 0, chunk.length);
+    }
+
+    protected _end(): void {
+    }
+
+    result() {
+        return this._decoder.text;
+    }
+}
+
+export class BlobDataTarget extends DataTarget {
+    private _chunks: NodeBuffer[];
+    private _blob: Blob;
+    private _mimeType: string;
+
+    constructor(mimeType?: string) {
+        super();
+        this._chunks = [];
+        this._mimeType = mimeType;
+    }
+
+    protected _data(chunk: NodeBuffer): void {
+        this._chunks.push(chunk);
+    }
+
+    protected _end(): void {
+        var options;
+        if (this._mimeType) options = { type: this._mimeType };
+        this._blob = new Blob(this._chunks, options);
+        this._chunks.length = 0;
+    }
+
+    result() {
+        return this._blob;
+    }
+}
+
+export class BufferDataTarget extends DataTarget {
+    private _chunks: NodeBuffer[];
+    private _buffer: NodeBuffer;
+    private _length: number;
+
+    constructor() {
+        super();
+        this._chunks = [];
+        this._length = 0;
+    }
+
+    protected _data(chunk: NodeBuffer): void {
+        this._length += chunk.length;
+        this._chunks.push(chunk);
+    }
+
+    protected _end(): void {
+        this._buffer = new Buffer(this._chunks); // WEB: this._buffer = new Uint8Array(this._length);
+        //WEB: var offset = 0;
+        //WEB: for (var n = 0; n < this._chunks.length; n++) {
+        //WEB:     var chunk = this._chunks[n];
+        //WEB:     this._buffer.set(chunk, offset);
+        //WEB:     offset += chunk.length;
+        //WEB: }
+        this._chunks.length = 0;
+    }
+
+    result() {
+        return this._buffer;
     }
 }
