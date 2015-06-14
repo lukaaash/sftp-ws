@@ -1,6 +1,6 @@
 ﻿import api = require("./fs-api");
 import misc = require("./fs-misc");
-import transfers = require("./fs-transfers");
+import sources = require("./fs-sources");
 import targets = require("./fs-targets");
 import util = require("./util");
 import glob = require("./fs-glob");
