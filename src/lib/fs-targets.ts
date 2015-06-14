@@ -1,0 +1,198 @@
+﻿import api = require("./fs-api");
+import misc = require("./fs-misc");
+import events = require("events");
+
+import IFilesystem = api.IFilesystem;
+import IStats = api.IStats;
+import IItem = api.IItem;
+import FileUtil = misc.FileUtil;
+import IDataTarget = misc.IDataTarget;
+import EventEmitter = events.EventEmitter;
+
+interface IChunk extends NodeBuffer {
+    callback?: () => void;
+}
+
+export class FileDataTarget extends EventEmitter implements IDataTarget {
+    private fs: IFilesystem;
+    private path: string;
+
+    private handle: any;
+    private position: number;
+
+    private queue: IChunk[];
+    private requests: number;
+
+    private started: boolean;
+    private ready: boolean;
+    private ended: boolean;
+    private finished: boolean;
+    private failed: boolean;
+
+    acceptsEmptyBlocks: boolean;
+
+    on(event: string, listener: Function): NodeEventEmitter {
+        return super.on(event, listener);
+    }
+
+    constructor(fs: IFilesystem, path: string) {
+        super();
+
+        this.fs = fs;
+        this.path = path;
+
+        this.handle = null;
+        this.position = 0;
+
+        this.queue = [];
+        this.requests = 0;
+
+        this.started = false;
+        this.ready = false;
+        this.ended = false;
+        this.finished = false;
+        FileDataTarget.prototype.acceptsEmptyBlocks = true;
+    }
+
+    private _flush(sync: boolean): void {
+        if (this.ended) {
+            // if there are no outstanding requests or queued data, do the cleanup
+            if (this.requests == 0 && this.queue.length == 0) {
+
+                // if the file is still open, close it
+                if (this.handle != null) return this._close();
+
+                // finish when there is nothing else to wait for
+                if (!this.finished) {
+                    this.finished = true;
+                    if (sync)
+                        process.nextTick(() => super.emit('finish'));
+                    else
+                        super.emit('finish');
+                }
+
+                return;
+            }
+        }
+
+        // return if not open
+        if (!this.handle) return;
+
+        try {
+            // with maximum of active write requests, we are not ready to send more
+            if (this.requests >= 4) {
+                this.ready = false;
+                return;
+            }
+
+            // otherwise, write more chunks while possible
+            while (this.requests < 4) {
+                var chunk = this.queue.shift();
+                if (!chunk)
+                    break;
+
+                this._next(chunk, this.position);
+                this.position += chunk.length;
+            }
+
+            // emit event when ready do accept more data
+            if (!this.ready && !this.ended) {
+                this.ready = true;
+
+                // don't emit if called synchronously
+                if (!sync) super.emit('drain');
+            }
+        } catch (err) {
+            this._error(err);
+        }
+    }
+
+    private _next(chunk: IChunk, position: number): void {
+        var bytesToWrite = chunk.length;
+
+        //console.log("write", position, bytesToWrite);
+        this.requests++;
+        try {
+            this.fs.write(this.handle, chunk, 0, bytesToWrite, position, err => {
+                this.requests--;
+                //console.log("write done", err || position);
+
+                if (err) return this._error(err);
+
+                if (typeof chunk.callback === "function") chunk.callback();
+
+                this._flush(false);
+            });
+        } catch (err) {
+            this.requests--;
+            this._error(err);
+        }
+    }
+
+    private _error(err: Error): void {
+        this.ready = false;
+        this.ended = true;
+        this.finished = true;
+        this.queue = [];
+        this._flush(false);
+        process.nextTick(() => super.emit('error', err));
+    }
+
+    write(chunk: NodeBuffer, callback?: () => void): boolean {
+        // don't accept more data if ended
+        if (this.ended)
+            return false;
+
+        // enqueue the chunk for processing
+        if (chunk.length > 0) {
+            (<IChunk>chunk).callback = callback;
+            this.queue.push(<IChunk>chunk);
+        }
+
+        // open the file if not started yet
+        if (!this.started) {
+            this._open();
+            return false;
+        }
+
+        this._flush(true);
+        return this.ready;
+    }
+
+    private _open(): void {
+        if (this.started) return;
+
+        this.started = true;
+        try {
+            this.fs.open(this.path, "w",(err, handle) => {
+                if (err) return this._error(err);
+
+                this.handle = handle;
+                this._flush(false);
+            });
+        } catch (err) {
+            this._error(err);
+        }
+    }
+
+    private _close(): void {
+        if (!this.handle) return;
+
+        var handle = this.handle;
+        this.handle = null;
+        try {
+            this.fs.close(handle, err => {
+                if (err) return this._error(err);
+                this._flush(false);
+            });
+        } catch (err) {
+            this._error(err);
+        }
+    }
+
+    end(): void {
+        this.ready = false;
+        this.ended = true;
+        this._flush(true);
+    }
+}

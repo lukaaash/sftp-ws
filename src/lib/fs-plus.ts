@@ -1,6 +1,7 @@
 ﻿import api = require("./fs-api");
 import misc = require("./fs-misc");
 import transfers = require("./fs-transfers");
+import targets = require("./fs-targets");
 import util = require("./util");
 import glob = require("./fs-glob");
 import events = require("events");
@@ -11,7 +12,8 @@ import IStats = api.IStats;
 import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import FileUtil = misc.FileUtil;
-import FileDataTarget = transfers.FileDataTarget;
+import FileDataTarget = targets.FileDataTarget;
+import FileDataSource = transfers.FileDataSource;
 import toDataSource = transfers.toDataSource;
 import Task = util.Task;
 import wrapCallback = util.wrapCallback;
