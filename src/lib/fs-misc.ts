@@ -103,6 +103,25 @@ export class Path {
     toString(): string {
         return this.path;
     }
+
+    static check(path: string, name?: string): string {
+        if (typeof name === "undefined") name = "path";
+
+        if (typeof path !== "string") {
+            if (path === null || typeof path === "undefined")
+                throw new Error("Missing " + name);
+
+            if (typeof path === 'function')
+                throw new Error("Invalid " + name);
+
+            path = "" + path;
+        }
+
+        if (path.length == 0)
+            throw new Error("Empty " + name);
+
+        return path;
+    }
 }
 
 export class FileUtil {

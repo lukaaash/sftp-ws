@@ -3,6 +3,7 @@ import misc = require("./sftp-misc");
 import enums = require("./sftp-enums");
 import api = require("./fs-api");
 import plus = require("./fs-plus");
+import fsmisc = require("./fs-misc");
 import channel = require("./channel");
 import util = require("./util");
 
@@ -22,6 +23,7 @@ import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
 import SftpItem = misc.SftpItem;
 import SftpExtensions = misc.SftpExtensions;
+import Path = fsmisc.Path;
 
 interface SftpRequest {
     callback: Function;
@@ -217,7 +219,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
@@ -279,7 +281,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.LSTAT, [path], callback, this.parseAttribs, { command: "lstat", path: path });
     }
@@ -295,7 +297,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         var request = this.getRequest(SftpPacketType.SETSTAT);
 
@@ -317,7 +319,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.OPENDIR, [path], callback, this.parseHandle, { command: "opendir", path: path });
     }
@@ -333,13 +335,13 @@ class SftpClientCore implements IFilesystem {
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.REMOVE, [path], callback, this.parseStatus, { command: "unline", path: path });
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
             attrs = null;
@@ -354,46 +356,46 @@ class SftpClientCore implements IFilesystem {
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.RMDIR, [path], callback, this.parseStatus, { command: "rmdir", path: path });
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.REALPATH, [path], callback, this.parsePath, { command: "realpath", path: path });
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.STAT, [path], callback, this.parseAttribs, { command: "stat", path: path });
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        oldPath = this.toPath(oldPath, 'oldPath');
-        newPath = this.toPath(newPath, 'newPath');
+        oldPath = Path.check(oldPath, 'oldPath');
+        newPath = Path.check(newPath, 'newPath');
 
         this.command(SftpPacketType.RENAME, [oldPath, newPath], callback, this.parseStatus, { command: "rename", oldPath: oldPath, newPath: newPath });
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
-        path = this.toPath(path, 'path');
+        path = Path.check(path, 'path');
 
         this.command(SftpPacketType.READLINK, [path], callback, this.parsePath, { command: "readlink", path: path });
     }
 
     symlink(targetPath: string, linkPath: string, callback?: (err: Error) => any): void {
-        targetPath = this.toPath(targetPath, 'targetPath');
-        linkPath = this.toPath(linkPath, 'linkPath');
+        targetPath = Path.check(targetPath, 'targetPath');
+        linkPath = Path.check(linkPath, 'linkPath');
 
         this.command(SftpPacketType.SYMLINK, [targetPath, linkPath], callback, this.parseStatus, { command: "symlink", targetPath: targetPath, linkPath: linkPath });
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        oldPath = this.toPath(oldPath, 'oldPath');
-        newPath = this.toPath(newPath, 'newPath');
+        oldPath = Path.check(oldPath, 'oldPath');
+        newPath = Path.check(newPath, 'newPath');
 
         this.command(SftpExtensions.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
     }
@@ -407,23 +409,6 @@ class SftpClientCore implements IFilesystem {
         }
 
         throw new Error("Invalid handle");
-    }
-
-    private toPath(path: string, name: string): string {
-        if (typeof path !== 'string') {
-            if (path == null || typeof path === 'undefined')
-                throw new Error("Missing " + name);
-
-            if (typeof path === 'function')
-                throw new Error("Invalid " + name);
-
-            path = <string>new String(path);
-        }
-
-        if (path.length == 0)
-            throw new Error("Empty " + name);
-
-        return path;
     }
 
     private checkBuffer(buffer: NodeBuffer, offset: number, length: number): void {
