@@ -37,12 +37,12 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
     return fix ? fixed : writer;
 }
 
-export class Task extends EventEmitter {
-    on(event: 'success', listener: (...args: any[]) => void): Task;
-    on(event: 'error', listener: (err: Error) => void): Task;
-    on(event: 'finish', listener: (err: Error, ...args: any[]) => void): Task;
-    on(event: string, listener: Function): Task;
-    on(event: string, listener: Function): Task {
+export class Task<TResult> extends EventEmitter {
+    on(event: 'success', listener: (result: TResult) => void): Task<TResult>;
+    on(event: 'error', listener: (err: Error) => void): Task<TResult>;
+    on(event: 'finish', listener: (err: Error, ...args: any[]) => void): Task<TResult>;
+    on(event: string, listener: Function): Task<TResult>;
+    on(event: string, listener: Function): Task<TResult> {
         return super.on(event, listener);
     }
 
@@ -51,7 +51,7 @@ export class Task extends EventEmitter {
     }
 }
 
-export function wrapCallback(owner: NodeEventEmitter, task: Task, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
+export function wrapCallback(owner: NodeEventEmitter, task: EventEmitter, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
     return finish;
 
     function finish(err: Error, ...args: any[]): void {

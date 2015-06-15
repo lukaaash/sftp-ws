@@ -179,7 +179,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.link(oldPath, newPath, callback);
     }
 
-    list(remotePath: string, callback?: (err: Error, items: IItem[]) => any): Task {
+    list(remotePath: string, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
         var remotePath = Path.check(remotePath, 'remotePath');
 
         var options = <ISearchOptionsExt>{
@@ -199,7 +199,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return task;
     }
 
-    search(remotePath: string, options?: ISearchOptions, callback?: (err: Error, items: IItem[]) => any): Task {
+    search(remotePath: string, options?: ISearchOptions, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
         var remotePath = Path.check(remotePath, 'remotePath');
 
         if (typeof options === 'function' && typeof callback === 'undefined') {
@@ -215,7 +215,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return task;
     }
 
-    info(remotePath: string, callback?: (err: Error, item: IItem) => any): Task {
+    info(remotePath: string, callback?: (err: Error, item: IItem) => any): Task<IItem> {
         var remotePath = Path.check(remotePath, 'remotePath');
 
         var options = <ISearchOptionsExt>{
@@ -234,8 +234,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return task;
     }
 
-
-    readFile(remotePath: string, options: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task {
+    readFile(remotePath: string, options: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task<{}> {
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
@@ -282,15 +281,15 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any)
-    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task {
+    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}> {
         return this._copy(input, this._local, new Path(remotePath), this._fs, callback);
     }
 
-    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task {
+    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task<{}> {
         return this._copy(remotePath, this._fs, new Path(localPath), this._local, callback);
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: Path, toFs: IFilesystem, callback?: (err: Error) => any): Task {
+    private _copy(from: any, fromFs: IFilesystem, toPath: Path, toFs: IFilesystem, callback?: (err: Error) => any): Task<{}> {
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
