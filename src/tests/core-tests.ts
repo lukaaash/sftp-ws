@@ -51,12 +51,6 @@ var server = new SFTP.Server({
     virtualRoot: tmp,
 });
 
-var client = new SFTP.Client();
-client.connect("ws://localhost:3022", {
-    log: console,
-});
-
-
 function check(err: Error, done: Function, cb: Function) {
     if (err)
         return done(err);
@@ -100,7 +94,23 @@ var wrongPath = "No such file or directory";
 describe("Basic Tests", function () {
     this.timeout(1000 * 1000);
 
+    var client = <SFTP.Client>null;
+
     before(done => {
+        client = new SFTP.Client();
+
+        client.connect("ws://localhost:3022", {
+            log: console,
+        });
+
+        client.on("error", err => {
+            if (err.message == "Simulated callback error") return;
+
+            // mocha seems to swallow uncought errors
+            console.error("Uncought error:", err);
+            process.exit(255);
+        });
+
         client.on("ready", done);
     });
 
@@ -189,6 +199,7 @@ describe("Basic Tests", function () {
         var name = "full";
 
         var list = fs.readdirSync(Path.join(tmp, name));
+        list.push(".", "..");
 
         client.opendir(name,(err, handle) => check(err, done,() => {
             assert.ok(handle);
