@@ -64,6 +64,7 @@ gulp.task('web.ts', () => {
         .pipe(replace(/^/g, 'module SFTP {'))
         .pipe(replace(/\n/g, '\n    '))
         .pipe(replace(/$/g, '\n}'))
+        .pipe(replace(/\r?\n/g, '\r\n'))
         .pipe(gulp.dest(out.lib_web));
 });
 
