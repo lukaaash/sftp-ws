@@ -198,7 +198,7 @@ export class LocalFilesystem implements IFilesystem {
 
         fs.readdir(path,(err, files) => {
 
-            files.splice(0, 0, ".", "..");
+            if (files) files.splice(0, 0, ".", "..");
 
             if (typeof err !== 'undefined' && err != null) {
                 files = null;
