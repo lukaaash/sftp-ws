@@ -26,7 +26,10 @@ export interface IStats {
 
 export interface IItem {
     filename: string;
-    stats?: IStats;
+    stats: IStats;
+
+    longname?: string;
+    path?: string;
 }
 
 export interface IFilesystem {
