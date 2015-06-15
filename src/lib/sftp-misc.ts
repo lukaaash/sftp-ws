@@ -10,7 +10,6 @@ import SftpStatusCode = enums.SftpStatusCode;
 import SftpOpenFlags = enums.SftpOpenFlags;
 import IItem = api.IItem;
 import IStats = api.IStats;
-import IStatsExt = api.IStatsExt;
 import FileType = api.FileType;
 
 export class SftpFlags {
@@ -177,6 +176,10 @@ export class SftpItem implements IItem {
     }
 }
 
+interface IStatsExt extends IStats {
+    nlink?: number;
+}
+
 const enum SftpAttributeFlags {
     SIZE         = 0x00000001,
     UIDGID       = 0x00000002,
@@ -209,6 +212,18 @@ export class SftpAttributes implements IStats {
     atime: Date;
     mtime: Date;
     nlink: number;
+
+    isDirectory(): boolean {
+        return (this.mode & FileType.ALL) == FileType.DIRECTORY;
+    }
+
+    isFile(): boolean {
+        return (this.mode & FileType.ALL) == FileType.REGULAR_FILE;
+    }
+
+    isSymbolicLink(): boolean {
+        return (this.mode & FileType.ALL) == FileType.SYMLINK;
+    }
 
     constructor(request?: SftpPacketReader) {
         if (typeof request === 'undefined') {

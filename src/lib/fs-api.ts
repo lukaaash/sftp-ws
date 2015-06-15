@@ -18,10 +18,10 @@ export interface IStats {
     size?: number;
     atime?: Date;
     mtime?: Date;
-}
 
-export interface IStatsExt extends IStats {
-    nlink?: number;
+    isFile? (): boolean;
+    isDirectory? (): boolean;
+    isSymbolicLink? (): boolean;
 }
 
 export interface IItem {
