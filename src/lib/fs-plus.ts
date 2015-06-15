@@ -234,7 +234,14 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return task;
     }
 
-    readFile(remotePath: string, options: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task<{}> {
+    readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task<{}> {
+        var remotePath = Path.check(remotePath, 'remotePath');
+
+        if (typeof options === 'function' && typeof callback === 'undefined') {
+            callback = <any>options;
+            options = null;
+        }
+
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
@@ -282,10 +289,14 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}> {
+        var remotePath = Path.check(remotePath, 'remotePath');
+
         return this._copy(input, this._local, new Path(remotePath), this._fs, callback);
     }
 
     download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task<{}> {
+        var localPath = Path.check(localPath, 'localPath');
+
         return this._copy(remotePath, this._fs, new Path(localPath), this._local, callback);
     }
 
