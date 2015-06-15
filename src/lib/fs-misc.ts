@@ -33,6 +33,78 @@ export interface IDataSource {
     close(): void;
 }
 
+export class Path {
+    private path: string;
+
+    constructor(path: string|Path)
+    constructor(path: string) {
+        if (typeof path !== "string") path = "" + path;
+        this.path = path;
+    }
+
+    isTop(): boolean {
+        return this.path.length == 0 || this.path == "/";
+    }
+
+    getName(): string {
+        var path = this.path;
+        var n = path.lastIndexOf('/');
+        if (n < 0) return path;
+        return path.substr(n + 1);
+    }
+
+    getParent(): Path {
+        var path = this.path;
+        var n = path.lastIndexOf('/');
+        if (n < 0) {
+            path = "";
+        } else if (n == 0) {
+            path = "/";
+        } else {
+            path = path.substr(0, n);
+        }
+
+        return new Path(path);
+    }
+
+    normalize(isWindows: boolean, removeTrailingSlash?: boolean): Path {
+        var path = this.path;
+
+        // replace backslashes with slashes on Windows filesystems
+        if (isWindows) path = path.replace(/\\/g, "/");
+
+        if (removeTrailingSlash) {
+            var len = path.length;
+            if (len > 1 && path[len - 1] == '/') path = path.substr(0, len - 1);
+        }
+
+        return new Path(path);
+    }
+
+    combine(relativePath: string|Path): Path
+    combine(relativePath: string): Path {
+        var path = this.path;
+
+        if (typeof relativePath !== "string") relativePath = "" + relativePath;
+
+        if (relativePath.length == 0) return new Path(path);
+        if (relativePath[0] == '/') return new Path(relativePath);
+
+        var len = path.length;
+        if (len == 0) {
+            path = "./";
+        } else if (path[len - 1] != '/') {
+            path += "/";
+        }
+
+        return new Path(path + relativePath);
+    }
+
+    toString(): string {
+        return this.path;
+    }
+}
+
 export class FileUtil {
 
     static isDirectory(stats: IStats): boolean {
@@ -47,31 +119,6 @@ export class FileUtil {
         var n = path.lastIndexOf('/');
         if (n < 0) return path;
         return path.substr(n + 1);
-    }
-
-    static getDirectoryName(path: string): string {
-        var n = path.lastIndexOf('/');
-        if (n < 0) return "";
-        if (n == 0) return "/";
-        return path.substr(0, n);
-    }
-
-    static normalize(path: string, isWindows: boolean): string {
-        // replace backslashes with slashes on Windows filesystems
-        if (isWindows) path = path.replace(/\\/g, "/");
-        return path;
-    }
-
-    static addTrailingSlash(path: string): string {
-        var len = path.length;
-        if (len > 0 && path[len - 1] != '/') path += "/";
-        return path;
-    }
-
-    static removeTrailingSlash(path: string): string {
-        var len = path.length;
-        if (len > 0 && path[len - 1] == '/') path = path.substr(0, len - 1);
-        return path;
     }
 
     static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {

@@ -5,6 +5,7 @@ import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
+import Path = misc.Path;
 
 interface IItemExt extends IItem {
     path: string;
@@ -31,7 +32,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
     // on windows, normalize backslashes
     var windows = (<any>fs).isWindows == true;
-    path = FileUtil.normalize(path, windows);
+    path = new Path(path).normalize(windows).toString();
 
     // append a wildcard to slash-ended paths
     if (path[path.length - 1] == '/') path += "*";

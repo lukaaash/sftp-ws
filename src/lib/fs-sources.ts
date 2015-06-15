@@ -8,6 +8,7 @@ import IFilesystem = api.IFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
+import Path = misc.Path;
 import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import search = glob.search;
@@ -42,7 +43,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         super();
         this.fs = fs;
         this.path = path;
-        this.name = name || FileUtil.getFileName(path);
+        this.name = name || new Path(path).getName();
         if (stats) {
             this.length = stats.size;
             this.stats = stats;
@@ -422,7 +423,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
         fs.stat(path,(err, stats) => {
             if (err) return callback(err, null);
 
-            var item = new FileDataSource(fs, path, FileUtil.getFileName(path), stats, 0);
+            var item = new FileDataSource(fs, path, new Path(path).getName(), stats, 0);
             callback(null, [item]);
         });
     }

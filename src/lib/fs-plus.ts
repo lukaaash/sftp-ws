@@ -12,6 +12,7 @@ import IStats = api.IStats;
 import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import FileUtil = misc.FileUtil;
+import Path = misc.Path;
 import FileDataTarget = targets.FileDataTarget;
 import BlobDataTarget = targets.BlobDataTarget;
 import StringDataTarget = targets.StringDataTarget;
@@ -224,23 +225,22 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any)
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task {
-        return this._copy(input, this._local, remotePath, this._fs, callback);
+        return this._copy(input, this._local, new Path(remotePath), this._fs, callback);
     }
 
     download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task {
-        return this._copy(remotePath, this._fs, localPath, this._local, callback);
+        return this._copy(remotePath, this._fs, new Path(localPath), this._local, callback);
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: string, toFs: IFilesystem, callback?: (err: Error) => any): Task {
+    private _copy(from: any, fromFs: IFilesystem, toPath: Path, toFs: IFilesystem, callback?: (err: Error) => any): Task {
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
         var sources = <IDataSource[]>null;
 
-        toPath = FileUtil.normalize(toPath,(<any>toFs).isWindows == true);
-        toPath = FileUtil.removeTrailingSlash(toPath);
+        toPath = toPath.normalize((<any>toFs).isWindows == true, true);
 
-        toFs.stat(toPath, prepare);
+        toFs.stat(toPath.toString(), prepare);
 
         var directories = {};
 
@@ -251,8 +251,6 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
             if (!FileUtil.isDirectory(stats))
                 return callback(new Error("Target path is not a directory"));
-
-            toPath = FileUtil.addTrailingSlash(toPath);
 
             try {
                 toDataSource(fromFs, from, task,(err, src) => {
@@ -280,13 +278,13 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             if (!source) return callback(null);
 
             var sourcePath = source.path || source.name;
-                
-            checkParent(source.name, transfer);
+
+            checkParent(new Path(source.name), transfer);
 
             function transfer(err: Error): void {
                 if (err) return callback(err);
 
-                var targetPath = toPath + source.name;
+                var targetPath = toPath.combine(source.name).toString();
 
                 task.emit("transferring", sourcePath, source.length);
 
@@ -305,20 +303,24 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             }
         }
 
-        function checkParent(path: string, callback: (err: Error) => void) {
-            var parent = FileUtil.getDirectoryName(path);
-            if (parent.length == 0 || parent == "/") return callback(null);
+        function checkParent(path: Path, callback: (err: Error) => void) {
 
-            var exists = directories[parent];
+            var parent = path.getParent();
+
+            if (parent.isTop()) return callback(null);
+
+            var exists = directories[<any>parent];
             if (exists) return callback(null);
 
             checkParent(parent, err => {
                 if (err) return callback(err);
 
                 try {
-                    FileUtil.mkdir(toFs, toPath + parent, err => {
+                    var targetPath = toPath.combine(parent).toString();
+
+                    FileUtil.mkdir(toFs, targetPath, err => {
                         if (err) return callback(err);
-                        directories[parent] = true;
+                        directories[<any>parent] = true;
                         callback(null);
                     });
                 } catch (err) {
