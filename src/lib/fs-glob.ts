@@ -8,27 +8,53 @@ import FileUtil = misc.FileUtil;
 import Path = misc.Path;
 
 interface IItemExt extends IItem {
-    path: string;
     relativePath: string;
 }
 
 interface IDirInfo {
     path: string;
     pattern: number;
+    depth: number;
 }
 
 interface IEventEmitter {
     emit(event: string, ...args: any[]): boolean;
 }
 
-interface ISearchOptions {
-    skipDirectories?: boolean;
+export interface ISearchOptions {
+    nodir?: boolean; // don't match directories
+    onlydir?: boolean; // only match directories
+    nowildcard?: boolean; // do not allow wildcards
+    noglobstar?: boolean; // do not perform globstar matching (treat "**" just like normal "*")
+    depth?: number; // maximum globmask matching depth (0 means infinite depth)
+    nosort?: boolean; // don't sort the results
+    dotdirs?: boolean; // include "." and ".." entries in the results
 }
 
-export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, options: ISearchOptions, callback: (err: Error, items?: IItemExt[]) => void): void {
+export interface ISearchOptionsExt extends ISearchOptions {
+    listonly?: boolean; // only list a single directory (wildcards only allowed in the last path segment)
+    itemonly?: boolean; // only match a single item (implies nowildcard)
+}
 
-    if (path.length == 0)
-        throw new Error("Empty path");
+export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, options: ISearchOptionsExt, callback: (err: Error, items?: IItemExt[]) => void): void {
+
+    if (path.length == 0) throw new Error("Empty path");
+
+    // use dummy emitter if not specified
+    if (!emitter) emitter = {
+        emit: function (event) { return false; }
+    };
+
+    // prepare options
+    options = options || {};
+    var matchFiles = !options.onlydir || true;
+    var matchDirectories = !options.nodir || true;
+    var ignoreGlobstars = options.noglobstar || false;
+    var maxDepth = options.depth | 0;
+    var matchDotDirs = options.dotdirs || false;
+
+    // sanity checks
+    if (!matchFiles && !matchDirectories) throw new Error("Not matching anything with the specified options");
 
     // on windows, normalize backslashes
     var windows = (<any>fs).isWindows == true;
@@ -42,7 +68,6 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
     // important variables
     var basePath: string;
-    var matchDirectories = (!options || !options.skipDirectories);
     var glob: RegExp;
     var queue = <IDirInfo[]>[];
     var patterns = <RegExp[]>[];
@@ -54,6 +79,14 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
     if (w >= 0) {
         // wildcard present -> split the path into base path and mask
+
+        if (options.nowildcard || options.itemonly) throw new Error("Wildcards not allowed");
+
+        if (options.listonly) {
+            var s = path.indexOf('/', w);
+            if (s > w) throw new Error("Wildcards only allowed in the last path segment");
+        }
+
         w = path.lastIndexOf('/', w);
         var mask = path.substr(w + 1);
         if (w >= 0)
@@ -69,26 +102,37 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             if (err) return callback(err, null);
 
             try {
-                if (FileUtil.isDirectory(stats)) {
-                    // if it's a directory, start matching
-                    start(path, "*");
-                } else {
-                    if (FileUtil.isFile(stats)) {
-                        // if it's a file, add it to the results
-                        w = path.lastIndexOf('/');
-                        var name;
-                        if (w < 0) {
-                            name = path;
-                            path = "./" + name;
-                        } else {
-                            name = path.substr(w + 1);
-                        }
-                        results.push({ filename: name, path: path, relativePath: name, stats: stats });
-                    }
+                if (!options.itemonly) {
+                    if (FileUtil.isDirectory(stats)) {
+                        // if it's a directory, start matching
+                        return start(path, "*");
+                    } else {
+                        if (options.listonly) return callback(new Error("The specified path is not a directory"), null);
 
-                    // and we are done
-                    return callback(null, results);
+                        if (!FileUtil.isFile(stats)) {
+                            // if it's not a file, we are done
+                            return callback(null, results);
+                        }
+
+                        // otherwise, proceed to adding the item to the results and finishing
+                    }
                 }
+
+                // determine item name
+                w = path.lastIndexOf('/');
+                var name;
+                if (w < 0) {
+                    name = path;
+                    path = "./" + name;
+                } else {
+                    name = path.substr(w + 1);
+                }
+
+                // push item to the results
+                var item = { filename: name, stats: stats, path: path, relativePath: name };
+                results.push(item);
+                emitter.emit("item", item);
+                return callback(null, results);
             } catch (err) {
                 return callback(err, null);
             }
@@ -102,20 +146,19 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
         basePath = path;
         mask = "/" + mask;
 
-        // determine glob mask (if any)
-        var gs = mask.indexOf("/**");
         var globmask = null;
-        if (gs >= 0) {
-            if (gs == (mask.length - 3)) {
-                globmask = "*";
-                mask = mask.substr(0, gs);
-            } else if (mask[gs + 3] == '/') {
-                globmask = mask.substr(gs + 4);
-                mask = mask.substr(0, gs);
-                matchDirectories = matchDirectories && (globmask.lastIndexOf("/**") == (globmask.length - 3));
+        if (!ignoreGlobstars) {
+            // determine glob mask (if any)
+            var gs = mask.indexOf("/**");
+            if (gs >= 0) {
+                if (gs == (mask.length - 3)) {
+                    globmask = "*";
+                    mask = mask.substr(0, gs);
+                } else if (mask[gs + 3] == '/') {
+                    globmask = mask.substr(gs + 4);
+                    mask = mask.substr(0, gs);
+                }
             }
-        } else {
-            matchDirectories = false;
         }
 
         var masks = mask.split('/');
@@ -132,7 +175,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
         }
 
         // add path to queue and process it
-        queue.push({ path: "", pattern: 0 });
+        queue.push({ path: "", pattern: 0, depth: 0 });
         next();
     }
 
@@ -143,37 +186,55 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
         // if no more to process, we are done
         if (!current) {
+
+            // sort the results if requested
+            if (!options.nosort) {
+                results.sort((a, b) => {
+                    if (a.relativePath < b.relativePath) return -1;
+                    if (a.relativePath > b.relativePath) return 1;
+                    return 0;
+                });
+            }
+
             return callback(null, results);
         }
 
         var path: string;
         var index: number;
         var regex: RegExp;
+        var depth: number;
 
         var nextIndex;
-        var matchFiles;
-        var matchDirs;
+        var matchItems;
+        var enterDirs;
 
         try {
             // prepare vars
             path = current.path;
             index = current.pattern;
+            depth = current.depth;
             regex = patterns[index];
 
             if (regex) {
                 //console.log("Matching (r): ", basePath, path, regex.source);
                 nextIndex = index + 1;
                 var isLast = (nextIndex == patterns.length);
-                matchFiles = isLast && glob == null;
-                matchDirs = !isLast;
+                matchItems = isLast && glob == null;
+                enterDirs = !isLast;
             } else {
+                // globmask matching
+
                 //console.log("Matching (g): ", basePath, path, glob.source);
                 nextIndex = index;
-                matchFiles = true;
-                matchDirs = true;
+                matchItems = true;
+                enterDirs = (maxDepth > 0 && depth < maxDepth);
+
+                // increment depth for each globmask
+                depth++;
             }
 
             var fullPath = basePath + path;
+            if (fullPath.length == 0) fullPath = "/";
 
             // list directory and process its items
             fs.opendir(fullPath,(err, handle) => {
@@ -226,32 +287,41 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
         // process a single item
         function process(item: IItemExt): void {
-            var isMatchedDir = matchDirs && (FileUtil.isDirectory(item.stats));
-            var isMatchedFile = matchFiles && (FileUtil.isFile(item.stats));
-            if (!isMatchedFile && !isMatchedDir) return;
+            var isDir = FileUtil.isDirectory(item.stats);
+            var isFile = FileUtil.isFile(item.stats);
+
+            var isDotDir = (item.filename == "." || item.filename == "..");
+            if (isDotDir && !matchDotDirs) return;
+
+            if (!isDir && !isFile) return;
 
             var itemPath = path + "/" + item.filename;
+
+            // add subdirectory to queue if desired
+            if (enterDirs && isDir && !isDotDir) {
+                queue.push({ path: itemPath, pattern: nextIndex, depth: depth });
+            }
+
+            // if not matching items in this directory, we are done with it
+            if (!matchItems) return;
+
+            // reject items we don't want
+            if (isDir && !matchDirectories) return;
+            if (isFile && !matchFiles) return;
 
             if (regex) {
                 // mask matching
                 if (!regex.test(item.filename)) return;
             } else {
                 // globstar matching
-                if (isMatchedFile || matchDirectories) isMatchedFile = glob.test(path + item.filename);
+                if (!glob.test(itemPath)) return;
             }
 
-            if (isMatchedFile) {
-                // add matched file to the list
-                item.path = basePath + itemPath;
-                item.relativePath = itemPath.substr(1);
-                results.push(item);
-                emitter.emit("item", item);
-            }
-
-            if (isMatchedDir) {
-                // add matched directory to queue
-                queue.push({ path: itemPath, pattern: nextIndex });
-            }
+            // add matched file to the list
+            item.path = basePath + itemPath;
+            item.relativePath = itemPath.substr(1);
+            results.push(item);
+            emitter.emit("item", item);
         }        
     }
 
