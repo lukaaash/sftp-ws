@@ -23,6 +23,8 @@ import Task = util.Task;
 import wrapCallback = util.wrapCallback;
 import EventEmitter = events.EventEmitter;
 import search = glob.search;
+import ISearchOptionsExt = glob.ISearchOptionsExt;
+import ISearchOptions = glob.ISearchOptions;
 
 export interface IFilesystemExt extends FilesystemPlus {
 }
@@ -100,8 +102,17 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any)
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
         if (typeof handle === 'string') {
-            var path = <string>handle;
-            this.list(path, callback); //TODO: supply an option that turns off wildcards
+            var path = Path.check(<string>handle, 'path');
+
+            var options = <ISearchOptionsExt>{
+                noglobstar: true,
+                nowildcard: true,
+                listonly: true,
+                dotdirs: true,
+            };
+
+            search(this._fs, path, null, options, callback);
+
             return;
         }
 
@@ -169,13 +180,60 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     list(remotePath: string, callback?: (err: Error, items: IItem[]) => any): Task {
+        var remotePath = Path.check(remotePath, 'remotePath');
+
+        var options = <ISearchOptionsExt>{
+            directories: true,
+            files: true,
+            nosort: false,
+            dotdirs: true,
+            noglobstar: true,
+            listonly: true,
+        };
+        
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
-        search(this._fs, remotePath, task, {}, callback);
+        search(this._fs, remotePath, task, options, callback);
 
         return task;
     }
+
+    search(remotePath: string, options?: ISearchOptions, callback?: (err: Error, items: IItem[]) => any): Task {
+        var remotePath = Path.check(remotePath, 'remotePath');
+
+        if (typeof options === 'function' && typeof callback === 'undefined') {
+            callback = <any>options;
+            options = null;
+        }
+
+        var task = new Task();
+        callback = wrapCallback(this, task, callback);
+
+        search(this._fs, remotePath, task, options, callback);
+
+        return task;
+    }
+
+    info(remotePath: string, callback?: (err: Error, item: IItem) => any): Task {
+        var remotePath = Path.check(remotePath, 'remotePath');
+
+        var options = <ISearchOptionsExt>{
+            itemonly: true,
+        };
+
+        var task = new Task();
+        callback = wrapCallback(this, task, callback);
+
+        search(this._fs, remotePath, task, options,(err, items) => {
+            if (err) return callback(err, null);
+            if (!items || items.length != 1) return callback(new Error("Unexpected result"), null);
+            callback(null, items[0]);
+        });
+
+        return task;
+    }
+
 
     readFile(remotePath: string, options: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task {
         var task = new Task();
