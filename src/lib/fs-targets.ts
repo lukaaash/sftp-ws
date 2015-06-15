@@ -248,7 +248,7 @@ export class StringDataTarget extends DataTarget {
     }
 
     result() {
-        return this._decoder.text;
+        return this._decoder.text();
     }
 }
 
