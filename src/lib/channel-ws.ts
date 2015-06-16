@@ -1,14 +1,7 @@
-﻿import api = require("./fs-api");
-import util = require("./util");
+﻿import channel = require("./channel");
 import WebSocket = require("ws");
 
-import ILogWriter = util.ILogWriter;
-
-export interface IChannel {
-    on(event: string, listener: Function): IChannel;
-    send(packet: NodeBuffer): void;
-    close(reason?: number, description?: string): void;
-}
+import IChannel = channel.IChannel;
 
 export class WebSocketChannel implements IChannel {
     private ws: WebSocket;
