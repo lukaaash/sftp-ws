@@ -296,13 +296,13 @@ export class BufferDataTarget extends DataTarget {
     }
 
     protected _end(): void {
-        this._buffer = new Buffer(this._chunks); // WEB: this._buffer = new Uint8Array(this._length);
-        //WEB: var offset = 0;
-        //WEB: for (var n = 0; n < this._chunks.length; n++) {
-        //WEB:     var chunk = this._chunks[n];
-        //WEB:     this._buffer.set(chunk, offset);
-        //WEB:     offset += chunk.length;
-        //WEB: }
+        this._buffer = new Buffer(this._length);
+        var offset = 0;
+        for (var n = 0; n < this._chunks.length; n++) {
+            var chunk = this._chunks[n];
+            chunk.copy(this._buffer, offset); //WEB: this._buffer.set(chunk, offset);
+            offset += chunk.length;
+        }
         this._chunks.length = 0;
     }
 
