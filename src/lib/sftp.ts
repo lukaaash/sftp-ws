@@ -11,12 +11,14 @@ import safe = require("./fs-safe");
 import local = require("./fs-local");
 import api = require("./fs-api");
 import channel = require("./channel");
+import channel_ws = require("./channel-ws");
+import channel_stream = require("./channel-stream");
 import util = require("./util");
 
 import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
-import ISessionHost = channel.IChannel;
-import WebSocketChannel = channel.WebSocketChannel;
+import WebSocketChannel = channel_ws.WebSocketChannel;
+import StreamChannel = channel_stream.StreamChannel;
 import SftpServerSession = server.SftpServerSession
 
 module SFTP {
@@ -77,6 +79,12 @@ module SFTP {
             var channel = new WebSocketChannel(ws);
             super.bind(channel, callback);
         }
+    }
+
+    export module Channels {
+        export var StreamChannel = channel_stream.StreamChannel;
+        export var WebSocketChannel = channel_ws.WebSocketChannel;
+        export interface IChannel extends channel.IChannel { }
     }
 
     export class RequestInfo {

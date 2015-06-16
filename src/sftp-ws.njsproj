@@ -41,6 +41,8 @@
   </PropertyGroup>
   <ItemGroup>
     <TypeScriptCompile Include="gulpfile.ts" />
+    <TypeScriptCompile Include="lib\channel-stream.ts" />
+    <TypeScriptCompile Include="lib\channel-ws.ts" />
     <TypeScriptCompile Include="lib\channel.ts" />
     <TypeScriptCompile Include="lib\charsets.ts" />
     <TypeScriptCompile Include="lib\fs-local.ts" />
