@@ -47,8 +47,8 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
     // prepare options
     options = options || {};
-    var matchFiles = !options.onlydir || true;
-    var matchDirectories = !options.nodir || true;
+    var matchFiles = !(options.onlydir || false);
+    var matchDirectories = !(options.nodir || false);
     var ignoreGlobstars = options.noglobstar || false;
     var maxDepth = options.depth | 0;
     var matchDotDirs = options.dotdirs || false;
