@@ -22,7 +22,7 @@ export class WebSocketChannel implements IChannel {
         switch (this.ws.readyState) {
             case WebSocket.CLOSED:
             case WebSocket.CLOSING:
-                reason = 3006;
+                reason = 999;
                 error = "WebSocket has been closed";
                 break;
             case WebSocket.OPEN:
@@ -32,7 +32,7 @@ export class WebSocketChannel implements IChannel {
             case WebSocket.CONNECTING:
                 break;
             default:
-                reason = 3005;
+                reason = 999;
                 error = "WebSocket state is unknown";
                 break;
         }
@@ -90,6 +90,7 @@ export class WebSocketChannel implements IChannel {
         
         this.ws.on('error', err => { //WEB: this.ws.onerror = err => {
             this.failed = true;
+            if (!this.wasConnected) this.close(999, err.message, (<any>err).code); //WEB: // removed
         }); //WEB: };
 
         this.ws.on('message', (data, flags) => { //WEB: this.ws.onmessage = message => {
@@ -110,12 +111,12 @@ export class WebSocketChannel implements IChannel {
         else throw err;
     }
 
-    close(reason: number, description?: string): void {
+    close(reason: number, description?: string, code?: string): void {
         if (typeof reason !== 'number')
             reason = 1000;
 
-        if (typeof description !== 'string')
-            description = "";
+        description = "" + description;
+        code = code || "EFAILURE";
 
         if (this.ws != null) {
             try {
@@ -136,21 +137,35 @@ export class WebSocketChannel implements IChannel {
             var message: string;
 
             switch (reason) {
+                case 999:
+                    message = description;
+                    break;
                 case 1000:
                     message = "Connection closed";
+                    code = "ECONNRESET";
                     break;
                 case 1006:
                     message = "Connection aborted";
+                    code = "ECONNABORTED";
                     break;
                 default:
                     message = "Connection failed";
+                    code = "ECONNRESET";
                     break;
             }
             
             if (!this.wasConnected || this.failed || reason != 1000) {
-                message = this.wasConnected ? (this.failed ? "Connection failed" : message) : "Unable to connect";
+                if (!this.wasConnected) {
+                    message = "Unable to connect";
+                    code = "ECONNREFUSED";
+                } else if (this.failed) {
+                    message = "Connection failed";
+                    code = "ECONNRESET";
+                }
+
                 err = <any>new Error(message);
-                err.reason = reason;
+                if (reason >= 1000) err.reason = reason;
+                err.code = code;
             }
 
             onclose(err);
