@@ -224,7 +224,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
@@ -286,7 +286,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.LSTAT, [path], callback, this.parseAttribs, { command: "lstat", path: path });
     }
@@ -302,7 +302,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         var request = this.getRequest(SftpPacketType.SETSTAT);
 
@@ -324,7 +324,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.OPENDIR, [path], callback, this.parseHandle, { command: "opendir", path: path });
     }
@@ -340,13 +340,13 @@ class SftpClientCore implements IFilesystem {
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.REMOVE, [path], callback, this.parseStatus, { command: "unline", path: path });
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
             attrs = null;
@@ -361,46 +361,46 @@ class SftpClientCore implements IFilesystem {
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.RMDIR, [path], callback, this.parseStatus, { command: "rmdir", path: path });
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.REALPATH, [path], callback, this.parsePath, { command: "realpath", path: path });
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.STAT, [path], callback, this.parseAttribs, { command: "stat", path: path });
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        oldPath = Path.check(oldPath, 'oldPath');
-        newPath = Path.check(newPath, 'newPath');
+        oldPath = this.checkPath(oldPath, 'oldPath');
+        newPath = this.checkPath(newPath, 'newPath');
 
         this.command(SftpPacketType.RENAME, [oldPath, newPath], callback, this.parseStatus, { command: "rename", oldPath: oldPath, newPath: newPath });
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
-        path = Path.check(path, 'path');
+        path = this.checkPath(path, 'path');
 
         this.command(SftpPacketType.READLINK, [path], callback, this.parsePath, { command: "readlink", path: path });
     }
 
     symlink(targetPath: string, linkPath: string, callback?: (err: Error) => any): void {
-        targetPath = Path.check(targetPath, 'targetPath');
-        linkPath = Path.check(linkPath, 'linkPath');
+        targetPath = this.checkPath(targetPath, 'targetPath');
+        linkPath = this.checkPath(linkPath, 'linkPath');
 
         this.command(SftpPacketType.SYMLINK, [targetPath, linkPath], callback, this.parseStatus, { command: "symlink", targetPath: targetPath, linkPath: linkPath });
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        oldPath = Path.check(oldPath, 'oldPath');
-        newPath = Path.check(newPath, 'newPath');
+        oldPath = this.checkPath(oldPath, 'oldPath');
+        newPath = this.checkPath(newPath, 'newPath');
 
         this.command(SftpExtensions.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
     }
@@ -428,6 +428,18 @@ class SftpClientCore implements IFilesystem {
 
         if ((offset + length) > buffer.length)
             throw new Error("Offset or length is out of bands");
+    }
+
+    private checkPath(path: string, name: string): string {
+        path = Path.check(path, name);
+        if (path[0] === '~') {
+            if (path[1] === '/') {
+                path = "." + path.substr(1);
+            } else if (path.length == 1) {
+                path = ".";
+            }
+        }
+        return path;
     }
 
     private checkPosition(position: number): void {
