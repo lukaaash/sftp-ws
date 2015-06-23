@@ -98,8 +98,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.opendir(path, callback);
     }
 
-    readdir(path: string, callback?: (err: Error, items: IItem[]) => any)
-    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any)
+    readdir(path: string, callback?: (err: Error, items: IItem[]) => any): void
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
         if (typeof handle === 'string') {
             var path = Path.check(<string>handle, 'path');
@@ -290,8 +290,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return task;
     }
 
-    upload(localPath: string, remotePath: string, callback?: (err: Error) => any)
-    upload(input: any, remotePath: string, callback?: (err: Error) => any)
+    upload(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<{}>
+    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}>
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}> {
         var remotePath = Path.check(remotePath, 'remotePath');
 
