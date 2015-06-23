@@ -26,6 +26,7 @@ export interface ISearchOptions {
     onlydir?: boolean; // only match directories
     nowildcard?: boolean; // do not allow wildcards
     noglobstar?: boolean; // do not perform globstar matching (treat "**" just like normal "*")
+    noexpand?: boolean; // do not automatically append "*" to slash-ended paths
     depth?: number; // maximum globmask matching depth (0 means infinite depth)
     nosort?: boolean; // don't sort the results
     dotdirs?: boolean; // include "." and ".." entries in the results
@@ -52,6 +53,8 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     var ignoreGlobstars = options.noglobstar || false;
     var maxDepth = options.depth | 0;
     var matchDotDirs = options.dotdirs || false;
+    var expectDir = options.listonly || false;
+    var expandDir = !(options.noexpand || false);
 
     // sanity checks
     if (!matchFiles && !matchDirectories) throw new Error("Not matching anything with the specified options");
@@ -60,8 +63,15 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     var windows = (<any>fs).isWindows == true;
     path = new Path(path).normalize(windows).toString();
 
-    // append a wildcard to slash-ended paths
-    if (path[path.length - 1] == '/') path += "*";
+    // append a wildcard to slash-ended paths, or make sure they refer to a directory
+    if (path[path.length - 1] == '/') {
+        if (expandDir) {
+            path += "*";
+        } else {
+            path = path.substr(0, path.length - 1);
+            expectDir = true;
+        }
+    }
 
     // resulting item list
     var results = <IItemExt[]>[];
@@ -89,10 +99,11 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
         w = path.lastIndexOf('/', w);
         var mask = path.substr(w + 1);
-        if (w >= 0)
+        if (w >= 0) {
             path = path.substr(0, w);
-        else
+        } else {
             path = ".";
+        }
 
         // start matching
         start(path, mask);
@@ -105,9 +116,9 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
                 if (!options.itemonly) {
                     if (FileUtil.isDirectory(stats)) {
                         // if it's a directory, start matching
-                        return start(path, "*");
+                        if (expandDir) return start(path, "*");
                     } else {
-                        if (options.listonly) return callback(new Error("The specified path is not a directory"), null);
+                        if (expectDir) return callback(new Error("The specified path is not a directory"), null);
 
                         if (!FileUtil.isFile(stats)) {
                             // if it's not a file, we are done
