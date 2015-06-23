@@ -17,7 +17,7 @@ interface IDirInfo {
     depth: number;
 }
 
-interface IEventEmitter {
+export interface IEventEmitter {
     emit(event: string, ...args: any[]): boolean;
 }
 

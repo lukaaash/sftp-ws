@@ -37,7 +37,7 @@ const enum UnicodeChars {
     BOM = 0xFEFF,
 }
 
-class StringEncoder {
+export class StringEncoder {
 
     private _value: string;
     private _code: number;
@@ -177,7 +177,7 @@ function encodeUTF8(value: string, buffer: NodeBuffer, offset: number, end?: num
     return offset - start;
 }
 
-class StringDecoder {
+export class StringDecoder {
     private _text: string;
     private _code: number;
     private _length: number;
