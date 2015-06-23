@@ -694,7 +694,10 @@ export class SftpClient extends FilesystemPlus {
         if (this._bound) throw new Error("Already bound");
         this._bound = true;
 
+        var ready = false;
+
         channel.on("ready",() => {
+            ready = true;
             sftp._init(channel, error => {
                 if (error) {
                     sftp._end();
@@ -734,9 +737,13 @@ export class SftpClient extends FilesystemPlus {
         });
 
         channel.on("close", err => {
-            sftp._end();
-            this._bound = false;
-            this.emit('close', err);
+            if (!ready) {
+                callback(err);
+            } else {
+                sftp._end();
+                this._bound = false;
+                this.emit('close', err);
+            }
         });
     }
 
