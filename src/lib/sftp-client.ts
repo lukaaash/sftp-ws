@@ -695,6 +695,7 @@ export class SftpClient extends FilesystemPlus {
         this._bound = true;
 
         var ready = false;
+        var self = this;
 
         channel.on("ready",() => {
             ready = true;
@@ -702,22 +703,10 @@ export class SftpClient extends FilesystemPlus {
                 if (error) {
                     sftp._end();
                     this._bound = false;
+                    return done(error);
                 }
 
-                if (typeof callback === "function") {
-                    try {
-                        callback(error);
-                        error = null;
-                    } catch (err) {
-                        error = err;
-                    }
-                }
-
-                if (error) {
-                    this.emit("error", error);
-                    return;
-                }
-
+                done(null);
                 this.emit('ready');
             });
         });
@@ -738,13 +727,27 @@ export class SftpClient extends FilesystemPlus {
 
         channel.on("close", err => {
             if (!ready) {
-                callback(err);
+                err = err || new Error("Unable to connect");
+                done(err);
             } else {
                 sftp._end();
                 this._bound = false;
                 this.emit('close', err);
             }
         });
+
+        function done(error: Error): void {
+            if (typeof callback === "function") {
+                try {
+                    callback(error);
+                    error = null;
+                } catch (err) {
+                    error = err;
+                }
+            }
+
+            if (error) self.emit("error", error);
+        }
     }
 
     end(): void {
