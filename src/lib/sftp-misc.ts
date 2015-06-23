@@ -140,47 +140,7 @@ export class SftpOptions {
     autoClose: boolean;
 }
 
-export class SftpItem implements IItem {
-    filename: string;
-    longname: string;
-    stats: SftpAttributes;
-
-    constructor(request: SftpPacketReader)
-    constructor(filename: string, stats?: IStats)
-    constructor(arg: any, stats?: IStats) {
-        if (typeof arg === 'object') {
-            var request = <SftpPacketReader>arg;
-            this.filename = request.readString();
-            this.longname = request.readString();
-            this.stats = new SftpAttributes(request);
-        } else {
-            var filename = <string>arg;
-            this.filename = filename;
-            this.longname = filename;
-            if (typeof stats === 'object') {
-                var attr = new SftpAttributes();
-                attr.from(stats);
-                this.stats = attr;
-                this.longname = attr.toString() + " " + filename;
-            }
-        }
-    }
-
-    write(response: SftpPacketWriter): void {
-        response.writeString(this.filename);
-        response.writeString(this.longname);
-        if (typeof this.stats === "object")
-            this.stats.write(response);
-        else
-            response.writeInt32(0);
-    }
-}
-
-interface IStatsExt extends IStats {
-    nlink?: number;
-}
-
-const enum SftpAttributeFlags {
+export const enum SftpAttributeFlags {
     SIZE         = 0x00000001,
     UIDGID       = 0x00000002,
     PERMISSIONS  = 0x00000004,
@@ -225,38 +185,38 @@ export class SftpAttributes implements IStats {
         return (this.mode & FileType.ALL) == FileType.SYMLINK;
     }
 
-    constructor(request?: SftpPacketReader) {
-        if (typeof request === 'undefined') {
+    constructor(reader?: SftpPacketReader) {
+        if (typeof reader === 'undefined') {
             this.flags = 0;
             return;
         }
 
-        var flags = this.flags = request.readUint32();
+        var flags = this.flags = reader.readUint32();
 
         if (flags & SftpAttributeFlags.SIZE) {
-            this.size = request.readInt64();
+            this.size = reader.readInt64();
         }
 
         if (flags & SftpAttributeFlags.UIDGID) {
-            this.uid = request.readInt32();
-            this.gid = request.readInt32();
+            this.uid = reader.readInt32();
+            this.gid = reader.readInt32();
         }
 
         if (flags & SftpAttributeFlags.PERMISSIONS) {
-            this.mode = request.readUint32();
+            this.mode = reader.readUint32();
         }
 
         if (flags & SftpAttributeFlags.ACMODTIME) {
-            this.atime = new Date(1000 * request.readUint32());
-            this.mtime = new Date(1000 * request.readUint32());
+            this.atime = new Date(1000 * reader.readUint32());
+            this.mtime = new Date(1000 * reader.readUint32());
         }
 
         if (flags & SftpAttributeFlags.EXTENDED) {
             this.flags &= ~SftpAttributeFlags.EXTENDED;
-            this.size = request.readInt64();
+            this.size = reader.readInt64();
             for (var i = 0; i < this.size; i++) {
-                request.skipString();
-                request.skipString();
+                reader.skipString();
+                reader.skipString();
             }
         }
     }
@@ -288,7 +248,7 @@ export class SftpAttributes implements IStats {
         }
     }
 
-    from(stats: IStatsExt): void {
+    from(stats: IStats): void {
         if (stats == null || typeof stats === 'undefined') {
             this.flags = 0;
         } else {
@@ -316,74 +276,12 @@ export class SftpAttributes implements IStats {
                 this.mtime = stats.mtime; //TODO: make sure its Date
             }
 
-            if (typeof stats.nlink !== 'undefined') {
-                this.nlink = stats.nlink;
+            if (typeof (<any>stats).nlink !== 'undefined') {
+                this.nlink = (<any>stats).nlink;
             }
 
             this.flags = flags;
         }
-    }
-
-    toString(): string {
-        var attrs = this.mode;
-
-        var perms;
-        switch (attrs & FileType.ALL) {
-            case FileType.CHARACTER_DEVICE:
-                perms = "c";
-                break;
-            case FileType.DIRECTORY:
-                perms = "d";
-                break;
-            case FileType.BLOCK_DEVICE:
-                perms = "b";
-                break;
-            case FileType.REGULAR_FILE:
-                perms = "-";
-                break;
-            case FileType.SYMLINK:
-                perms = "l";
-                break;
-            case FileType.SOCKET:
-                perms = "s";
-                break;
-            case FileType.FIFO:
-                perms = "p";
-                break;
-            default:
-                perms = "-";
-                break;
-        }
-
-        attrs &= 0x1FF;
-
-        for (var j = 0; j < 3; j++) {
-            var mask = (attrs >> ((2 - j) * 3)) & 0x7;
-            perms += (mask & 4) ? "r" : "-";
-            perms += (mask & 2) ? "w" : "-";
-            perms += (mask & 1) ? "x" : "-";
-        }
-
-        var len = this.size.toString();
-        if (len.length < 9)
-            len = "         ".slice(len.length - 9) + len;
-        else
-            len = " " + len;
-
-        var modified = this.mtime;
-        var diff = (new Date().getTime() - modified.getTime()) / (3600 * 24);
-        var date = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][modified.getUTCMonth()];
-        var day = modified.getUTCDate();
-        date += ((day <= 9) ? "  " : " ") + day;
-
-        if (diff < -30 || diff > 180)
-            date += "  " + modified.getUTCFullYear();
-        else
-            date += " " + ("0" + modified.getUTCHours()).slice(-2) + ":" + ("0" + modified.getUTCMinutes()).slice(-2);
-
-        var nlink = (typeof this.nlink === 'undefined') ? 1 : this.nlink;
-
-        return perms + " " + nlink + " user group " + len + " " + date;
     }
 
 }

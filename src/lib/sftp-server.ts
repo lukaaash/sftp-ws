@@ -2,6 +2,7 @@
 import misc = require("./sftp-misc");
 import safe = require("./fs-safe");
 import api = require("./fs-api");
+import fsmisc = require("./fs-misc");
 import enums = require("./sftp-enums");
 import channel = require("./channel");
 import util = require("./util");
@@ -9,6 +10,7 @@ import util = require("./util");
 import SafeFilesystem = safe.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
+import FileUtil = fsmisc.FileUtil;
 import ILogWriter = util.ILogWriter;
 import IChannel = channel.IChannel;
 import SftpPacket = packet.SftpPacket;
@@ -16,7 +18,6 @@ import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
 import SftpPacketType = enums.SftpPacketType;
 import SftpStatusCode = enums.SftpStatusCode;
-import SftpItem = misc.SftpItem;
 import SftpAttributes = misc.SftpAttributes;
 import SftpStatus = misc.SftpStatus;
 import SftpFlags = misc.SftpFlags;
@@ -279,6 +280,18 @@ export class SftpServerSession {
         response.writeString("");
         response.writeInt32(0);
         this.send(response);
+    }
+
+    private writeItem(response: SftpPacketWriter, item: IItem): void {
+        var attr = new SftpAttributes();
+        attr.from(item.stats);
+
+        var filename = item.filename;
+        var longname = item.longname || FileUtil.toString(filename, attr);
+
+        response.writeString(filename);
+        response.writeString(longname);
+        attr.write(response);
     }
 
     private readHandleInfo(request: SftpPacketReader): SftpHandleInfo {
@@ -584,9 +597,8 @@ export class SftpServerSession {
                         var list = <IItem[]>items;
 
                         while (list.length > 0) {
-                            var it = list.shift();
-                            var item = new SftpItem(it.filename, it.stats);
-                            item.write(response);
+                            var item = list.shift();
+                            this.writeItem(response, item);
                             count++;
 
                             if (response.position > 0x7000) {

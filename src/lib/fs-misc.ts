@@ -134,6 +134,68 @@ export class FileUtil {
         return stats ? (stats.mode & FileType.ALL) == FileType.REGULAR_FILE : false; // regular file
     }
 
+    static toString(filename: string, stats: IStats): string {
+        var attrs = stats.mode;
+
+        var perms;
+        switch (attrs & FileType.ALL) {
+            case FileType.CHARACTER_DEVICE:
+                perms = "c";
+                break;
+            case FileType.DIRECTORY:
+                perms = "d";
+                break;
+            case FileType.BLOCK_DEVICE:
+                perms = "b";
+                break;
+            case FileType.REGULAR_FILE:
+                perms = "-";
+                break;
+            case FileType.SYMLINK:
+                perms = "l";
+                break;
+            case FileType.SOCKET:
+                perms = "s";
+                break;
+            case FileType.FIFO:
+                perms = "p";
+                break;
+            default:
+                perms = "-";
+                break;
+        }
+
+        attrs &= 0x1FF;
+
+        for (var j = 0; j < 3; j++) {
+            var mask = (attrs >> ((2 - j) * 3)) & 0x7;
+            perms += (mask & 4) ? "r" : "-";
+            perms += (mask & 2) ? "w" : "-";
+            perms += (mask & 1) ? "x" : "-";
+        }
+
+        var len = stats.size.toString();
+        if (len.length < 9)
+            len = "         ".slice(len.length - 9) + len;
+        else
+            len = " " + len;
+
+        var modified = stats.mtime;
+        var diff = (new Date().getTime() - modified.getTime()) / (3600 * 24);
+        var date = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][modified.getUTCMonth()];
+        var day = modified.getUTCDate();
+        date += ((day <= 9) ? "  " : " ") + day;
+
+        if (diff < -30 || diff > 180)
+            date += "  " + modified.getUTCFullYear();
+        else
+            date += " " + ("0" + modified.getUTCHours()).slice(-2) + ":" + ("0" + modified.getUTCMinutes()).slice(-2);
+
+        var nlink = (typeof (<any>stats).nlink === 'undefined') ? 1 : (<any>stats).nlink;
+
+        return perms + " " + nlink + " user group " + len + " " + date + " " + filename;
+    }
+
     static getFileName(path: string): string {
         var n = path.lastIndexOf('/');
         if (n < 0) return path;

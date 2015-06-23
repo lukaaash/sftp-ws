@@ -254,7 +254,12 @@ export class LocalFilesystem implements IFilesystem {
                         if (typeof err !== 'undefined' && err != null) {
                             //TODO: log unsuccessful stat?
                         } else {
-                            items.push({ filename: name, stats: stats });
+                            //
+                            items.push({
+                                filename: name,
+                                longname: FileUtil.toString(name, stats),
+                                stats: stats,
+                            });
                         }
                         next();
                     });

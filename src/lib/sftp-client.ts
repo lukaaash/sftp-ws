@@ -21,7 +21,6 @@ import SftpStatusCode = enums.SftpStatusCode;
 import SftpFlags = misc.SftpFlags;
 import SftpStatus = misc.SftpStatus;
 import SftpAttributes = misc.SftpAttributes;
-import SftpItem = misc.SftpItem;
 import SftpExtensions = misc.SftpExtensions;
 import Path = fsmisc.Path;
 
@@ -39,6 +38,12 @@ interface SftpCommandInfo extends Object {
     command: string;
     path?: string;
     handle?: any;
+}
+
+class SftpItem implements IItem {
+    filename: string;
+    longname: string;
+    stats: SftpAttributes;
 }
 
 class SftpHandle {
@@ -450,6 +455,14 @@ class SftpClientCore implements IFilesystem {
         return this.createError(nativeCode, message, info);
     }
 
+    private readItem(response: SftpResponse): IItem {
+        var item = new SftpItem();
+        item.filename = response.readString();
+        item.longname = response.readString();
+        item.stats = new SftpAttributes(response);
+        return item;
+    }
+
     private createError(nativeCode: number, message: string, info: SftpCommandInfo) {
         var code;
         var errno;
@@ -633,9 +646,9 @@ class SftpClientCore implements IFilesystem {
 
         var count = response.readInt32();
 
-        var items: SftpItem[] = [];
+        var items: IItem[] = [];
         for (var i = 0; i < count; i++) {
-            items[i] = new SftpItem(response);
+            items[i] = this.readItem(response);
         }
 
         callback(null, items);
