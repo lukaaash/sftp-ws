@@ -32,7 +32,7 @@ export class LocalFilesystem implements IFilesystem {
             attrs = null;
         }
 
-        var mode = attrs ? attrs.mode : undefined;
+        var mode = (attrs && typeof attrs === 'object') ? attrs.mode : undefined;
         fs.open(path, flags, mode, (err, fd) => callback(err, fd));
         //LATER: pay attemtion to attrs other than mode (low priority - many SFTP servers ignore these as well)
     }
@@ -287,7 +287,7 @@ export class LocalFilesystem implements IFilesystem {
             attrs = null;
         }
 
-        var mode = typeof attrs === 'object' ? attrs.mode : undefined;
+        var mode = (attrs && typeof attrs === 'object') ? attrs.mode : undefined;
         fs.mkdir(path, mode, callback);
         //LATER: pay attemtion to attrs other than mode (low priority - many SFTP servers ignore these as well)
     }
