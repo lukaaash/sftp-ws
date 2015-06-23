@@ -291,6 +291,40 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return task;
     }
 
+    putFile(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<{}> {
+        var local = Path.create(localPath, this._local, 'localPath');
+        var remote = Path.create(remotePath, this._fs, 'remotePath');
+
+        return this._copyFile(local, remote, callback);
+    }
+
+    getFile(remotePath: string, localPath: string, callback?: (err: Error) => any): Task<{}> {
+        var remote = Path.create(remotePath, this._fs, 'remotePath');
+        var local = Path.create(localPath, this._local, 'localPath');
+
+        return this._copyFile(remote, local, callback);
+    }
+
+    private _copyFile(sourcePath: Path, targetPath: Path, callback?: (err: Error) => any): Task<{}> {
+        var task = new Task();
+        callback = wrapCallback(this, task, callback);
+
+        // append filename if target path ens with slash
+        if (targetPath.endsWithSlash()) {
+            var filename = sourcePath.getName();
+            targetPath = targetPath.join(filename);
+        }
+
+        // create source and target
+        var source = new FileDataSource(sourcePath.fs, sourcePath.path);
+        var target = new FileDataTarget(targetPath.fs, targetPath.path);
+
+        // copy file data
+        FileUtil.copy(source, target, task, err => callback(err));
+
+        return task;
+    }
+
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<{}>
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}>
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}> {
