@@ -233,8 +233,13 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
                 depth++;
             }
 
+            // normalize path-less paths 
             var fullPath = basePath + path;
-            if (fullPath.length == 0) fullPath = "/";
+            if (fullPath.length == 0) {
+                fullPath = "/";
+            } else if (windows && fullPath.length == 2 && fullPath[1] == ':') {
+                fullPath += "/";
+            }
 
             // list directory and process its items
             fs.opendir(fullPath,(err, handle) => {
