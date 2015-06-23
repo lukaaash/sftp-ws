@@ -1,10 +1,12 @@
 ﻿import fs = require("fs");
-import Path = require("path");
 import api = require("./fs-api");
+import misc = require("./fs-misc");
 
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
+import Path = misc.Path;
+import FileUtil = misc.FileUtil;
 
 class LocalError implements Error {
     name: string;
@@ -26,11 +28,25 @@ export class LocalFilesystem implements IFilesystem {
         this.isWindows = (process.platform === 'win32');
     }
 
+    private checkPath(path: string, name: string): string {
+        path = Path.check(path, name);
+
+        if (path[0] === '~') {
+            var home = <string>(process.env.HOME || process.env.USERPROFILE || ".");
+            if (path.length == 1) return home;
+            if (path[1] === '/') return Path.join([home, path.substr(2)], this.isWindows);
+        }
+
+        return path;
+    }
+
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
             attrs = null;
         }
+
+        path = this.checkPath(path, 'path');
 
         var mode = (attrs && typeof attrs === 'object') ? attrs.mode : undefined;
         fs.open(path, flags, mode, (err, fd) => callback(err, fd));
@@ -107,6 +123,8 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
+        path = this.checkPath(path, 'path');
+
         fs.lstat(path, callback);
     }
 
@@ -147,6 +165,7 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
+        path = this.checkPath(path, 'path');
 
         var actions = new Array<Function>();
 
@@ -195,6 +214,7 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
+        path = this.checkPath(path, 'path');
 
         fs.readdir(path,(err, files) => {
 
@@ -232,6 +252,7 @@ export class LocalFilesystem implements IFilesystem {
             err = new LocalError("Invalid handle", true);
         }
 
+        var windows = this.isWindows;
         var items = [];
         if (err == null) {
             var paths = (<string[]>handle).splice(0, 64);
@@ -248,7 +269,7 @@ export class LocalFilesystem implements IFilesystem {
                         return;
                     }
 
-                    var itemPath = Path.join(path, name);
+                    var itemPath = Path.join([path, name], windows);
 
                     fs.stat(itemPath, (err, stats) => {
                         if (typeof err !== 'undefined' && err != null) {
@@ -278,10 +299,14 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
+        path = this.checkPath(path, 'path');
+
         fs.unlink(path, callback);
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+        path = this.checkPath(path, 'path');
+
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
             attrs = null;
@@ -293,32 +318,49 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     rmdir(path: string, callback?: (err: Error) => any): void {
+        path = this.checkPath(path, 'path');
+
         fs.rmdir(path, callback);
     }
 
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
+        path = this.checkPath(path, 'path');
+
         fs.realpath(path, callback);
     }
 
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
+        path = this.checkPath(path, 'path');
+
         fs.stat(path, callback);
     }
 
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        oldPath = this.checkPath(oldPath, 'oldPath');
+        newPath = this.checkPath(newPath, 'newPath');
+
         fs.rename(oldPath, newPath, callback);
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
+        path = this.checkPath(path, 'path');
+
         fs.readlink(path, callback);
     }
 
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
+    symlink(targetPath: string, linkPath: string, callback?: (err: Error) => any): void {
+        targetPath = this.checkPath(targetPath, 'targetPath');
+        linkPath = this.checkPath(linkPath, 'linkPath');
+
         //TODO: make sure the order is correct (beware - other SFTP client and server vendors are confused as well)
         //TODO: make sure this work on Windows
-        fs.symlink(linkpath, targetpath, 'file', callback);
+        fs.symlink(linkPath, targetPath, 'file', callback);
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        oldPath = this.checkPath(oldPath, 'oldPath');
+        newPath = this.checkPath(newPath, 'newPath');
+
         fs.link(oldPath, newPath, callback);
     }
 
