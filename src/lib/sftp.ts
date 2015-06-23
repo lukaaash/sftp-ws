@@ -10,6 +10,7 @@ import server = require("./sftp-server");
 import safe = require("./fs-safe");
 import local = require("./fs-local");
 import api = require("./fs-api");
+import plus = require("./fs-plus");
 import channel = require("./channel");
 import channel_ws = require("./channel-ws");
 import channel_stream = require("./channel-stream");
@@ -78,6 +79,13 @@ module SFTP {
             var ws = new WebSocket(address, options);
             var channel = new WebSocketChannel(ws);
             super.bind(channel, callback);
+        }
+    }
+
+    export class Local extends plus.FilesystemPlus {
+        constructor() {
+            var fs = new local.LocalFilesystem();
+            super(fs, null);
         }
     }
 
