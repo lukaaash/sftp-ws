@@ -1,6 +1,6 @@
 ﻿import client = require("./sftp-client");
 import api = require("./fs-api");
-import channel = require("./channel");
+import channel = require("./channel-ws");
 import util = require("./util");
 
 import SftpClient = client.SftpClient;

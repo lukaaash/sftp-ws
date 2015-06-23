@@ -4,7 +4,7 @@ function __extends(d, b) {
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
-}; 
+}
 
 interface ErrnoException extends Error {
     errno?: number;
