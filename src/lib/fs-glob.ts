@@ -227,7 +227,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
                 //console.log("Matching (g): ", basePath, path, glob.source);
                 nextIndex = index;
                 matchItems = true;
-                enterDirs = (maxDepth > 0 && depth < maxDepth);
+                enterDirs = (maxDepth == 0) || (maxDepth > 0 && depth < maxDepth);
 
                 // increment depth for each globmask
                 depth++;
