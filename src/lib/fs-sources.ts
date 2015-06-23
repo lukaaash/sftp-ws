@@ -436,7 +436,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
 
             var source = <IDataSource[]>[];
             items.forEach(it => {
-                var item = new FileDataSource(fs, it.path, it.relativePath, it.stats, 0);
+                var item = new FileDataSource(fs, it.path, (<any>it).relativePath, it.stats, 0);
                 source.push(item);
             });
 

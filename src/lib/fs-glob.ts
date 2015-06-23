@@ -36,7 +36,7 @@ export interface ISearchOptionsExt extends ISearchOptions {
     itemonly?: boolean; // only match a single item (implies nowildcard)
 }
 
-export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, options: ISearchOptionsExt, callback: (err: Error, items?: IItemExt[]) => void): void {
+export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, options: ISearchOptionsExt, callback: (err: Error, items?: IItem[]) => void): void {
 
     if (path.length == 0) throw new Error("Empty path");
 
