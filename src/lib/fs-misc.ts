@@ -34,28 +34,45 @@ export interface IDataSource {
 }
 
 export class Path {
-    private path: string;
+    path: string;
+    fs: IFilesystem;
 
-    constructor(path: string|Path)
-    constructor(path: string) {
+    constructor(path: string, fs?: IFilesystem) {
         if (typeof path !== "string") path = "" + path;
-        this.path = path;
+        this.path = <string>path;
+        this.fs = fs || null;
+    }
+
+    private _windows(): boolean {
+        return this.fs && (<any>this.fs).isWindows && true;
     }
 
     isTop(): boolean {
-        return this.path.length == 0 || this.path == "/";
+        var path = this.path;
+        if (path.length == 0 || path == '/') return true;
+        if (this._windows()) {
+            if (path == '\\') return true;
+            if (path[1] != ':') return false;
+            if (path.length == 2) return true;
+            if (path.length == 3 && (path[2] == '/' || path[2] == '\\')) return true;
+        }
+        return false;
     }
 
     getName(): string {
         var path = this.path;
+        var windows = this._windows();
         var n = path.lastIndexOf('/');
+        if (n < 0 && windows) n = path.lastIndexOf('\\');
         if (n < 0) return path;
         return path.substr(n + 1);
     }
 
     getParent(): Path {
         var path = this.path;
+        var windows = this._windows();
         var n = path.lastIndexOf('/');
+        if (n < 0 && windows) n = path.lastIndexOf('\\');
         if (n < 0) {
             path = "";
         } else if (n == 0) {
@@ -64,79 +81,99 @@ export class Path {
             path = path.substr(0, n);
         }
 
-        return new Path(path);
+        return new Path(path, this.fs);
     }
 
-    normalize(isWindows: boolean, removeTrailingSlash?: boolean): Path {
+    startsWith(value: string) {
+        if (value.length == 0) return false;
         var path = this.path;
-
-        // replace backslashes with slashes on Windows filesystems
-        if (isWindows) path = path.replace(/\\/g, "/");
-
-        if (removeTrailingSlash) {
-            var len = path.length;
-            if (len > 1 && path[len - 1] == '/') path = path.substr(0, len - 1);
+        if (path.length < value.length) return false;
+        if (value.length == 1) return path[0] === value;
+        for (var i = 0; i < value.length; i++) {
+            if (value[i] !== path[i]) return false;
         }
-
-        return new Path(path);
+        return true;
     }
 
-    combine(relativePath: string|Path): Path
-    combine(relativePath: string): Path {
+    endsWithSlash(): boolean {
+        var last = this.path[this.path.length - 1];
+        if (last == '/') return true;
+        if (last == '\\' && this._windows()) return true;
+        return false;
+    }
+
+    removeTrailingSlash(): Path {
         var path = this.path;
-
-        if (typeof relativePath !== "string") relativePath = "" + relativePath;
-
-        if (relativePath.length == 0) return new Path(path);
-        if (relativePath[0] == '/') return new Path(relativePath);
+        var windows = this._windows();
 
         var len = path.length;
-        if (len == 0) {
-            path = "./";
-        } else if (path[len - 1] != '/') {
-            path += "/";
+        if (len > 1) {
+            var last = path[len - 1];
+            if (last == '/' || (last == '\\' && windows)) path = path.substr(0, len - 1);
         }
 
-        return new Path(path + relativePath);
+        return new Path(path, this.fs);
+    }
+
+    normalize(): Path {
+        var path = this.path;
+
+        // replace slashes with backslashes with on Windows filesystems
+        if (this._windows()) {
+            path = path.replace(/\//g, "\\");
+        } else {
+            path = path.replace(/\\/g, "/");
+        }
+
+        return new Path(path, this.fs);
     }
 
     toString(): string {
         return this.path;
     }
 
-    static join(paths: string[], windows?: boolean): string {
-        var result = <string>null;
-        paths.forEach(path => {
-            if (typeof path === "undefined") return;
-            path = "" + path;
-            if (path.length == 0) return;
-            if (result === null || path[0] === '/' || path === "~" || (path[0] === '~' && path[1] === '/')) {
-                result = path;
+    join(...paths: string[]): Path
+    join(...paths: Path[]): Path
+    join(...paths: any[]): Path {
+        var path = "" + this.path;
+        var windows = this._windows();
+
+        (<string[]>paths).forEach(segment => {
+            if (typeof segment === "undefined") return;
+            segment = "" + segment;
+            if (segment.length == 0) return;
+            if (path.length == 0 || segment[0] === '/' || segment === "~" || (segment[0] === '~' && segment[1] === '/')) {
+                path = segment;
                 return;
             }
 
             if (windows) {
-                if (path[0] === '\\' || (path[0] === '~' && path[1] === '\\') || path[1] === ':') {
-                    result = path;
+                if (segment[0] === '\\' || (segment[0] === '~' && segment[1] === '\\') || segment[1] === ':') {
+                    path = segment;
                     return;
                 }
             }
 
-            var last = result[result.length - 1];
+            var last = path[path.length - 1];
             if (last === '/' || (windows && last === '\\')) {
-                result = result + path;
+                path = path + segment;
             } else {
-                result = result + "/" + path;
+                path = path + "/" + segment;
             }
         });
 
-        if (result === null) {
-            result = ".";
+        if (path.length == 0) {
+            path = ".";
         } else if (windows) {
-            result = result.replace(/\//g, '\\');
+            path = path.replace(/\//g, '\\');
         }
 
-        return result;
+        return new Path(path, this.fs);
+    }
+
+    static create(path: string, fs: IFilesystem, name?: string): Path {
+        path = Path.check(path, name);
+        return new Path(path, fs).normalize();
     }
 
     static check(path: string, name?: string): string {
@@ -229,12 +266,6 @@ export class FileUtil {
         var nlink = (typeof (<any>stats).nlink === 'undefined') ? 1 : (<any>stats).nlink;
 
         return perms + " " + nlink + " user group " + len + " " + date + " " + filename;
-    }
-
-    static getFileName(path: string): string {
-        var n = path.lastIndexOf('/');
-        if (n < 0) return path;
-        return path.substr(n + 1);
     }
 
     static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {

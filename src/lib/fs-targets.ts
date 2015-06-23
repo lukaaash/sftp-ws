@@ -43,7 +43,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
         super();
 
         this.fs = fs;
-        this.path = path;
+        this.path = "" + path;
 
         this.handle = null;
         this.position = 0;

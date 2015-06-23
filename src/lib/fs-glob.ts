@@ -12,7 +12,7 @@ interface IItemExt extends IItem {
 }
 
 interface IDirInfo {
-    path: string;
+    path: Path;
     pattern: number;
     depth: number;
 }
@@ -61,7 +61,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
     // on windows, normalize backslashes
     var windows = (<any>fs).isWindows == true;
-    path = new Path(path).normalize(windows).toString();
+    path = new Path(path, null).normalize().path;
 
     // append a wildcard to slash-ended paths, or make sure they refer to a directory
     if (path[path.length - 1] == '/') {
@@ -77,7 +77,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     var results = <IItemExt[]>[];
 
     // important variables
-    var basePath: string;
+    var basePath: Path;
     var glob: RegExp;
     var queue = <IDirInfo[]>[];
     var patterns = <RegExp[]>[];
@@ -154,7 +154,10 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
     // prepare and start the matching
     function start(path: string, mask: string): void {
-        basePath = path;
+        // construct base path
+        if (path.length == 0 || (windows && path.length == 2 && path[1] == ':')) path += "/";
+        basePath = new Path(path, fs).normalize();
+
         mask = "/" + mask;
 
         var globmask = null;
@@ -186,7 +189,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
         }
 
         // add path to queue and process it
-        queue.push({ path: "", pattern: 0, depth: 0 });
+        queue.push({ path: new Path("", null), pattern: 0, depth: 0 });
         next();
     }
 
@@ -210,7 +213,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             return callback(null, results);
         }
 
-        var path: string;
+        var relativePath: Path;
         var index: number;
         var regex: RegExp;
         var depth: number;
@@ -221,7 +224,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
         try {
             // prepare vars
-            path = current.path;
+            relativePath = current.path;
             index = current.pattern;
             depth = current.depth;
             regex = patterns[index];
@@ -244,13 +247,8 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
                 depth++;
             }
 
-            // normalize path-less paths 
-            var fullPath = basePath + path;
-            if (fullPath.length == 0) {
-                fullPath = "/";
-            } else if (windows && fullPath.length == 2 && fullPath[1] == ':') {
-                fullPath += "/";
-            }
+            // prepare full path
+            var fullPath = basePath.join(relativePath).normalize().path;
 
             // list directory and process its items
             fs.opendir(fullPath,(err, handle) => {
@@ -311,7 +309,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
             if (!isDir && !isFile) return;
 
-            var itemPath = path + "/" + item.filename;
+            var itemPath = relativePath.join(item.filename);
 
             // add subdirectory to queue if desired
             if (enterDirs && isDir && !isDotDir) {
@@ -330,12 +328,13 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
                 if (!regex.test(item.filename)) return;
             } else {
                 // globstar matching
-                if (!glob.test(itemPath)) return;
+                if (!glob.test(itemPath.path)) return;
             }
 
             // add matched file to the list
-            item.path = basePath + itemPath;
-            item.relativePath = itemPath.substr(1);
+            var relative = new Path(itemPath.path, fs).normalize();
+            item.path = basePath.join(relative).path;
+            item.relativePath = relative.path;
             results.push(item);
             emitter.emit("item", item);
         }        

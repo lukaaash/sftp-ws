@@ -29,12 +29,15 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     private checkPath(path: string, name: string): string {
-        path = Path.check(path, name);
+        var localPath = Path.create(path, this, name);
+        var path = localPath.path;
 
-        if (path[0] === '~') {
+        if (path[0] == '~') {
             var home = <string>(process.env.HOME || process.env.USERPROFILE || ".");
             if (path.length == 1) return home;
-            if (path[1] === '/') return Path.join([home, path.substr(2)], this.isWindows);
+            if (path[1] === '/' || (path[1] === '\\' && this.isWindows)) {
+                path = localPath.join(home, path.substr(2)).path;
+            }
         }
 
         return path;
@@ -223,7 +226,7 @@ export class LocalFilesystem implements IFilesystem {
             if (typeof err !== 'undefined' && err != null) {
                 files = null;
             } else if (Array.isArray(files)) {
-                files["path"] = path;
+                files["path"] = new Path(path, this).normalize();
                 err = null;
             } else {
                 files = null;
@@ -239,13 +242,13 @@ export class LocalFilesystem implements IFilesystem {
 
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
         var err = null;
-        var path = null;
+        var path = <Path>null;
         if (Array.isArray(handle)) {
             if (handle.closed == true) {
                 err = new LocalError("Already closed", true);
             } else {
                 path = handle.path;
-                if (typeof path !== 'string')
+                if (typeof path !== 'object')
                     err = new LocalError("Invalid handle", true);
             }
         } else {
@@ -269,7 +272,7 @@ export class LocalFilesystem implements IFilesystem {
                         return;
                     }
 
-                    var itemPath = Path.join([path, name], windows);
+                    var itemPath = path.join(name).path;
 
                     fs.stat(itemPath, (err, stats) => {
                         if (typeof err !== 'undefined' && err != null) {

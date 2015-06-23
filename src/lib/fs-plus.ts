@@ -174,7 +174,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     join(...paths: string[]): string {
-        return Path.join(paths,(<any>this._fs).isWindows);
+        var path = new Path("", this._fs);
+        return path.join.apply(path, arguments).normalize().path;
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
@@ -239,7 +240,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task<{}> {
-        var remotePath = Path.check(remotePath, 'remotePath');
+        var remote = Path.create(remotePath, this._fs, 'remotePath');
 
         if (typeof options === 'function' && typeof callback === 'undefined') {
             callback = <any>options;
@@ -279,7 +280,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         }
 
         // create source
-        var source = new FileDataSource(this._fs, remotePath);
+        var source = new FileDataSource(remote.fs, remote.path);
 
         // copy file data
         FileUtil.copy(source, target, task, err => {
@@ -293,26 +294,27 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     upload(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<{}>
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}>
     upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}> {
-        var remotePath = Path.check(remotePath, 'remotePath');
+        var remote = Path.create(remotePath, this._fs, 'remotePath');
 
-        return this._copy(input, this._local, new Path(remotePath), this._fs, callback);
+        return this._copy(input, this._local, remote, callback);
     }
 
     download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task<{}> {
-        var localPath = Path.check(localPath, 'localPath');
+        var local = Path.create(localPath, this._local, 'localPath');
 
-        return this._copy(remotePath, this._fs, new Path(localPath), this._local, callback);
+        return this._copy(remotePath, this._fs, local, callback);
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: Path, toFs: IFilesystem, callback?: (err: Error) => any): Task<{}> {
+    private _copy(from: any, fromFs: IFilesystem, toPath: Path, callback?: (err: Error) => any): Task<{}> {
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
         var sources = <IDataSource[]>null;
 
-        toPath = toPath.normalize((<any>toFs).isWindows == true, true);
+        var toFs = toPath.fs;
+        toPath = toPath.removeTrailingSlash();
 
-        toFs.stat(toPath.toString(), prepare);
+        toFs.stat(toPath.path, prepare);
 
         var directories = {};
 
@@ -350,13 +352,14 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             if (!source) return callback(null);
 
             var sourcePath = source.path || source.name;
+            var relativePath = new Path(source.name, toFs).normalize();
 
-            checkParent(new Path(source.name), transfer);
+            checkParent(relativePath, transfer);
 
             function transfer(err: Error): void {
                 if (err) return callback(err);
 
-                var targetPath = toPath.combine(source.name).toString();
+                var targetPath = toPath.join(relativePath).path;
 
                 task.emit("transferring", sourcePath, source.length);
 
@@ -388,7 +391,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 if (err) return callback(err);
 
                 try {
-                    var targetPath = toPath.combine(parent).toString();
+                    var targetPath = toPath.join(parent).path;
 
                     FileUtil.mkdir(toFs, targetPath, err => {
                         if (err) return callback(err);
