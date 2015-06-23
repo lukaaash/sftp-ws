@@ -173,6 +173,10 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.symlink(targetpath, linkpath, callback);
     }
 
+    join(...paths: string[]): string {
+        return Path.join(paths,(<any>this._fs).isWindows);
+    }
+
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
         callback = wrapCallback(this, null, callback);
 

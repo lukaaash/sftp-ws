@@ -104,6 +104,41 @@ export class Path {
         return this.path;
     }
 
+    static join(paths: string[], windows?: boolean): string {
+        var result = <string>null;
+        paths.forEach(path => {
+            if (typeof path === "undefined") return;
+            path = "" + path;
+            if (path.length == 0) return;
+            if (result === null || path[0] === '/' || path === "~" || (path[0] === '~' && path[1] === '/')) {
+                result = path;
+                return;
+            }
+
+            if (windows) {
+                if (path[0] === '\\' || (path[0] === '~' && path[1] === '\\') || path[1] === ':') {
+                    result = path;
+                    return;
+                }
+            }
+
+            var last = result[result.length - 1];
+            if (last === '/' || (windows && last === '\\')) {
+                result = result + path;
+            } else {
+                result = result + "/" + path;
+            }
+        });
+
+        if (result === null) {
+            result = ".";
+        } else if (windows) {
+            result = result.replace(/\//g, '\\');
+        }
+
+        return result;
+    }
+
     static check(path: string, name?: string): string {
         if (typeof name === "undefined") name = "path";
 
