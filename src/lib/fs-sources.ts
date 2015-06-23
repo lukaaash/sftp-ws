@@ -431,7 +431,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
     function toPatternDataSource(path: string): void {
         if (!fs) throw new Error("Source file system not available");
 
-        search(fs, path, emitter, {},(err, items) => {
+        search(fs, path, emitter, {noexpand: true},(err, items) => {
             if (err) return callback(err, null);
 
             var source = <IDataSource[]>[];
