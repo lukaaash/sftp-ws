@@ -8,6 +8,7 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
 import IDataTarget = misc.IDataTarget;
+import Path = misc.Path;
 import Encoding = charsets.Encoding;
 import IStringDecoder = charsets.IStringDecoder;
 import IStringEncoder = charsets.IStringEncoder;
@@ -18,6 +19,8 @@ interface IChunk extends NodeBuffer {
 }
 
 export class FileDataTarget extends EventEmitter implements IDataTarget {
+    name: string;
+
     private fs: IFilesystem;
     private path: string;
 
@@ -44,6 +47,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 
         this.fs = fs;
         this.path = "" + path;
+        this.name = new Path(this.path, fs).getName();
 
         this.handle = null;
         this.position = 0;

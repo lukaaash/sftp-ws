@@ -7,6 +7,8 @@ import IItem = api.IItem;
 import FileType = api.FileType;
 
 export interface IDataTarget {
+    name?: string;
+
     on(event: 'drain', listener: () => void): NodeEventEmitter;
     on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
     on(event: 'finish', listener: () => void): NodeEventEmitter;
@@ -23,6 +25,7 @@ export interface IDataSource {
     length: number;
     stats?: IStats;
     path?: string;
+    relativePath?: string;
 
     on(event: 'readable', listener: () => void): NodeEventEmitter;
     on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
@@ -288,9 +291,11 @@ export class FileUtil {
         var done = false;
         var error = <Error>null;
         var total = 0;
+        var item = <IItem>null;
 
         source.on("readable",() => {
             //console.log("readable");
+            if (item == null) transferring();
             while (writable) {
                 if (!copy()) break;
             }
@@ -320,6 +325,7 @@ export class FileUtil {
 
         target.on("finish",() => {
             //console.log("finished");
+            if (item) emitter.emit("transferred", item);
             exit();
         });
 
@@ -328,6 +334,21 @@ export class FileUtil {
             error = error || err || new Error("Unspecified error");
             exit();
         });
+
+        function transferring(): void {
+            var name = source.name;
+            if (typeof name === "undefined") name = "" + target.name;
+            var path = source.relativePath;
+            if (typeof path === "undefined") path = name;
+
+            item = {
+                filename: name,
+                stats: source.stats || { size: source.length },
+                path: path,
+            };
+
+            emitter.emit("transferring", item);
+        }
 
         function copy(): boolean {
             var chunk = source.read();

@@ -385,17 +385,18 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             var source = sources.shift();
             if (!source) return callback(null);
 
-            var sourcePath = source.path || source.name;
-            var relativePath = new Path(source.name, toFs).normalize();
-
-            checkParent(relativePath, transfer);
+            var targetPath: string;
+            if (typeof source.relativePath === "string") {
+                var relativePath = new Path(source.relativePath, fromFs);
+                targetPath = toPath.join(relativePath).normalize().path;
+                checkParent(relativePath, transfer);
+            } else {
+                targetPath = toPath.join(source.name).path;
+                transfer(null);
+            }
 
             function transfer(err: Error): void {
                 if (err) return callback(err);
-
-                var targetPath = toPath.join(relativePath).path;
-
-                task.emit("transferring", sourcePath, source.length);
 
                 if (FileUtil.isDirectory(source.stats)) {
                     FileUtil.mkdir(toFs, targetPath, transferred);
@@ -407,7 +408,6 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
             function transferred(err: Error): void {
                 if (err) return callback(err);
-                task.emit("transferred", sourcePath, source.length);
                 next();
             }
         }

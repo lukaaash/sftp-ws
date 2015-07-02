@@ -21,6 +21,7 @@ interface IChunk extends NodeBuffer {
 export class FileDataSource extends EventEmitter implements IDataSource {
     name: string;
     path: string;
+    relativePath: string;
     length: number;
     stats: IStats;
 
@@ -39,11 +40,13 @@ export class FileDataSource extends EventEmitter implements IDataSource {
     private readable: boolean;
     private failed: boolean;
 
-    constructor(fs: IFilesystem, path: string, name?: string, stats?: IStats, position?: number) {
+    constructor(fs: IFilesystem, path: string, relativePath?: string, stats?: IStats, position?: number) {
         super();
         this.fs = fs;
         this.path = "" + path;
-        this.name = name || new Path(path, fs).getName();
+        this.name = new Path(path, fs).getName();
+        if (relativePath !== null && typeof relativePath !== "undefined") this.relativePath = "" + relativePath;
+
         if (stats) {
             this.length = stats.size;
             this.stats = stats;
@@ -423,7 +426,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmit
         fs.stat(path,(err, stats) => {
             if (err) return callback(err, null);
 
-            var item = new FileDataSource(fs, path, new Path(path, fs).getName(), stats, 0);
+            var item = new FileDataSource(fs, path, null, stats, 0);
             callback(null, [item]);
         });
     }
