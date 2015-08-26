@@ -104,6 +104,7 @@ class SftpException implements Error {
             case 28: // EISDIR
                 message = "Is a directory";
                 break;
+            case -4058: // ENOENT on Windows with Node >=0.12
             case 34: // ENOENT
                 message = "No such file or directory";
                 code = SftpStatusCode.NO_SUCH_FILE;

@@ -60,7 +60,7 @@ export class StringEncoder {
     }
 }
 
-function encodeUTF8(value: string, buffer: NodeBuffer, offset: number, end?: number, state?: { _code: number; _length: number; _position: number; _done: boolean; }): number {
+export function encodeUTF8(value: string, buffer: NodeBuffer, offset: number, end?: number, state?: { _code: number; _length: number; _position: number; _done: boolean; }): number {
     end = end || buffer.length;
 
     var code: number;
@@ -199,7 +199,7 @@ export class StringDecoder {
     }
 }
 
-function decodeUTF8(buffer: NodeBuffer, offset: number, end?: number, state?: { _text?: string; _code?: number; _length?: number; }): string {
+export function decodeUTF8(buffer: NodeBuffer, offset: number, end?: number, state?: { _text?: string; _code?: number; _length?: number; }): string {
     end = end || buffer.length;
 
     var text: string;

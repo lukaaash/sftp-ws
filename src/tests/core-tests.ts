@@ -82,8 +82,8 @@ function error(err: Error, done: Function, expectedCode: string, expectedDescrip
 
 function equalStats(attrs: SFTP.IStats, stats: fs.Stats): void {
     assert.equal(attrs.size, stats.size, "size mismatch");
-    assert.equal(attrs.mtime.getTime() / 1000, stats.mtime.getTime() / 1000, "mtime mismatch");
-    assert.equal(attrs.atime.getTime() / 1000, stats.atime.getTime() / 1000, "atime mismatch");
+    assert.equal((attrs.mtime.getTime() / 1000) | 0, (stats.mtime.getTime() / 1000) | 0, "mtime mismatch");
+    assert.equal((attrs.atime.getTime() / 1000) | 0, (stats.atime.getTime() / 1000) | 0, "atime mismatch");
     assert.equal(attrs.mode, stats.mode, "mode mismatch");
     assert.equal(attrs.uid, stats.uid, "uid mismatch");
     assert.equal(attrs.gid, stats.gid, "gid mismatch");

@@ -1,6 +1,8 @@
 ﻿import enums = require("./sftp-enums");
+import charsets = require("./charsets");
 
 import SftpPacketType = enums.SftpPacketType;
+import encodeUTF8 = charsets.encodeUTF8;
 
 export class SftpPacket {
     type: SftpPacketType|string;
@@ -187,17 +189,13 @@ export class SftpPacketWriter extends SftpPacket {
         var offset = this.position;
         this.writeInt32(0); // will get overwritten later
 
-        //WEB: var bytesWritten = encodeUTF8(value, this.buffer, this.position);
-        var charLength = value.length; //WEB: // removed
-        (<any>this.buffer)._charsWritten = 0; //WEB: // removed
-        var bytesWritten = this.buffer.write(value, this.position, undefined, 'utf-8'); //WEB: // removed
-        //WEB: if (bytesWritten < 0)
-        if ((<any>Buffer)._charsWritten != charLength) //WEB: // removed
+        var bytesWritten = encodeUTF8(value, this.buffer, this.position);
+        if (bytesWritten < 0)
             throw new Error("Not enough space in the buffer");
 
         // write number of bytes and seek back to the end
-        //WEB: this.position = offset;
-        this.buffer.writeInt32BE(bytesWritten, offset, true); //WEB: this.writeInt32(bytesWritten);
+        this.position = offset;
+        this.writeInt32(bytesWritten);
         this.position += bytesWritten;
     }
 
