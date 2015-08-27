@@ -21,7 +21,8 @@ npm install --save sftp-ws
 
 ## API
 
-The client API aims to be compatible with SFTP client in [ssh2 module](https://github.com/mscdex/ssh2) by Brian White.
+The SFTP client provides a high-level API for multi-file operations, but it also aims to be compatible with SFTP client in [ssh2 module](https://github.com/mscdex/ssh2) by Brian White.
+
 Einaros [ws module](https://github.com/einaros/ws) is used to handle WebSockets and this is reflected in parts of the client and server API as well.
 
 ### SFTP client - connecting to a server:
@@ -29,26 +30,43 @@ Einaros [ws module](https://github.com/einaros/ws) is used to handle WebSockets 
 ```javascript
 var SFTP = require('sftp-ws');
 
-// initialize SFTP over WebSocket connection
-var client = new SftpClient('ws://localhost/path');
+// create an SFTP over WebSockets object
+var client = new SFTP.Client();
+
+// connect to a server
+client.connect('ws://localhost/path');
 
 // handle errors
 client.on('error', function (err) {
-    console.log('Error : %s', err.message);
+    console.log('Error: %s', err.message);
 });
 
 // when connected, display a message and file listing
 client.on('ready', function () {
     console.log('Connected to the server.');
 
-    // retrieve directory listing
-    client.readdir('.', function (err, listing) {
-        console.log(listing);
+    client.list('.').on('success', function (list) {
+        
+		// display the listing
+		list.forEach(function (item) {
+            return console.log(item.longname);
+        });
 
 		// close the connection
-        client.end();
+		client.end();
     });
 });
+```
+
+### SFTP client - downloading files
+
+```javascript
+
+// initialize an SFTP client object here
+
+// download all files matching the pattern
+// (into the current local directory)
+client.download('sftp-ws-'.tgz", '.');
 ```
 
 ### SFTP server - listening for connections:
@@ -75,7 +93,7 @@ This includes a proof-of-concept version of a [browser-based SFTP/WS client](htt
 This SFTP package is built around the `IFilesystem` interface:
 
 ```typescript
-export interface IFilesystem {
+interface IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
     close(handle: any, callback?: (err: Error) => any): void;
     read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void;
@@ -85,7 +103,7 @@ export interface IFilesystem {
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void;
     fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void;
     opendir(path: string, callback?: (err: Error, handle: any) => any): void;
-	readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void;
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void;
     unlink(path: string, callback?: (err: Error) => any): void;
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void;
     rmdir(path: string, callback?: (err: Error) => any): void;
@@ -94,11 +112,7 @@ export interface IFilesystem {
     rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
     symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
-}
-
-export interface IItem {
-    filename: string;
-    stats?: IStats;
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
 }
 
 export interface IStats {
@@ -108,6 +122,18 @@ export interface IStats {
     size?: number;
     atime?: Date;
     mtime?: Date;
+
+    isFile? (): boolean;
+    isDirectory? (): boolean;
+    isSymbolicLink? (): boolean;
+}
+
+export interface IItem {
+    filename: string;
+    stats: IStats;
+
+    longname?: string;
+    path?: string;
 }
 ```
 
@@ -123,7 +149,7 @@ However, you can easily implement a custom virtual filesystem and use it instead
 List of things I would like to add soon:
 
 - More unit tests
-- Documentation
+- Better documentation
 - Proper browser-based client
 - Client-side wrapper around `IFilesystem` to simplify common tasks
 - SFTP/WS to SFTP/SSH proxy
