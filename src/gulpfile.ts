@@ -62,7 +62,6 @@ gulp.task('web.ts', () => {
         .pipe(concat('sftp.ts'))
         .pipe(replace(/class Client /g, 'export class Client '))
         .pipe(replace(/^/g, 'module SFTP {'))
-        .pipe(replace(/\n/g, '\n    '))
         .pipe(replace(/$/g, '\n}'))
         .pipe(replace(/\r?\n/g, '\r\n'))
         .pipe(gulp.dest(out.lib_web));
@@ -109,7 +108,7 @@ gulp.task('web', ['web.js'],() => {
     };
 
     return gulp.src(out.lib_web + '/sftp.js')
-        .pipe(rename(path => path.basename = "sftp.min.js"))
+        .pipe(rename(path => path.basename = "sftp.min"))
         .pipe(uglify(uglifyOptions))
         .pipe(gulp.dest(out.lib_web));
 });
