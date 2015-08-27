@@ -1,7 +1,7 @@
 sftp-ws
 =======
 
-v0.2.0
+v0.3.0
 ------
 
 SFTP over WebSockets - client and server library for Node.js.
