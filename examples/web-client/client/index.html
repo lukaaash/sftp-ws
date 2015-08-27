@@ -3,11 +3,7 @@
 <head>
     <title>SFTP over WebSockets - Sample Client</title>
     <link rel="stylesheet" href="style.css" type="text/css" media="all" />
-    <script type="text/javascript" src="Init.js"></script>
-    <script type="text/javascript" src="Buffer.js"></script>
-    <script type="text/javascript" src="Stats.js"></script>
-    <script type="text/javascript" src="SFTPv3.js"></script>
-    <script type="text/javascript" src="Client.js"></script>
+    <script type="text/javascript" src="sftp.min.js"></script>
 </head>
 <body>
 
@@ -29,16 +25,16 @@
 
     <script type="text/javascript">
 
-        var client = new SftpClient();
+        var client = new SFTP.Client();
         var currentPath = '/';
         var list = document.getElementById('list');
 
         var address = (window.location.protocol == "https") ? "wss" : "ws";
         address += "://" + window.location.hostname + ":" + window.location.port + "/sftp";
         
-        client.connect(address)
-            .error(onError)
-            .success(onConnected);
+        client.connect(address);
+        client.on("ready", onConnected);
+        client.on("close", onError);
 
         function onError(error) {
             alert("SFTP.WS error: " + error.message + " (" + error.type + ")");
@@ -71,19 +67,19 @@
             path += '/';
             currentPath = path;
 
-            client.getList(path)
-                .error(onError)
-                .item(onItem);
+            client.list(path)
+                //.on("error", onError)
+                .on("item", onItem);
             
             function onItem(item) {
                 var div = createItem(item);
 
-                if (item.isDirectory()) {
-                    div.onclick = function () { getList(path + item.name); }
+                if (item.stats.isDirectory()) {
+                    div.onclick = function () { getList(path + item.filename); }
                 }
 
-                if (item.isFile()) {
-                    div.onclick = function () { downloadImage(path, item.name); }
+                if (item.stats.isFile()) {
+                    div.onclick = function () { downloadImage(path, item.filename); }
                 }
 
                 list.appendChild(div);
@@ -92,14 +88,12 @@
 
         function downloadImage(path, name) {
             path += name;
-            client.getFile(path)
-                .error(onError)
-                .success(function (e) {
-                    var data = e.data;
+        	client.readFile(path, { mimeType: "image/jpeg", type: "Blob" })
+                .on("error", onError)
+                .on("success", function (blob) {
                     var image = document.getElementById('image');
                     var preview = document.getElementById('preview');
 
-                    var blob = new Blob([data], { type: "image/jpeg" });
                     var url = URL.createObjectURL(blob);
 
                     image.src = url;
@@ -115,9 +109,9 @@
             if (item == null) {
                 info.innerHTML = "";
             } else {
-                info.innerHTML = "Name: " + item.name + "<br/>"
-                    + "Length: " + ((item.length / 1024) | 0) + " KB<br/>"
-                    + "Modified: " + item.modified.toLocaleString();
+                info.innerHTML = "Name: " + item.filename + "<br/>"
+                    + "Length: " + ((item.stats.size / 1024) | 0) + " KB<br/>"
+                    + "Modified: " + item.stats.mtime.toLocaleString();
             }
         }
 
@@ -128,7 +122,7 @@
                 name = item;
                 info = false;
             } else {
-                name = item.name;
+                name = item.filename;
                 if (name.length > 18)
                     name = name.substr(0, 16) + "...";
                 info = true;
@@ -175,14 +169,14 @@
             var itemDiv = null;
             var progress = null;
 
-            client.putFile(file, currentPath + file.name, true)
-                .error(function (error) {
-                    uploading = false;
-                    uploadQueue.length = 0;
-                    onError(error);
-                })
-                .success(onSuccess)
-                .progress(onProgress);
+            client.upload(file, currentPath)
+				.on("error", function (error) {
+					uploading = false;
+					uploadQueue.length = 0;
+					onError(error);
+				})
+				.on("success", onSuccess)
+				.on("progress", onProgress);
 
             function onSuccess() {
                 if (progress != null)
@@ -192,17 +186,18 @@
                 uploadFile();
             }
             
-            function onProgress(e, current) {
+            function onProgress(path, current, length) {
                 if (itemDiv == null) {
-                    itemDiv = createItem({ name: file.name, length: file.size, modified: file.lastModifiedDate });
+                    itemDiv = createItem({ filename: file.name, length: file.size, modified: file.lastModifiedDate });
                     list.appendChild(itemDiv);
 
                     progress = document.createElement("div");
                     progress.className = 'progress';
+                    progress.style.width = '0%';
                     itemDiv.appendChild(progress);
                 }
 
-                progress.style.width = (current | 0) + '%';
+                progress.style.width = ((100 * current / length) | 0) + '%';
             }
         }
 

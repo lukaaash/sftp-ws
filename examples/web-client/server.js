@@ -1,6 +1,6 @@
 var http = require('http');
 var express = require('express');
-var sftp = require('sftp-ws');
+var SFTP = require("sftp-ws");
 
 // initialize an express app
 var app = express();
@@ -18,12 +18,12 @@ app.use(express.static(__dirname + '/client'));
 var server = http.createServer(app);
 
 // start SFTP over WebSockets server
-var sftp = new sftp.Server({
+var sftp = new SFTP.Server({
     server: server,
     virtualRoot: __dirname + '/files',
     path: endpoint,
     //verifyClient: verifyClientCallback, //TODO: add authentication, check origin, etc.
-    log: console
+    log: console // log to console
 });
 
 // start accepting requests at http://host:port

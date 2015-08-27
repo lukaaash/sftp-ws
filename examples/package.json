@@ -1,0 +1,9 @@
+{
+  "name": "sftp-ws samples",
+  "version": "0.3.0",
+  "description": "Sample code for sftp-ws package",
+  "dependencies": {
+	"sftp-ws": "~0.3.0",
+    "express": "4.10.x", 
+  }
+}
