@@ -19,7 +19,7 @@
     "ws": "^0.4.32"
   },
   "devDependencies": {
-    "gulp": "^3.8.10",
+    "gulp": "^3.9.0",
     "gulp-concat": "^2.5.1",
     "gulp-json-editor": "^2.1.1",
     "gulp-rename": "^1.2.2",
