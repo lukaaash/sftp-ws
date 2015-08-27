@@ -24,12 +24,12 @@ var src = {
     lib: ['lib/*.ts', 'tests/*.ts','!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
     lib_web: ['lib/util-web.ts', 'lib/util.ts', 'lib/charsets.ts', 'lib/fs-api.ts', 'lib/fs-misc.ts', 'lib/fs-glob.ts', 'lib/fs-sources.ts', 'lib/fs-targets.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/channel-ws.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
     pkg: ['package.json'],
+    npm: ['.npmignore', '../README.md', '../LICENSE'],
 };
 
 var out = {
-    lib: '..',
-    lib_web: '../web',
-    pkg: '..',
+    lib: '../build',
+    lib_web: '../build/web',
 };
 
 gulp.task('lib', () => {
@@ -117,11 +117,16 @@ gulp.task('web', ['web.js'],() => {
 
 gulp.task('package', () => {
     return gulp.src(src.pkg)
-        .pipe(jeditor({'devDependencies': undefined}))
-        .pipe(gulp.dest(out.pkg));
+        .pipe(jeditor({ 'devDependencies': undefined }))
+        .pipe(gulp.dest(out.lib));
 });
 
-gulp.task('build', ['lib', 'web', 'package'], () => {
+gulp.task('npm', () => {
+    return gulp.src(src.npm)
+        .pipe(gulp.dest(out.lib));
+});
+
+gulp.task('build', ['lib', 'web', 'package', 'npm'], () => {
 
 });
 
