@@ -24,6 +24,9 @@ bld/
 [Bb]in/
 [Oo]bj/
 
+#Visual Studio 2015
+.vs/
+
 #Node.js Tools for Visual Studio
 .ntvs_analysis.dat
 
