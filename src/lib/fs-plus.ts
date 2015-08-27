@@ -191,7 +191,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             directories: true,
             files: true,
             nosort: false,
-            dotdirs: true,
+            dotdirs: false,
             noglobstar: true,
             listonly: true,
         };
