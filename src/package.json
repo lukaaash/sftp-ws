@@ -35,12 +35,7 @@
     "client",
     "ws"
   ],
-  "licenses": [
-    {
-      "type": "MIT",
-      "url": "https://github.com/lukaaash/sftp-ws/blob/master/LICENSE"
-    }
-  ],
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/lukaaash/sftp-ws.git"
