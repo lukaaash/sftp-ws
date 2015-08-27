@@ -9,6 +9,7 @@ SFTP over WebSockets - client and server library for Node.js.
 ## Overview
 
 SFTP is a simple remote filesystem protocol misnamed as *SSH File Transfer Protocol*. This package provides SFTP v3, but layers it on top of WebSockets instead of SSH.
+This makes it possible to run an SFTP client in any modern web browser.
 Check out my [blogpost](http://lukas.pokorny.eu/sftp-over-websockets/) for more information.
 
 This package is currently in development and has not been sufficiently tested yet.
@@ -86,7 +87,7 @@ var server = new SFTP.Server({
 
 Sample code is available in [this project's GitHub repository](https://github.com/lukaaash/sftp-ws/tree/master/examples).
 
-This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/v0.1.0/examples/web-client).
+This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/v0.3.0/examples/web-client).
 
 ## Virtual filesystems
 
