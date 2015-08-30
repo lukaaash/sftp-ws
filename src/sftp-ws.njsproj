@@ -40,7 +40,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="gulpfile.ts" />
+    <None Include="gulpfile.js" />
     <TypeScriptCompile Include="lib\channel-stream.ts" />
     <TypeScriptCompile Include="lib\channel-ws.ts" />
     <TypeScriptCompile Include="lib\channel.ts" />

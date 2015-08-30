@@ -1,5 +1,5 @@
-﻿import path = require('path');
-import gulp = require('gulp');
+var gulp = require('gulp');
+
 var replace = require('gulp-replace');
 var ts = require('gulp-typescript');
 var concat = require('gulp-concat');
@@ -21,7 +21,7 @@ var tsWeb = ts.createProject({
 });
 
 var src = {
-    lib: ['lib/*.ts', 'tests/*.ts','!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
+    lib: ['lib/*.ts', 'tests/*.ts', '!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
     lib_web: ['lib/util-web.ts', 'lib/util.ts', 'lib/charsets.ts', 'lib/fs-api.ts', 'lib/fs-misc.ts', 'lib/fs-glob.ts', 'lib/fs-sources.ts', 'lib/fs-targets.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/channel-ws.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp-web.ts'],
     pkg: ['package.json'],
     npm: ['.npmignore', '../README.md', '../LICENSE'],
@@ -32,12 +32,12 @@ var out = {
     lib_web: '../build/web',
 };
 
-gulp.task('lib', () => {
+gulp.task('lib', function () {
 
     var tsResult = gulp.src(src.lib).pipe(ts(tsLib));
 
     return tsResult.js
-        .pipe(rename(path => {
+        .pipe(rename(function (path) {
         if (path.basename.substr(path.basename.length - 6) == "-tests")
             path.dirname = "./tests";
         else
@@ -46,10 +46,9 @@ gulp.task('lib', () => {
         .pipe(gulp.dest(out.lib));
 });
 
-gulp.task('web.ts', () => {
+gulp.task('web.ts', function () {
 
     return gulp.src(src.lib_web)
-        //.pipe(replace(/import (.*) = require\(\"\.\/(.*)\"\);.*\r?\n/g, '/// <reference path="$2.ts" />\r\n'))
         .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\r?\n/g, ''))
         .pipe(replace(/import (.*) = (.*);.*\r?\n/g, ''))
         .pipe(replace(/\/\/\/(.*).*\r?\n/g, ''))
@@ -67,7 +66,7 @@ gulp.task('web.ts', () => {
         .pipe(gulp.dest(out.lib_web));
 });
 
-gulp.task('web.js', ['web.ts'], () => {
+gulp.task('web.js', ['web.ts'], function () {
 
     var mapOptions = {
         includeContent: false,
@@ -78,12 +77,13 @@ gulp.task('web.js', ['web.ts'], () => {
         .pipe(sourcemaps.init())
         .pipe(ts(tsWeb)).js
         .pipe(replace(/^.*\n.*\n.*\n.*\n.*\n.*\nvar SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
+        .pipe(replace(/\n};.*\n.*\n.*\n.*\n.*\n.*\nvar SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
         .pipe(sourcemaps.write(".", mapOptions))
         .pipe(gulp.dest(out.lib_web));
 
 });
 
-gulp.task('web', ['web.js'],() => {
+gulp.task('web', ['web.js'], function () {
 
     var uglifyOptions = {
         mangle: {
@@ -108,28 +108,28 @@ gulp.task('web', ['web.js'],() => {
     };
 
     return gulp.src(out.lib_web + '/sftp.js')
-        .pipe(rename(path => path.basename = "sftp.min"))
+        .pipe(rename(function (path) { return path.basename = "sftp.min"; }))
         .pipe(uglify(uglifyOptions))
         .pipe(gulp.dest(out.lib_web));
 });
 
+gulp.task('package', function () {
 
-gulp.task('package', () => {
     return gulp.src(src.pkg)
         .pipe(jeditor({ 'devDependencies': undefined }))
         .pipe(gulp.dest(out.lib));
 });
 
-gulp.task('npm', () => {
+gulp.task('npm', function () {
     return gulp.src(src.npm)
         .pipe(gulp.dest(out.lib));
 });
 
-gulp.task('build', ['lib', 'web', 'package', 'npm'], () => {
+gulp.task('build', ['lib', 'web', 'package', 'npm'], function () {
 
 });
 
-gulp.task('default', ['build'],() => {
+gulp.task('default', ['build'], function () {
 
 });
 
