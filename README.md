@@ -67,7 +67,7 @@ client.on('ready', function () {
 
 // download all files matching the pattern
 // (into the current local directory)
-client.download('sftp-ws-'.tgz", '.');
+client.download('sftp-ws-*.tgz", '.');
 ```
 
 ### SFTP server - listening for connections:
