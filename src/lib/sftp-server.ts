@@ -64,7 +64,7 @@ class SftpException implements Error {
                 if (err["isPublic"] === true)
                     message = err.message;
                 else
-                    message = "Unspecified error (" + errno + ")";
+                    message = "Unknown error (" + errno + ")";
                 break;
             case 1: // EOF
                 message = "End of file";
@@ -161,20 +161,38 @@ class SftpException implements Error {
 
 export class SftpServerSession {
 
+    private _id: number;
     private _fs: SafeFilesystem;
     private _channel: IChannel;
     private _log: ILogWriter;
     private _handles: SftpHandleInfo[];
     private nextHandle: number;
+    private _debug: boolean;
+    private _trace: boolean;
 
     private static MAX_HANDLE_COUNT = 512;
+    private static _nextSessionId = 1;
 
     constructor(channel: IChannel, fs: SafeFilesystem, emitter: NodeJS.EventEmitter, log: ILogWriter) {
+        this._id = SftpServerSession._nextSessionId++;
         this._fs = fs;
         this._channel = channel;
         this._log = log;
         this._handles = new Array<SftpHandleInfo>(SftpServerSession.MAX_HANDLE_COUNT + 1);
         this.nextHandle = 1;
+
+        // determine the log level now to speed up logging later
+        var level = log.level();
+        if (level <= 10 || level === "trace") {
+            this._debug = true;
+            this._trace = true;
+        } else if (level <= 20 || level == "debug") {
+            this._debug = true;
+            this._trace = false;
+        } else {
+            this._trace = false;
+            this._debug = false;
+        }
 
         channel.on("message", packet => {
             try {
@@ -200,6 +218,20 @@ export class SftpServerSession {
 
         // send packet
         var packet = response.finish();
+
+        if (this._debug) {
+            var meta = {
+                "session": this._id,
+                "req": response.id,
+                "type": SftpPacket.toString(response.type),
+                "length": packet.length,
+            }
+
+            if (this._trace) meta["raw"] = packet;
+
+            this._log.debug(meta, "[%s] #%s - Sending response", this._id, response.id);
+        }
+
         this._channel.send(packet);
 
         // start next task
@@ -216,15 +248,28 @@ export class SftpServerSession {
     private sendError(response: SftpResponse, err: Error, isFatal: boolean): void {
         var message: string;
         var code: SftpStatusCode;
+
         if (!isFatal) {
             var error = new SftpException(err);
             code = error.code;
             message = error.message;
-            //this._log.log("Unable to process request #" + response.id + ": " + err);
         } else {
             code = SftpStatusCode.FAILURE;
             message = "Internal server error";
-            this._log.error("Fatal error while processing request #" + response.id + ": " + err);
+        }
+
+        if (this._debug || isFatal) {
+            var meta = {
+                "reason": message,
+                "nativeCode": code,
+                "err": err,
+            };
+
+            if (!isFatal) {
+                this._log.debug(meta, "[%s] #%s - Request failed", this._id, response.id);
+            } else {
+                this._log.error(meta, "Unexpected error while processing request #%s", response.id);
+            }
         }
 
         SftpStatus.write(response, code, message);
@@ -361,6 +406,19 @@ export class SftpServerSession {
 
     _process(data: NodeBuffer): void {
         var request = new SftpPacketReader(data);
+
+        if (this._debug) {
+            var meta = {
+                "session": this._id,
+                "req": request.id,
+                "type": SftpPacket.toString(request.type),
+                "length": request.length,
+            }
+
+            if (this._trace) meta["raw"] = request;
+
+            this._log.debug(meta, "[%s] #%s - Received request", this._id, request.id);
+        }
 
         var response = new SftpResponse();
 

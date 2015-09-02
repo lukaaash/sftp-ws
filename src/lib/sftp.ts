@@ -48,7 +48,7 @@ module SFTP {
         ciphers?: string;
         rejectUnauthorized?: boolean;
 
-        log?: ILogWriter;
+        log?: ILogWriter|any;
     }
 
     export class Client extends client.SftpClient implements client.ISftpClientEvents<Client> {
@@ -109,7 +109,7 @@ module SFTP {
         virtualRoot?: string;
         readOnly?: boolean;
         noServer?: boolean;
-        log?: ILogWriter;
+        log?: ILogWriter|any;
 
         verifyClient?: {
             (info: RequestInfo): boolean;

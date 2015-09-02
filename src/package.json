@@ -19,6 +19,7 @@
     "ws": "^0.4.32"
   },
   "devDependencies": {
+    "bunyan": "^1.4.0",
     "gulp": "^3.9.0",
     "gulp-concat": "^2.5.1",
     "gulp-json-editor": "^2.1.1",

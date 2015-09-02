@@ -29,6 +29,39 @@ export class SftpPacket {
     static isBuffer(obj: any): boolean {
         return Buffer.isBuffer(obj); //WEB: return obj && obj.buffer instanceof ArrayBuffer && typeof obj.byteLength !== "undefined";
     }
+
+    static toString(packetType: SftpPacketType|string): string {
+        switch (packetType) {
+            case SftpPacketType.INIT: return "INIT";
+            case SftpPacketType.VERSION: return "VERSION";
+            case SftpPacketType.OPEN: return "OPEN";
+            case SftpPacketType.CLOSE: return "CLOSE";
+            case SftpPacketType.READ: return "READ";
+            case SftpPacketType.WRITE: return "WRITE";
+            case SftpPacketType.LSTAT: return "LSTAT";
+            case SftpPacketType.FSTAT: return "FSTAT";
+            case SftpPacketType.SETSTAT: return "SETSTAT";
+            case SftpPacketType.FSETSTAT: return "FSETSTAT";
+            case SftpPacketType.OPENDIR: return "OPENDIR";
+            case SftpPacketType.READDIR: return "READDIR";
+            case SftpPacketType.REMOVE: return "REMOVE";
+            case SftpPacketType.MKDIR: return "MKDIR";
+            case SftpPacketType.RMDIR: return "RMDIR";
+            case SftpPacketType.REALPATH: return "REALPATH";
+            case SftpPacketType.STAT: return "STAT";
+            case SftpPacketType.RENAME: return "RENAME";
+            case SftpPacketType.READLINK: return "READLINK";
+            case SftpPacketType.SYMLINK: return "SYMLINK";
+            case SftpPacketType.EXTENDED: return "EXTENDED";
+            case SftpPacketType.STATUS: return "STATUS";
+            case SftpPacketType.HANDLE: return "HANDLE";
+            case SftpPacketType.DATA: return "DATA";
+            case SftpPacketType.NAME: return "NAME";
+            case SftpPacketType.ATTRS: return "ATTRS";
+            case SftpPacketType.EXTENDED_REPLY: return "EXTENDED_REPLY";
+            default: return "" + packetType;
+        }
+    }
 }
 
 export class SftpPacketReader extends SftpPacket {

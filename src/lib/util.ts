@@ -1,39 +1,118 @@
 ﻿import events = require("events");
+import util = require("util");
 
 import EventEmitter = events.EventEmitter;
 
 export interface ILogWriter {
-    info(message?: any, ...optionalParams: any[]): void;
-    warn(message?: any, ...optionalParams: any[]): void;
-    error(message?: any, ...optionalParams: any[]): void;
-    log(message?: any, ...optionalParams: any[]): void;
+    trace(format: string, ...params: any[]): void;
+    trace(obj: Object, format?: string, ...params: any[]): void;
+    debug(format: string, ...params: any[]): void;
+    debug(obj: Object, format?: string, ...params: any[]): void;
+    info(format: string, ...params: any[]): void;
+    info(obj: Object, format?: string, ...params: any[]): void;
+    warn(format: string, ...params: any[]): void;
+    warn(obj: Object, format?: string, ...params: any[]): void;
+    error(format: string, ...params: any[]): void;
+    error(obj: Object, format?: string, ...params: any[]): void;
+    fatal(format: string, ...params: any[]): void;
+    fatal(obj: Object, format?: string, ...params: any[]): void;
+    level(): string|number;
 }
 
 export function toLogWriter(writer?: ILogWriter): ILogWriter {
-    writer = writer || <ILogWriter>{};
-    var fixed = <ILogWriter>{};
-    var fix = false;
 
-    function empty() {};
+    function check(names: string[]) {
+        if (typeof writer !== "object") return false;
 
-    function prepare(name: string) {
-        var func = <Function>writer[name];
-        if (typeof func !== 'function') {
-            fixed[name] = empty;
-            fix = true;
-        } else {
-            fixed[name] = function () {
-                func.apply(writer, arguments);
-            }
+        for (var i = 0; i < names.length; i++) {
+            if (typeof writer[names[i]] !== "function") return false;
         }
+
+        return true;
     };
 
-    prepare("info");
-    prepare("warn");
-    prepare("error");
-    prepare("log");
+    var levels = ["trace", "debug", "info", "warn", "error", "fatal"];
 
-    return fix ? fixed : writer;
+    if (writer == null || typeof writer === "undefined") {
+        // no writer specified, create a dummy writer
+        var proxy = <ILogWriter>new Object();
+
+        levels.forEach(level => {
+            proxy[level] = (obj?: Object, format?: any, ...params: any[]): void => { };
+        });
+
+        proxy["level"] = () => { return 90; }
+
+        return <ILogWriter>proxy;
+    }
+
+    if (check(levels)) {
+        // looks like bunyan, great!
+        return writer;
+    }
+
+    // #if NODE
+    if (check(["log", "debug", "info", "warn", "error", "query"])) {
+        // looks like winston, lets's create a proxy for it
+        var proxy = <ILogWriter>new Object();
+
+        levels.forEach(level => {
+            proxy[level] = (obj?: Object, format?: any, ...params: any[]): void => {
+                // log(level: string, msg: string, meta: any, callback ?: (err: Error, level: string, msg: string, meta: any) => void): LoggerInstance;
+                if (typeof obj === "string") {
+                    var msg = util.format(obj, format, params);
+                    (<any>writer).log(level, msg);
+                } else {
+                    var msg = util.format(format, params);
+                    (<any>writer).log(level, msg, obj);
+                }
+            };
+        });
+
+        proxy["level"] = () => { return (<any>writer).level; }
+
+        return <ILogWriter>proxy;
+    }
+    // #endif
+
+    if (check(["log", "info", "warn", "error", "dir"])) {
+        // looks like console, lets's create a proxy for it
+        var proxy =  <ILogWriter>new Object();
+        var console = <Console><any>writer;
+
+        levels.forEach(level => {
+            proxy[level] = function (obj?: Object, format?: any, ...params: any[]): void {
+
+                // force actual console "log levels"
+                switch (level) {
+                    case "trace":
+                    case "debug":
+                        level = "log";
+                        break;
+                    case "fatal":
+                        level = "error";
+                        break;
+                }
+
+                var array;
+                if (typeof obj === "string") {
+                    array = arguments;
+                } else {
+                    array = params;
+                    array.unshift(format);
+                    array.push(obj);
+                }
+                 
+                (<Function>console[level]).apply(console, array);
+            };
+        });
+
+        proxy["level"] = () => { return "debug"; }
+
+        return <ILogWriter>proxy;
+    }
+    
+    throw new TypeError("Unsupported log writer");
 }
 
 export class Task<TResult> extends EventEmitter {

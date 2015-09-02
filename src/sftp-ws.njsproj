@@ -69,6 +69,7 @@
       <SubType>Code</SubType>
       <TestFramework>Mocha</TestFramework>
     </TypeScriptCompile>
+    <TypeScriptCompile Include="typings\bunyan\bunyan.d.ts" />
     <TypeScriptCompile Include="typings\mocha\mocha.d.ts" />
     <TypeScriptCompile Include="typings\node\node.d.ts" />
     <TypeScriptCompile Include="typings\ws\ws.d.ts" />
@@ -81,6 +82,7 @@
     <Folder Include="tests\" />
     <Folder Include="typings\" />
     <Folder Include="typings\mocha\" />
+    <Folder Include="typings\bunyan\" />
     <Folder Include="typings\node\" />
     <Folder Include="typings\ws\" />
   </ItemGroup>
