@@ -229,7 +229,7 @@ export class SftpServerSession {
 
             if (this._trace) meta["raw"] = packet;
 
-            this._log.debug(meta, "[%s] #%s - Sending response", this._id, response.id);
+            this._log.debug(meta, "[%d] #%d - Sending response", this._id, response.id);
         }
 
         this._channel.send(packet);
@@ -266,7 +266,7 @@ export class SftpServerSession {
             };
 
             if (!isFatal) {
-                this._log.debug(meta, "[%s] #%s - Request failed", this._id, response.id);
+                this._log.debug(meta, "[%d] #%d - Request failed", this._id, response.id);
             } else {
                 this._log.error(meta, "Unexpected error while processing request #%s", response.id);
             }
@@ -417,7 +417,7 @@ export class SftpServerSession {
 
             if (this._trace) meta["raw"] = request;
 
-            this._log.debug(meta, "[%s] #%s - Received request", this._id, request.id);
+            this._log.debug(meta, "[%d] #%d - Received request", this._id, request.id);
         }
 
         var response = new SftpResponse();
