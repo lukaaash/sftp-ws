@@ -4,7 +4,6 @@ import Path = require('path');
 import fs = require('fs');
 import SFTP = require('../lib/sftp');
 import misc = require('../lib/sftp-misc');
-import bunyan = require("bunyan");
 
 import IItem = SFTP.IItem;
 
@@ -35,20 +34,24 @@ if (!fs.existsSync(tmp)) {
     clear(tmp);
 }
 
-//var log = bunyan.createLogger({ name: "sftp-ws-tests" });
-var log = bunyan.createLogger({
-    name: "sftp-ws-tests",
-    streams: [{
-        level: "debug",
-        path: Path.join(tmp, "tests.log"),
-    }]
-});
-
-log.info("Core tests");
+var log;
+try {
+    //var log = require("bunyan").createLogger({ name: "sftp-ws-tests" });
+    log = require("bunyan").createLogger({
+        name: "sftp-ws-tests",
+        streams: [{
+            level: "debug",
+            path: Path.join(tmp, "tests.log"),
+        }]
+    });
+} catch (err) {
+    if (log) throw err;
+    console.warn("Note: To create a log file, do 'npm install bunyan'");
+}
 
 (function () {
     function logTestInfo(test) {
-        log.info(test.parent.fullTitle() + " - " + test.title + " -----------------------");
+        if (log) log.info(test.parent.fullTitle() + " - " + test.title + " -----------------------");
     }
 
     var iti = it;
