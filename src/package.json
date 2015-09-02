@@ -1,6 +1,6 @@
 {
   "name": "sftp-ws",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "SFTP over WebSockets - client and server library",
   "main": "./lib/sftp.js",
   "scripts": {
