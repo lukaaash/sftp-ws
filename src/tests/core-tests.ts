@@ -4,6 +4,7 @@ import Path = require('path');
 import fs = require('fs');
 import SFTP = require('../lib/sftp');
 import misc = require('../lib/sftp-misc');
+import bunyan = require("bunyan");
 
 import IItem = SFTP.IItem;
 
@@ -34,6 +35,47 @@ if (!fs.existsSync(tmp)) {
     clear(tmp);
 }
 
+//var log = bunyan.createLogger({ name: "sftp-ws-tests" });
+var log = bunyan.createLogger({
+    name: "sftp-ws-tests",
+    streams: [{
+        level: "debug",
+        path: Path.join(tmp, "tests.log"),
+    }]
+});
+
+log.info("Core tests");
+
+(function () {
+    function logTestInfo(test) {
+        log.info(test.parent.fullTitle() + " - " + test.title + " -----------------------");
+    }
+
+    var iti = it;
+    it = <any>function (expectation, assertion: Function) {
+        if (assertion.length == 0) {
+            (<Function>iti)(expectation, function () {
+                logTestInfo(this.test);
+                return assertion.call(this);
+            });
+        } else if (assertion.length == 1) {
+            (<Function>iti)(expectation, function (done: MochaDone) {
+                logTestInfo(this.test);
+                return assertion.call(this, done);
+            });
+        } else {
+            throw new Error("Unsupported assertion");
+        }
+    };
+
+    it.only = <any>function () { return iti.only.apply(this, arguments); }
+    it.skip = <any>function () { return iti.skip.apply(this, arguments); }
+    it.timeout = <any>function () { return iti.timeout.apply(this, arguments); }
+})();
+
+
+//require("fs").stat("c:/bagr.txt", <any>9);
+
 fs.writeFileSync(Path.join(tmp, "readme.txt"), "This is a readme file.");
 fs.writeFileSync(Path.join(tmp, "sample.txt"), "This is a sample file.");
 fs.mkdirSync(Path.join(tmp, "empty"));
@@ -46,7 +88,7 @@ for (var n = 0; n < 200; n++) {
 }
 
 var server = new SFTP.Server({
-    log: console,
+    log: log,
     port: 3022,
     virtualRoot: tmp,
 });
