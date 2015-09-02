@@ -104,7 +104,9 @@ class SftpException implements Error {
             case 28: // EISDIR
                 message = "Is a directory";
                 break;
+            case -2: // ENOENT on Linux with Node >=0x12 (or node-webkit - see http://stackoverflow.com/questions/23158277/why-does-the-errno-in-node-webkit-differ-from-node-js)
             case -4058: // ENOENT on Windows with Node >=0.12
+                //TODO: need to look into those weird error codes (but err.code seems to consistently be set to "ENOENT"
             case 34: // ENOENT
                 message = "No such file or directory";
                 code = SftpStatusCode.NO_SUCH_FILE;
