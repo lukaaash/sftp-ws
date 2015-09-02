@@ -49,9 +49,10 @@ gulp.task('lib', function () {
 gulp.task('web.ts', function () {
 
     return gulp.src(src.lib_web)
-        .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\r?\n/g, ''))
-        .pipe(replace(/import (.*) = (.*);.*\r?\n/g, ''))
-        .pipe(replace(/\/\/\/(.*).*\r?\n/g, ''))
+        .pipe(replace(/\r/g, ''))
+        .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\n/g, ''))
+        .pipe(replace(/import (.*) = (.*);.*\n/g, ''))
+        .pipe(replace(/\/\/\/(.*).*\n/g, ''))
         .pipe(replace(/export const/g, 'const'))
         .pipe(replace(/export class/g, 'class'))
         .pipe(replace(/export interface/g, 'interface'))
@@ -63,7 +64,7 @@ gulp.task('web.ts', function () {
         .pipe(replace(/class Client /g, 'export class Client '))
         .pipe(replace(/^/g, 'module SFTP {'))
         .pipe(replace(/$/g, '\n}'))
-        .pipe(replace(/\r?\n/g, '\r\n'))
+        .pipe(replace(/\n/g, '\r\n'))
         .pipe(gulp.dest(out.lib_web));
 });
 
