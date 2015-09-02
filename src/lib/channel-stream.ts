@@ -3,10 +3,10 @@ import events = require("events");
 
 export class StreamChannel extends events.EventEmitter implements channel.IChannel {
 
-    private stream: ReadWriteStream;
+    private stream: NodeJS.ReadWriteStream;
     private closed: boolean;
 
-    constructor(stream: ReadWriteStream) {
+    constructor(stream: NodeJS.ReadWriteStream) {
         super();
 
         this.stream = stream;

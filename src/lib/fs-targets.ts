@@ -38,7 +38,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 
     acceptsEmptyBlocks: boolean;
 
-    on(event: string, listener: Function): NodeEventEmitter {
+    on(event: string, listener: Function): NodeJS.EventEmitter {
         return super.on(event, listener);
     }
 
@@ -210,7 +210,7 @@ export class DataTarget extends EventEmitter implements IDataTarget {
         super();
     }
 
-    on(event: string, listener: Function): NodeEventEmitter {
+    on(event: string, listener: Function): NodeJS.EventEmitter {
         return super.on(event, listener);
     }
 

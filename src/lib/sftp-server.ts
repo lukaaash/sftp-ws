@@ -53,7 +53,7 @@ class SftpException implements Error {
     code: SftpStatusCode;
     errno: number;
 
-    constructor(err: ErrnoException) {
+    constructor(err: NodeJS.ErrnoException) {
         var message: string;
         var code = SftpStatusCode.FAILURE;
         var errno = err.errno | 0;
@@ -169,7 +169,7 @@ export class SftpServerSession {
 
     private static MAX_HANDLE_COUNT = 512;
 
-    constructor(channel: IChannel, fs: SafeFilesystem, emitter: NodeEventEmitter, log: ILogWriter) {
+    constructor(channel: IChannel, fs: SafeFilesystem, emitter: NodeJS.EventEmitter, log: ILogWriter) {
         this._fs = fs;
         this._channel = channel;
         this._log = log;
@@ -231,7 +231,7 @@ export class SftpServerSession {
         this.send(response);
     }
 
-    private sendIfError(response: SftpResponse, err: ErrnoException): boolean {
+    private sendIfError(response: SftpResponse, err: NodeJS.ErrnoException): boolean {
         if (err == null || typeof err === 'undefined')
             return false;
 
@@ -239,7 +239,7 @@ export class SftpServerSession {
         return true;
     }
 
-    private sendSuccess(response: SftpResponse, err: ErrnoException): void {
+    private sendSuccess(response: SftpResponse, err: NodeJS.ErrnoException): void {
         if (this.sendIfError(response, err))
             return;
 
@@ -247,7 +247,7 @@ export class SftpServerSession {
         this.send(response);
     }
 
-    private sendAttribs(response: SftpResponse, err: ErrnoException, stats: IStats): void {
+    private sendAttribs(response: SftpResponse, err: NodeJS.ErrnoException, stats: IStats): void {
         if (this.sendIfError(response, err))
             return;
 
@@ -269,7 +269,7 @@ export class SftpServerSession {
         this.send(response);
     }
 
-    private sendPath(response: SftpResponse, err: ErrnoException, path: string): void {
+    private sendPath(response: SftpResponse, err: NodeJS.ErrnoException, path: string): void {
         if (this.sendIfError(response, err))
             return;
 

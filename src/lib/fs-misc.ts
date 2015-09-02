@@ -9,10 +9,10 @@ import FileType = api.FileType;
 export interface IDataTarget {
     name?: string;
 
-    on(event: 'drain', listener: () => void): NodeEventEmitter;
-    on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
-    on(event: 'finish', listener: () => void): NodeEventEmitter;
-    on(event: string, listener: Function): NodeEventEmitter;
+    on(event: 'drain', listener: () => void): NodeJS.EventEmitter;
+    on(event: 'error', listener: (err: Error) => void): NodeJS.EventEmitter;
+    on(event: 'finish', listener: () => void): NodeJS.EventEmitter;
+    on(event: string, listener: Function): NodeJS.EventEmitter;
 
     write(chunk: NodeBuffer, callback?: () => void): boolean;
     end(): void;
@@ -27,10 +27,10 @@ export interface IDataSource {
     path?: string;
     relativePath?: string;
 
-    on(event: 'readable', listener: () => void): NodeEventEmitter;
-    on(event: 'error', listener: (err: Error) => void): NodeEventEmitter;
-    on(event: 'end', listener: () => void): NodeEventEmitter;
-    on(event: string, listener: Function): NodeEventEmitter;
+    on(event: 'readable', listener: () => void): NodeJS.EventEmitter;
+    on(event: 'error', listener: (err: Error) => void): NodeJS.EventEmitter;
+    on(event: 'end', listener: () => void): NodeJS.EventEmitter;
+    on(event: string, listener: Function): NodeJS.EventEmitter;
 
     read(): NodeBuffer;
     close(): void;
@@ -284,7 +284,7 @@ export class FileUtil {
         });
     }
 
-    static copy(source: IDataSource, target: IDataTarget, emitter: NodeEventEmitter, callback?: (err: Error) => any): void {
+    static copy(source: IDataSource, target: IDataTarget, emitter: NodeJS.EventEmitter, callback?: (err: Error) => any): void {
         var empty = true;
         var writable = true;
         var eof = false;

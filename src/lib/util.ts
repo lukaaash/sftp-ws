@@ -51,7 +51,7 @@ export class Task<TResult> extends EventEmitter {
     }
 }
 
-export function wrapCallback(owner: NodeEventEmitter, task: EventEmitter, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
+export function wrapCallback(owner: NodeJS.EventEmitter, task: EventEmitter, callback?: (err: Error, ...args: any[]) => void): (err: Error, ...args: any[]) => void {
     return finish;
 
     function finish(err: Error, ...args: any[]): void {

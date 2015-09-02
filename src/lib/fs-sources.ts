@@ -67,7 +67,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         this.failed = false;
     }
 
-    on(event: string, listener: Function): NodeEventEmitter {
+    on(event: string, listener: Function): NodeJS.EventEmitter {
         this._flush();
         return super.on(event, listener);
     }
@@ -300,7 +300,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
         };
     }
 
-    on(event: string, listener: Function): NodeEventEmitter {
+    on(event: string, listener: Function): NodeJS.EventEmitter {
         this.flush();
         return super.on(event, listener);
     }
@@ -348,7 +348,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
     }
 }
 
-export function toDataSource(fs: IFilesystem, input: any, emitter: NodeEventEmitter, callback: (err: Error, sources?: IDataSource[]) => void): void {
+export function toDataSource(fs: IFilesystem, input: any, emitter: NodeJS.EventEmitter, callback: (err: Error, sources?: IDataSource[]) => void): void {
     try
     {
         toAnyDataSource(input, callback);

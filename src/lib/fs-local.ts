@@ -147,7 +147,7 @@ export class LocalFilesystem implements IFilesystem {
 
         var action = actions.shift();
 
-        var next = (err?: ErrnoException) => {
+        var next = (err?: NodeJS.ErrnoException) => {
             if (typeof err !== 'undefined' && err != null) {
                 if (typeof callback == 'function')
                     callback(err);
