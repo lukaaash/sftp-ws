@@ -10,7 +10,6 @@ interface ErrnoException extends Error {
     errno?: number;
 }
 
-//WEB: interface NodeEventEmitter extends EventEmitter {}
 //WEB: interface Buffer extends Uint8Array {}
 //WEB: var undefined;
 
@@ -91,7 +90,7 @@ class EventEmitter {
     }
 }
 
-class process {
+class Process { //WEB: class process {
     static nextTick(callback: Function): void {
         window.setTimeout(callback, 0);
     }
