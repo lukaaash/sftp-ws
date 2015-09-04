@@ -8,6 +8,7 @@ import safe = require("./fs-safe");
 import local = require("./fs-local");
 import api = require("./fs-api");
 import plus = require("./fs-plus");
+import misc = require("./fs-misc");
 import channel = require("./channel");
 import channel_ws = require("./channel-ws");
 import channel_stream = require("./channel-stream");
@@ -17,7 +18,9 @@ import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
 import WebSocketChannel = channel_ws.WebSocketChannel;
 import StreamChannel = channel_stream.StreamChannel;
+import CloseReason = channel.CloseReason;
 import SftpServerSession = server.SftpServerSession
+import FileUtil = misc.FileUtil;
 
 module SFTP {
 
@@ -248,11 +251,19 @@ module SFTP {
 
             var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
-            var channel = new WebSocketChannel(ws);
+            fs.stat(".", (err, attrs) => {
+                if (err || !FileUtil.isDirectory(attrs)) {
+                    log.error({ root: this._virtualRoot }, "Unable to access file system.");
+                    ws.close(CloseReason.UNEXPECTED_CONDITION, "Unable to access file system");
+                    return;
+                }
 
-            var session = new SftpServerSession(channel, fs, this, log);
-            this.emit("startedSession", this);
-            (<any>ws).session = session;
+                var channel = new WebSocketChannel(ws);
+
+                var session = new SftpServerSession(channel, fs, this, log);
+                this.emit("startedSession", this);
+                (<any>ws).session = session;
+            });
         }
 
     }
