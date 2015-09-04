@@ -20,5 +20,5 @@ client.on('ready', function () {
     // retrieve directory listing
     client.list(".")
         .on("success", function (list) { return list.forEach(function (item) { return console.log(item.longname); }); })
-        .on("finished", function () { return client.end(); });
+        .on("finish", function () { return client.end(); });
 });
