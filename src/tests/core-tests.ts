@@ -159,6 +159,8 @@ describe("Basic Tests", function () {
     });
 
     after(done => {
+        client.end();
+        server.end();
         done();
     });
 
