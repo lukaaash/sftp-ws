@@ -39,7 +39,7 @@ export class WebSocketChannel implements IChannel {
 
         if (error != null) {
             process.nextTick(() => {
-                this.close(reason, error);
+                this._close(reason, error);
             });
             return;
         }
@@ -85,12 +85,12 @@ export class WebSocketChannel implements IChannel {
         this.ws.on('close',(reason, description) => { //WEB: this.ws.onclose = e => {
             //WEB: var reason = e.code;
             //WEB: var description = e.reason;
-            this.close(reason, description);
+            this._close(reason, description);
         }); //WEB: };
         
         this.ws.on('error', err => { //WEB: this.ws.onerror = err => {
             this.failed = true;
-            if (!this.wasConnected) this.close(999, err.message, (<any>err).code); //WEB: // removed
+            if (!this.wasConnected) this._close(999, err.message, (<any>err).code); //WEB: // removed
         }); //WEB: };
 
         this.ws.on('message', (data, flags) => { //WEB: this.ws.onmessage = message => {
@@ -111,7 +111,7 @@ export class WebSocketChannel implements IChannel {
         else throw err;
     }
 
-    close(reason: number, description?: string, code?: string): void {
+    _close(reason: number, description?: string, code?: string): void {
         if (typeof reason !== 'number')
             reason = 1000;
 
@@ -137,6 +137,9 @@ export class WebSocketChannel implements IChannel {
             var message: string;
 
             switch (reason) {
+                // #if !WEB
+                case 1011:
+                // #endif
                 case 999:
                     message = description;
                     break;
@@ -170,6 +173,20 @@ export class WebSocketChannel implements IChannel {
 
             onclose(err);
         }
+    }
+
+    close(reason: number, description?: string): void {
+        this.onclose = null;
+        this.onerror = null;
+        this.onmessage = null;
+
+        switch (this.ws.readyState) {
+            case WebSocket.CLOSING:
+            case WebSocket.CLOSED:
+                return;
+        }
+
+        this.ws.close(reason, description);
     }
 
     send(packet: NodeBuffer): void {
