@@ -47,10 +47,10 @@ class SftpItem implements IItem {
 }
 
 class SftpHandle {
-    _handle: NodeBuffer;
+    _handle: Buffer;
     _this: SftpClientCore;
 
-    constructor(handle: NodeBuffer, owner: SftpClientCore) {
+    constructor(handle: Buffer, owner: SftpClientCore) {
         this._handle = handle;
         this._this = owner;
     }
@@ -183,7 +183,7 @@ class SftpClientCore implements IFilesystem {
         }, info);
     }
 
-    _process(packet: NodeBuffer): void {
+    _process(packet: Buffer): void {
         var response = <SftpResponse>new SftpPacketReader(packet);
 
         var request = this._requests[response.id];
@@ -250,7 +250,7 @@ class SftpClientCore implements IFilesystem {
         this.execute(request, callback, this.parseStatus, { command: "close", handle: handle });
     }
 
-    read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void {
         var h = this.toHandle(handle);
         this.checkBuffer(buffer, offset, length);
         this.checkPosition(position);
@@ -268,7 +268,7 @@ class SftpClientCore implements IFilesystem {
         this.execute(request, callback,(response, cb) => this.parseData(response, callback, 0, h, buffer, offset, length, position), { command: "read", handle: handle });
     }
 
-    write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
+    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
         var h = this.toHandle(handle);
         this.checkBuffer(buffer, offset, length);
         this.checkPosition(position);
@@ -405,7 +405,7 @@ class SftpClientCore implements IFilesystem {
         this.command(SftpExtensions.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
     }
 
-    private toHandle(handle: { _handle: NodeBuffer; _this: SftpClientCore }): NodeBuffer {
+    private toHandle(handle: { _handle: Buffer; _this: SftpClientCore }): Buffer {
         if (!handle) {
             throw new Error("Missing handle");
         } else if (typeof handle === 'object') {
@@ -416,7 +416,7 @@ class SftpClientCore implements IFilesystem {
         throw new Error("Invalid handle");
     }
 
-    private checkBuffer(buffer: NodeBuffer, offset: number, length: number): void {
+    private checkBuffer(buffer: Buffer, offset: number, length: number): void {
         if (!SftpPacket.isBuffer(buffer))
             throw new Error("Invalid buffer");
 
@@ -596,7 +596,7 @@ class SftpClientCore implements IFilesystem {
         callback(null, path);
     }
 
-    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any, retries: number, h: NodeBuffer, buffer: NodeBuffer, offset: number, length: number, position: number): void {
+    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: Buffer) => any, retries: number, h: Buffer, buffer: Buffer, offset: number, length: number, position: number): void {
         if (response.type == SftpPacketType.STATUS) {
             var error = this.readStatus(response);
             if (error != null) {

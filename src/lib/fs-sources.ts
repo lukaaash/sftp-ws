@@ -14,7 +14,7 @@ import IDataTarget = misc.IDataTarget;
 import search = glob.search;
 import EventEmitter = events.EventEmitter;
 
-interface IChunk extends NodeBuffer {
+interface IChunk extends Buffer {
     position: number;
 }
 
@@ -172,7 +172,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         }
     }
 
-    read(): NodeBuffer {
+    read(): Buffer {
         var chunk = this.queue[0];
         if (chunk && chunk.position == this.expectedPosition) {
             this.expectedPosition += chunk.length;
@@ -264,7 +264,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
     private readable: boolean;
     private finished: boolean;
     private ended: boolean;
-    private queue: NodeBuffer[];
+    private queue: Buffer[];
 
     constructor(blob: Blob, position: number) {
         super();
@@ -331,7 +331,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
         }
     }
 
-    read(): NodeBuffer {
+    read(): Buffer {
         var chunk = this.queue.shift();
         if (!chunk) {
             chunk = null;

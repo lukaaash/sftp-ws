@@ -10,7 +10,7 @@ export class WebSocketChannel implements IChannel {
     private failed: boolean;
     private onopen: () => void;
     private onclose: (err: Error) => void;
-    private onmessage: (packet: NodeBuffer) => void;
+    private onmessage: (packet: Buffer) => void;
     private onerror: (err: Error) => void;
 
     private open(callback: () => void): void {
@@ -94,9 +94,9 @@ export class WebSocketChannel implements IChannel {
         }); //WEB: };
 
         this.ws.on('message', (data, flags) => { //WEB: this.ws.onmessage = message => {
-            var packet: NodeBuffer;
+            var packet: Buffer;
             if (flags.binary) { //WEB: if (true) { //TODO: handle text messages
-                packet = <NodeBuffer>data; //WEB: packet = new Uint8Array(message.data);
+                packet = <Buffer>data; //WEB: packet = new Uint8Array(message.data);
             } else {
                 this.reportError(new Error("Closed due to unsupported text packet"));
                 return;
@@ -189,7 +189,7 @@ export class WebSocketChannel implements IChannel {
         this.ws.close(reason, description);
     }
 
-    send(packet: NodeBuffer): void {
+    send(packet: Buffer): void {
         if (this.ws == null)
             return;
 

@@ -11,7 +11,7 @@ interface ErrnoException extends Error {
 }
 
 //WEB: interface NodeEventEmitter extends EventEmitter {}
-//WEB: interface NodeBuffer extends Uint8Array {}
+//WEB: interface Buffer extends Uint8Array {}
 //WEB: var undefined;
 
 class EventEmitter {

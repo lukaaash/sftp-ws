@@ -37,7 +37,7 @@ describe("Encoding Tests", function () {
 
     var BAD_CHAR = String.fromCharCode(0xFFFD); // REPLACEMENT_CHAR
 
-    function assertEqualContents(actual: NodeBuffer, expected: NodeBuffer): void {
+    function assertEqualContents(actual: Buffer, expected: Buffer): void {
         var len = Math.min(actual.length, expected.length);
         var same = true;
 

@@ -132,7 +132,7 @@ export class SftpStatus {
 
 export class SftpOptions {
     encoding: string;
-    handle: NodeBuffer;
+    handle: Buffer;
     flags: string;
     mode: number;
     start: number;

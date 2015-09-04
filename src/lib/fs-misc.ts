@@ -14,7 +14,7 @@ export interface IDataTarget {
     on(event: 'finish', listener: () => void): NodeJS.EventEmitter;
     on(event: string, listener: Function): NodeJS.EventEmitter;
 
-    write(chunk: NodeBuffer, callback?: () => void): boolean;
+    write(chunk: Buffer, callback?: () => void): boolean;
     end(): void;
 
     acceptsEmptyBlocks?: boolean;
@@ -32,7 +32,7 @@ export interface IDataSource {
     on(event: 'end', listener: () => void): NodeJS.EventEmitter;
     on(event: string, listener: Function): NodeJS.EventEmitter;
 
-    read(): NodeBuffer;
+    read(): Buffer;
     close(): void;
 }
 

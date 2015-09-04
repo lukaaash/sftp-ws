@@ -23,11 +23,11 @@ export class Encoding {
         return new StringDecoder();
     }
 
-    encode(value: string, buffer: NodeBuffer, offset: number, end?: number): number {
+    encode(value: string, buffer: Buffer, offset: number, end?: number): number {
         return encodeUTF8(value, buffer, offset, end);
     }
 
-    decode(buffer: NodeBuffer, offset: number, end?: number): string {
+    decode(buffer: Buffer, offset: number, end?: number): string {
         return decodeUTF8(buffer, offset, end);
     }
 }
@@ -55,12 +55,12 @@ export class StringEncoder {
         this._value = value;
     }
 
-    read(buffer: NodeBuffer, offset: number, end?: number): number {
+    read(buffer: Buffer, offset: number, end?: number): number {
         return encodeUTF8(this._value, buffer, offset, end, <any>this);
     }
 }
 
-export function encodeUTF8(value: string, buffer: NodeBuffer, offset: number, end?: number, state?: { _code: number; _length: number; _position: number; _done: boolean; }): number {
+export function encodeUTF8(value: string, buffer: Buffer, offset: number, end?: number, state?: { _code: number; _length: number; _position: number; _done: boolean; }): number {
     end = end || buffer.length;
 
     var code: number;
@@ -188,7 +188,7 @@ export class StringDecoder {
         return this._text;
     }
 
-    write(buffer: NodeBuffer, offset: number, end: number): void {
+    write(buffer: Buffer, offset: number, end: number): void {
         var bytes = decodeUTF8(buffer, offset, end, <any>this);
         var text = this._text;
 
@@ -199,7 +199,7 @@ export class StringDecoder {
     }
 }
 
-export function decodeUTF8(buffer: NodeBuffer, offset: number, end?: number, state?: { _text?: string; _code?: number; _length?: number; }): string {
+export function decodeUTF8(buffer: Buffer, offset: number, end?: number, state?: { _text?: string; _code?: number; _length?: number; }): string {
     end = end || buffer.length;
 
     var text: string;

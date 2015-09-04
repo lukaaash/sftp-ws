@@ -35,8 +35,8 @@ export interface IItem {
 export interface IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
     close(handle: any, callback?: (err: Error) => any): void;
-    read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void;
-    write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void;
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void;
+    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void;
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void;
     setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void;

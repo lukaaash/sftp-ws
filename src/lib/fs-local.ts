@@ -78,7 +78,7 @@ export class LocalFilesystem implements IFilesystem {
         }
     }
 
-    read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void {
         var initialOffset = offset;
         var totalBytes = 0;
         var read = () => {
@@ -103,7 +103,7 @@ export class LocalFilesystem implements IFilesystem {
         read();
     }
 
-    write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
+    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
         var write = () => {
             fs.write(handle, buffer, offset, length, position, (err, bytesWritten, b) => {
                 if (typeof err === 'undefined' || err == null) {

@@ -56,13 +56,13 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._fs.close(handle, callback);
     }
 
-    read(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void {
         callback = wrapCallback(this, null, callback);
 
         this._fs.read(handle, buffer, offset, length, position, callback);
     }
 
-    write(handle: any, buffer: NodeBuffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
+    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
         callback = wrapCallback(this, null, callback);
 
         this._fs.write(handle, buffer, offset, length, position, callback);

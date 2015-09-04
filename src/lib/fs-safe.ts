@@ -137,7 +137,7 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
-    read(handle: any, buffer, offset, length, position, callback: (err: Error, bytesRead: number, buffer: NodeBuffer) => any): void {
+    read(handle: any, buffer, offset, length, position, callback: (err: Error, bytesRead: number, buffer: Buffer) => any): void {
         handle = this.unwrapHandle(handle);
 
         try {

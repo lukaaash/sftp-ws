@@ -406,7 +406,7 @@ export class SftpServerSession {
         delete this._fs;
     }
 
-    _process(data: NodeBuffer): void {
+    _process(data: Buffer): void {
         var request = new SftpPacketReader(data);
 
         if (this._debug) {

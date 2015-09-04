@@ -33,7 +33,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
             if (this.closed) return;
 
             try {
-                var data = <NodeBuffer>d;
+                var data = <Buffer>d;
                 //console.info("->", data.length);
 
                 while (data.length > 0) {
@@ -119,7 +119,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
         return this;
     }
 
-    send(packet: NodeBuffer): void {
+    send(packet: Buffer): void {
         if (this.closed) return;
 
         try {

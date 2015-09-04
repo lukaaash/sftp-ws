@@ -8,7 +8,7 @@ export class SftpPacket {
     type: SftpPacketType|string;
     id: number;
 
-    buffer: NodeBuffer;
+    buffer: Buffer;
     position: number;
     length: number;
 
@@ -66,7 +66,7 @@ export class SftpPacket {
 
 export class SftpPacketReader extends SftpPacket {
 
-    constructor(buffer: NodeBuffer) {
+    constructor(buffer: Buffer) {
         super();
 
         this.buffer = buffer;
@@ -138,7 +138,7 @@ export class SftpPacketReader extends SftpPacket {
         this.position = end;
     }
 
-    readData(clone: boolean): NodeBuffer {
+    readData(clone: boolean): Buffer {
         var length = this.readInt32();
         this.check(length);
 
@@ -188,7 +188,7 @@ export class SftpPacketWriter extends SftpPacket {
         }
     }
 
-    finish(): NodeBuffer {
+    finish(): Buffer {
         var length = this.position;
         this.position = 0;
         this.buffer.writeInt32BE(length - 4, 0, true); //WEB: this.writeInt32(length - 4);
@@ -232,7 +232,7 @@ export class SftpPacketWriter extends SftpPacket {
         this.position += bytesWritten;
     }
 
-    writeData(data: NodeBuffer, start?: number, end?: number): void {
+    writeData(data: Buffer, start?: number, end?: number): void {
         if (typeof start !== 'undefined')
             data = data.slice(start, end); //WEB: data = data.subarray(start, end);
 

@@ -14,7 +14,7 @@ import IStringDecoder = charsets.IStringDecoder;
 import IStringEncoder = charsets.IStringEncoder;
 import EventEmitter = events.EventEmitter;
 
-interface IChunk extends NodeBuffer {
+interface IChunk extends Buffer {
     callback?: () => void;
 }
 
@@ -146,7 +146,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
         process.nextTick(() => super.emit('error', err));
     }
 
-    write(chunk: NodeBuffer, callback?: () => void): boolean {
+    write(chunk: Buffer, callback?: () => void): boolean {
         // don't accept more data if ended
         if (this.ended)
             return false;
@@ -214,7 +214,7 @@ export class DataTarget extends EventEmitter implements IDataTarget {
         return super.on(event, listener);
     }
 
-    protected _data(chunk: NodeBuffer): void {
+    protected _data(chunk: Buffer): void {
         super.emit('data', chunk);
     }
 
@@ -222,7 +222,7 @@ export class DataTarget extends EventEmitter implements IDataTarget {
         super.emit('end');
     }
 
-    write(chunk: NodeBuffer, callback?: () => void): boolean {
+    write(chunk: Buffer, callback?: () => void): boolean {
         // we don't have to do this in the next tick because our caller doesn't need that either
         this._data(chunk);
         if (typeof callback === "function") callback();
@@ -244,7 +244,7 @@ export class StringDataTarget extends DataTarget {
         this._decoder = new Encoding(encoding).getDecoder();
     }
 
-    protected _data(chunk: NodeBuffer): void {
+    protected _data(chunk: Buffer): void {
         this._decoder.write(chunk, 0, chunk.length);
     }
 
@@ -257,7 +257,7 @@ export class StringDataTarget extends DataTarget {
 }
 
 export class BlobDataTarget extends DataTarget {
-    private _chunks: NodeBuffer[];
+    private _chunks: Buffer[];
     private _blob: Blob;
     private _mimeType: string;
 
@@ -267,7 +267,7 @@ export class BlobDataTarget extends DataTarget {
         this._mimeType = mimeType;
     }
 
-    protected _data(chunk: NodeBuffer): void {
+    protected _data(chunk: Buffer): void {
         this._chunks.push(chunk);
     }
 
@@ -284,8 +284,8 @@ export class BlobDataTarget extends DataTarget {
 }
 
 export class BufferDataTarget extends DataTarget {
-    private _chunks: NodeBuffer[];
-    private _buffer: NodeBuffer;
+    private _chunks: Buffer[];
+    private _buffer: Buffer;
     private _length: number;
 
     constructor() {
@@ -294,7 +294,7 @@ export class BufferDataTarget extends DataTarget {
         this._length = 0;
     }
 
-    protected _data(chunk: NodeBuffer): void {
+    protected _data(chunk: Buffer): void {
         this._length += chunk.length;
         this._chunks.push(chunk);
     }
