@@ -1,5 +1,4 @@
-﻿/// <reference path="../typings/mocha/mocha.d.ts" />
-import assert = require('assert');
+﻿import assert = require('assert');
 import Path = require('path');
 import fs = require('fs');
 import SFTP = require('../lib/sftp');

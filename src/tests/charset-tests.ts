@@ -1,5 +1,4 @@
-﻿/// <reference path="../typings/mocha/mocha.d.ts" />
-import assert = require('assert');
+﻿import assert = require('assert');
 import util = require("../lib/charsets");
 
 import Encoding = util.Encoding;
