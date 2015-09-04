@@ -732,7 +732,11 @@ export class SftpClient extends FilesystemPlus {
             } else {
                 sftp._end();
                 this._bound = false;
-                this.emit('close', err);
+                if (!this.emit("close", err)) {
+                    // if no close handler available, raise an error
+                    err = err || new Error("Connection closed");
+                    this.emit("error", err);
+                }
             }
         });
 
