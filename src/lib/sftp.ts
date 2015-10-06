@@ -116,7 +116,7 @@ module SFTP {
 
         verifyClient?: {
             (info: RequestInfo): boolean;
-            (info: RequestInfo, accept: (result: boolean) => void): void;
+            (info: RequestInfo, accept: (result: boolean, statusCode?: number, statusMessage?: string, banner?: string) => void): void;
             (info: RequestInfo, accept: (session: ISessionInfo) => void): void;
         };
     }
@@ -188,29 +188,34 @@ module SFTP {
             }
         }
 
-        private verifyClient(info: RequestInfo, accept: (result: boolean) => void): void {
+        private verifyClient(info: RequestInfo, accept: (result: boolean, code?: number, description?: string) => void): void {
 
             var con = info.req.connection;
             this._log.debug("Incoming connection from %s:%d", con.remoteAddress, con.remotePort);
 
             var innerVerify = this._verifyClient;
 
+            var outerAccept = (result: any, code?: number, description?: string, banner?: string) => {
+                if (!result) {
+                    if (typeof code === 'undefined') code = 401;
+                    if (typeof description === 'undefined') description = http.STATUS_CODES[code];
+                    if (typeof banner !== 'undefined') {
+                        description += "\r\nX-SFTP-Banner: " + banner;
+                    }
+                    accept(false, code, description);
+                    return;
+                }
+
+                if (typeof result == 'object') (<any>info.req)._sftpSessionInfo = result;
+                accept(true);
+            };
+
             if (typeof innerVerify == 'function') {
                 if (innerVerify.length >= 2) {
-
-                    var outerAccept = (result: any) => {
-                        if (typeof result == 'object') {
-                            (<any>info.req)._sftpSessionInfo = result;
-                            accept(true);
-                        } else {
-                            accept(result);
-                        }
-                    };
-
                     innerVerify(info, outerAccept);
                 } else {
-                    var result = innerVerify(info);
-                    accept(result);
+                    var result = false || innerVerify(info);
+                    outerAccept(result);
                 }
 
                 return;

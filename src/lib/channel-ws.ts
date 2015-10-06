@@ -73,6 +73,34 @@ export class WebSocketChannel implements IChannel {
             //WEB: var description = e.reason;
             this._close(reason, description);
         }); //WEB: };
+
+        // #if NODE
+        (<Function>this.ws.on)("unexpected-response", (req: http.ClientRequest, res: http.IncomingMessage) => {
+            var msg = <http.IncomingMessage><any>req;
+
+            // abort the request
+            req.abort();
+
+            var banner = res.headers["x-sftp-banner"];
+
+            var message: string;
+            var code = "X_NOWS";
+            switch (res.statusCode) {
+                case 200:
+                    message = "Unable to upgrade to WebSocket protocol";
+                    break;
+                case 401:
+                    message = "Authentication required";
+                    code = "X_NOAUTH";
+                    break;
+                default:
+                    message = "Unexpected server response: '" + res.statusCode + " " + res.statusMessage + "'";
+                    break;
+            }
+
+            this._close(0, message, code, banner);
+        });
+        // #endif
         
         this.ws.on('error', err => { //WEB: this.ws.onerror = err => {
 
