@@ -179,7 +179,7 @@ export class LocalFilesystem implements IFilesystem {
             actions.push(function (next: Function) { fs.chmod(path, attrs.mode, err => next(err)) });
 
         if (!isNaN(attrs.size))
-            actions.push(function (next: Function) { fs.truncate(path, attrs.size, err => next(err)) });    
+            actions.push(function (next: Function) { fs.truncate(path, attrs.size, err => next(err)) });
 
         if (typeof attrs.atime === 'object' || typeof attrs.mtime === 'object') {
             //var atime = (typeof attrs.atime.getTime === 'function') ? attrs.atime.getTime() : undefined;
@@ -219,7 +219,7 @@ export class LocalFilesystem implements IFilesystem {
     opendir(path: string, callback?: (err: Error, handle: any) => any): void {
         path = this.checkPath(path, 'path');
 
-        fs.readdir(path,(err, files) => {
+        fs.readdir(path, (err, files) => {
 
             if (files) files.splice(0, 0, ".", "..");
 
@@ -267,7 +267,7 @@ export class LocalFilesystem implements IFilesystem {
 
                     if (!name) {
                         if (typeof callback == 'function') {
-                            callback(null,(items.length > 0) ? items : false);
+                            callback(null, (items.length > 0) ? items : false);
                         }
                         return;
                     }

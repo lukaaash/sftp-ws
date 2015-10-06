@@ -77,7 +77,7 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
 
     if (check(["log", "info", "warn", "error", "dir"])) {
         // looks like console, lets's create a proxy for it
-        var proxy =  <ILogWriter>new Object();
+        var proxy = <ILogWriter>new Object();
         var console = <Console><any>writer;
 
         levels.forEach(level => {
@@ -102,7 +102,7 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
                     array.unshift(format);
                     array.push(obj);
                 }
-                 
+
                 (<Function>console[level]).apply(console, array);
             };
         });
@@ -111,7 +111,7 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
 
         return <ILogWriter>proxy;
     }
-    
+
     throw new TypeError("Unsupported log writer");
 }
 

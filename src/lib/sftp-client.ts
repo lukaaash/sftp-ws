@@ -150,7 +150,7 @@ class SftpClientCore implements IFilesystem {
 
         var info = { command: "init" };
 
-        this.execute(request, callback,(response, cb) => {
+        this.execute(request, callback, (response, cb) => {
 
             if (response.type != SftpPacketType.VERSION) {
                 host.close(3002);
@@ -210,7 +210,7 @@ class SftpClientCore implements IFilesystem {
     private failRequests(code: SftpStatusCode, message: string): void {
         var requests = this._requests;
         this._requests = [];
-        
+
         requests.forEach(request => {
             var error = this.createError(code, message, request.info);
             request.callback(error);
@@ -254,12 +254,12 @@ class SftpClientCore implements IFilesystem {
             length = this._maxReadBlockLength;
 
         var request = this.getRequest(SftpPacketType.READ);
-        
+
         request.writeData(h);
         request.writeInt64(position);
         request.writeInt32(length);
 
-        this.execute(request, callback,(response, cb) => this.parseData(response, callback, 0, h, buffer, offset, length, position), { command: "read", handle: handle });
+        this.execute(request, callback, (response, cb) => this.parseData(response, callback, 0, h, buffer, offset, length, position), { command: "read", handle: handle });
     }
 
     write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
@@ -271,7 +271,7 @@ class SftpClientCore implements IFilesystem {
             throw new Error("Length exceeds maximum allowed data block length");
 
         var request = this.getRequest(SftpPacketType.WRITE);
-        
+
         request.writeData(h);
         request.writeInt64(position);
         request.writeData(buffer, offset, offset + length);
@@ -625,7 +625,7 @@ class SftpClientCore implements IFilesystem {
             request.writeInt64(position);
             request.writeInt32(length);
 
-            this.execute(request, callback,(response, cb) => this.parseData(response, callback, retries + 1, h, buffer, offset, length, position), response.info);
+            this.execute(request, callback, (response, cb) => this.parseData(response, callback, retries + 1, h, buffer, offset, length, position), response.info);
             return;
         }
 
@@ -691,7 +691,7 @@ export class SftpClient extends FilesystemPlus {
         var ready = false;
         var self = this;
 
-        channel.on("ready",() => {
+        channel.on("ready", () => {
             ready = true;
             sftp._init(channel, error => {
                 if (error) {

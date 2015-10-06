@@ -19,9 +19,9 @@ export interface IStats {
     atime?: Date;
     mtime?: Date;
 
-    isFile? (): boolean;
-    isDirectory? (): boolean;
-    isSymbolicLink? (): boolean;
+    isFile?(): boolean;
+    isDirectory?(): boolean;
+    isSymbolicLink?(): boolean;
 }
 
 export interface IItem {

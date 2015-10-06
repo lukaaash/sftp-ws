@@ -272,7 +272,7 @@ export class FileUtil {
     }
 
     static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {
-        fs.stat(path,(err, stats) => {
+        fs.stat(path, (err, stats) => {
             if (!err) {
                 if (FileUtil.isDirectory(stats)) return callback(null);
                 return callback(new Error("Path is not a directory")); //TODO: better error
@@ -293,7 +293,7 @@ export class FileUtil {
         var total = 0;
         var item = <IItem>null;
 
-        source.on("readable",() => {
+        source.on("readable", () => {
             //console.log("readable");
             if (item == null) transferring();
             while (writable) {
@@ -301,7 +301,7 @@ export class FileUtil {
             }
         });
 
-        source.on("end",() => {
+        source.on("end", () => {
             //console.log("ended");
             eof = true;
             if (empty && target.acceptsEmptyBlocks) target.write(new Buffer(0));
@@ -315,7 +315,7 @@ export class FileUtil {
             target.end();
         });
 
-        target.on("drain",() => {
+        target.on("drain", () => {
             //console.log("drained");
             writable = true;
             do {
@@ -323,7 +323,7 @@ export class FileUtil {
             } while (writable);
         });
 
-        target.on("finish",() => {
+        target.on("finish", () => {
             //console.log("finished");
             if (item) emitter.emit("transferred", item);
             exit();
@@ -355,7 +355,7 @@ export class FileUtil {
             if (!chunk) return false;
 
             empty = false;
-            writable = target.write(chunk,() => {
+            writable = target.write(chunk, () => {
                 // The fact that write requests might in theory be completed in different order
                 // doesn't concern us much because a transferred byte is still a transferred byte
                 // and it will all add up to proper number in the end.

@@ -39,7 +39,7 @@ export class WebSocketChannel implements IChannel {
             return;
         }
 
-        this.ws.on("open",() => { //WEB: this.ws.onopen = () => {
+        this.ws.on("open", () => { //WEB: this.ws.onopen = () => {
             this.established = true;
             callback();
         }); //WEB: };
@@ -68,7 +68,7 @@ export class WebSocketChannel implements IChannel {
         //WEB: this.failed = false;
         this.established = (ws.readyState == WebSocket.OPEN);
 
-        this.ws.on('close',(reason, description) => { //WEB: this.ws.onclose = e => {
+        this.ws.on('close', (reason, description) => { //WEB: this.ws.onclose = e => {
             //WEB: var reason = e.code;
             //WEB: var description = e.reason;
             this._close(reason, description);

@@ -38,10 +38,10 @@ gulp.task('lib', function () {
 
     return tsResult.js
         .pipe(rename(function (path) {
-        if (path.basename.substr(path.basename.length - 6) == "-tests")
-            path.dirname = "./tests";
-        else
-            path.dirname = "./lib";
+            if (path.basename.substr(path.basename.length - 6) == "-tests")
+                path.dirname = "./tests";
+            else
+                path.dirname = "./lib";
         }))
         .pipe(gulp.dest(out.lib));
 });

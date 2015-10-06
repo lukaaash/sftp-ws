@@ -321,7 +321,7 @@ export class SftpServerSession {
     private sendHandle(response: SftpResponse, handleInfo: SftpHandleInfo): void {
         response.type = SftpPacketType.HANDLE;
         response.start();
-        
+
         response.writeInt32(4);
         response.writeInt32(handleInfo.h);
         this.send(response);
@@ -411,7 +411,7 @@ export class SftpServerSession {
             this._fs.close(handleInfo.handle, err => {
             });
         });
-           
+
         delete this._fs;
     }
 
@@ -665,7 +665,7 @@ export class SftpServerSession {
                             done();
                             return;
                         }
-                        
+
                         var list = <IItem[]>items;
 
                         while (list.length > 0) {

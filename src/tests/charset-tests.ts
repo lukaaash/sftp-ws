@@ -55,34 +55,34 @@ describe("Encoding Tests", function () {
         if (!same) assert.equal(actual, expected);
     }
 
-    it("encode2byte",() => {
+    it("encode2byte", () => {
         var buffer = new Buffer(1024);
         var count = UTF8.encode(text4, buffer, 0);
         var actual = buffer.slice(0, count);
         assertEqualContents(actual, chunk4);
     });
 
-    it("encode3byte",() => {
+    it("encode3byte", () => {
         var buffer = new Buffer(1024);
         var count = UTF8.encode(text5, buffer, 0);
         var actual = buffer.slice(0, count);
         assertEqualContents(actual, chunk5);
     });
 
-    it("encode4byte",() => {
+    it("encode4byte", () => {
         var buffer = new Buffer(1024);
         var count = UTF8.encode(text6, buffer, 0);
         var actual = buffer.slice(0, count);
         assertEqualContents(actual, chunk6);
     });
 
-    it("encodeTooLong",() => {
+    it("encodeTooLong", () => {
         var buffer = new Buffer(1024);
         var count = UTF8.encode(text6, buffer, 0, 3);
         assert.equal(count, -1);
     });
 
-    it("encodeChunked",() => {
+    it("encodeChunked", () => {
         var buffer = new Buffer(1024);
         var encoder = UTF8.getEncoder(text6);
         var offset = 0;
@@ -94,32 +94,32 @@ describe("Encoding Tests", function () {
         });
     });
 
-    it("decode2byte",() => {
+    it("decode2byte", () => {
         var actual = UTF8.decode(chunk4, 0, chunk4.length);
         assert.equal(actual, text4);
     });
 
-    it("decode3byte",() => {
+    it("decode3byte", () => {
         var actual = UTF8.decode(chunk5, 0, chunk5.length);
         assert.equal(actual, text5);
     });
 
-    it("decode4byte",() => {
+    it("decode4byte", () => {
         var actual = UTF8.decode(chunk6, 0, chunk6.length);
         assert.equal(actual, text6);
     });
 
-    it("decodeIncompleteEnd",() => {
+    it("decodeIncompleteEnd", () => {
         var actual = UTF8.decode(chunk1, 0, chunk1.length);
         assert.equal(actual, text1 + BAD_CHAR);
     });
 
-    it("decodeIncompleteBoth",() => {
+    it("decodeIncompleteBoth", () => {
         var actual = UTF8.decode(chunk2, 0, chunk2.length);
         assert.equal(actual, BAD_CHAR + text2 + BAD_CHAR);
     });
 
-    it("decodeWithState",() => {
+    it("decodeWithState", () => {
         var decoder = UTF8.getDecoder();
 
         decoder.write(chunk1, 0, chunk1.length);

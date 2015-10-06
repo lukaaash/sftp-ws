@@ -172,7 +172,7 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 
         this.started = true;
         try {
-            this.fs.open(this.path, "w",(err, handle) => {
+            this.fs.open(this.path, "w", (err, handle) => {
                 if (err) return this._error(err);
 
                 this.handle = handle;

@@ -63,7 +63,7 @@ module SFTP {
         once(event: string, listener: Function): Client {
             return <any>super.on(event, listener);
         }
-        
+
         constructor() {
             var localFs = new local.LocalFilesystem();
             super(localFs);
@@ -158,7 +158,7 @@ module SFTP {
                             case "readOnly":
                             case "log":
                             case "verifyClient":
-                                break;                                
+                                break;
                             default:
                                 serverOptions[option] = options[option];
                                 break;

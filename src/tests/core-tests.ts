@@ -180,13 +180,13 @@ describe("Basic Tests", function () {
             done();
         });
 
-        client.realpath(".",(err, resolvedPath) => {
+        client.realpath(".", (err, resolvedPath) => {
             throw new Error(message);
         });
     });
 
     it("realpath('.')", done => {
-        client.realpath(".",(err, resolvedPath) => check(err, done, () => {
+        client.realpath(".", (err, resolvedPath) => check(err, done, () => {
             assert.equal("/", resolvedPath, "Unexpected resolved path");
             done();
         }));
@@ -194,11 +194,11 @@ describe("Basic Tests", function () {
 
     it("realpath(no-path)", done => {
         var name = "dir000/subdir";
-        client.realpath(name,(err) => error(err, done, 'ENOENT', wrongPath));
+        client.realpath(name, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("realpath(path)", done => {
-        client.realpath("./full/subdir01/../file0-quite-long-name.txt",(err, resolvedPath) => check(err, done,() => {
+        client.realpath("./full/subdir01/../file0-quite-long-name.txt", (err, resolvedPath) => check(err, done, () => {
             assert.equal("/full/file0-quite-long-name.txt", resolvedPath, "Unexpected resolved path");
             done();
         }));
@@ -206,12 +206,12 @@ describe("Basic Tests", function () {
 
     it("mkdir(no-path)", done => {
         var name = "dir000/subdir";
-        client.mkdir(name,(err) => error(err, done, 'ENOENT', wrongPath));
+        client.mkdir(name, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("mkdir(path)", done => {
         var name = "dir001";
-        client.mkdir(name,(err) => check(err, done, () => {
+        client.mkdir(name, (err) => check(err, done, () => {
             var stats = fs.statSync(Path.join(tmp, name));
             assert.ok(stats.isDirectory, "Directory expected");
             done();
@@ -221,14 +221,14 @@ describe("Basic Tests", function () {
     it("rmdir(no-path)", done => {
         var name = "dir000";
 
-        client.rmdir(name,(err) => error(err, done, 'ENOENT', wrongPath));
+        client.rmdir(name, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rmdir(path)", done => {
         var name = "dir002";
         fs.mkdirSync(Path.join(tmp, name));
 
-        client.rmdir(name,(err) => check(err, done, () => {
+        client.rmdir(name, (err) => check(err, done, () => {
             var exists = fs.existsSync(Path.join(tmp, name));
             assert.ok(!exists, "Directory not expected");
             done();
@@ -238,7 +238,7 @@ describe("Basic Tests", function () {
     it("opendir(no-path)", done => {
         var name = "dir000";
 
-        client.opendir(name,(err, handle) => error(err, done, 'ENOENT', wrongPath));
+        client.opendir(name, (err, handle) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("opendir(path)/readdir/close", done => {
@@ -247,12 +247,12 @@ describe("Basic Tests", function () {
         var list = fs.readdirSync(Path.join(tmp, name));
         list.push(".", "..");
 
-        client.opendir(name,(err, handle) => check(err, done,() => {
+        client.opendir(name, (err, handle) => check(err, done, () => {
             assert.ok(handle);
             readdir();
 
             function readdir() {
-                client.readdir(handle,(err, items: IItem[]) => check(err, done,() => {
+                client.readdir(handle, (err, items: IItem[]) => check(err, done, () => {
                     if (items) {
                         assert.ok(Array.isArray(items), "Not an array");
 
@@ -281,7 +281,7 @@ describe("Basic Tests", function () {
         var name1 = "dir000/file.txt";
         var name2 = "file011.txt";
 
-        client.rename(name1, name2,(err) => error(err, done, 'ENOENT', wrongPath));
+        client.rename(name1, name2, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rename(path1, no-path)", done => {
@@ -291,7 +291,7 @@ describe("Basic Tests", function () {
 
         fs.writeFileSync(Path.join(tmp, name1), body);
 
-        client.rename(name1, name2,(err) => error(err, done, 'ENOENT', wrongPath));
+        client.rename(name1, name2, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rename(path1, path2)", done => {
@@ -302,7 +302,7 @@ describe("Basic Tests", function () {
         fs.writeFileSync(Path.join(tmp, name1), body);
         assert.ok(!fs.existsSync(Path.join(tmp, name2)), "File should not exist");
 
-        client.rename(name1, name2,(err) => check(err, done,() => {
+        client.rename(name1, name2, (err) => check(err, done, () => {
             assert.ok(!fs.existsSync(Path.join(tmp, name1)), "File should not exist");
             var body2 = fs.readFileSync(Path.join(tmp, name2), { encoding: 'utf8' });
             assert.equal(body2, body, "File content mismatch");
@@ -313,7 +313,7 @@ describe("Basic Tests", function () {
     it("unlink(no-path)", done => {
         var name = "file013.txt";
 
-        client.unlink(name,(err) => error(err, done, 'ENOENT', wrongPath));
+        client.unlink(name, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("unlink(path)", done => {
@@ -322,7 +322,7 @@ describe("Basic Tests", function () {
 
         fs.writeFileSync(Path.join(tmp, name), body);
 
-        client.unlink(name,(err) => check(err, done,() => {
+        client.unlink(name, (err) => check(err, done, () => {
             assert.ok(!fs.existsSync(Path.join(tmp, name)), "File should not exist");
             done();
         }));
@@ -331,7 +331,7 @@ describe("Basic Tests", function () {
     it("open(no-path, 'r+')", done => {
         var name = "file015.txt";
 
-        client.open(name, "r+",(err, handle) => error(err, done, 'ENOENT', wrongPath));
+        client.open(name, "r+", (err, handle) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("open(path, 'r+')/read/close", done => {
@@ -340,19 +340,19 @@ describe("Basic Tests", function () {
         var body = "0123456789" + "9876543210" + "00112233445566778899" + "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         fs.writeFileSync(Path.join(tmp, name), body);
 
-        client.open(name, "r+", {},(err, handle) => check(err, done,() => {
+        client.open(name, "r+", {}, (err, handle) => check(err, done, () => {
 
             var buffer = new Buffer(35);
             buffer.fill(0);
 
-            client.read(handle, buffer, 0, 30, 10, err => check(err, done,() => {
-                client.read(handle, buffer, 30, 5, 66, err => check(err, done,() => {
-                    client.read(handle, buffer, 10, 3, 40, err => check(err, done,() => {
+            client.read(handle, buffer, 0, 30, 10, err => check(err, done, () => {
+                client.read(handle, buffer, 30, 5, 66, err => check(err, done, () => {
+                    client.read(handle, buffer, 10, 3, 40, err => check(err, done, () => {
 
                         var body2 = buffer.toString();
                         assert.equal(body2, "9876543210" + "abc" + "12233445566778899" + "ABCDE", "File content mismatch");
 
-                        client.read(handle, buffer, 0, 10, 1000,(err, bytesRead, buf) => check(err, done,() => {
+                        client.read(handle, buffer, 0, 10, 1000, (err, bytesRead, buf) => check(err, done, () => {
                             assert.equal(buf, buffer, "Buffer mismatch");
                             assert.equal(bytesRead, 0, "Unexpected bytesRead");
 
@@ -367,16 +367,16 @@ describe("Basic Tests", function () {
     it("open(no-path, 'w+')/write/close", done => {
         var name = "file017.txt";
 
-        client.open(name, "w+", {},(err, handle) => check(err, done,() => {
+        client.open(name, "w+", {}, (err, handle) => check(err, done, () => {
             var stats = fs.statSync(Path.join(tmp, name));
             assert.ok(stats.isFile, "Not a file");
             assert.equal(stats.size, 0, "Unexpected file size");
 
             var buffer = new Buffer("0123456789" + "9876543210" + "00112233445566778899" + "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-            client.write(handle, buffer, 10, 30, 0, err => check(err, done,() => {
-                client.write(handle, buffer, 66, 5, 30, err => check(err, done,() => {
-                    client.write(handle, buffer, 40, 3, 10, err => check(err, done,() => {
+            client.write(handle, buffer, 10, 30, 0, err => check(err, done, () => {
+                client.write(handle, buffer, 66, 5, 30, err => check(err, done, () => {
+                    client.write(handle, buffer, 40, 3, 10, err => check(err, done, () => {
 
                         var body2 = fs.readFileSync(Path.join(tmp, name), { encoding: 'utf8' });
                         assert.equal(body2, "9876543210" + "abc" + "12233445566778899" + "ABCDE", "File content mismatch");
@@ -415,7 +415,7 @@ describe("Basic Tests", function () {
         }
     });
 
-    it("fstat(no-handle)",() => {
+    it("fstat(no-handle)", () => {
         try {
             client.fstat(123);
             assert.fail("Call should have failed");
@@ -427,7 +427,7 @@ describe("Basic Tests", function () {
     it("stat(no-path)", done => {
         var name = "dir000/file.txt";
 
-        client.stat(name,(err, attrs) => error(err, done, 'ENOENT', wrongPath));
+        client.stat(name, (err, attrs) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("stat(path)", done => {
@@ -436,7 +436,7 @@ describe("Basic Tests", function () {
         var stats = fs.statSync(Path.join(tmp, name));
         //console.log(stats);
 
-        client.stat(name, (err, attrs) => check(err, done,() => {
+        client.stat(name, (err, attrs) => check(err, done, () => {
             //console.log(attrs);
             equalStats(attrs, stats);
             done();
@@ -446,7 +446,7 @@ describe("Basic Tests", function () {
     it("lstat(no-path)", done => {
         var name = "dir000/file.txt";
 
-        client.lstat(name,(err, attrs) => error(err, done, 'ENOENT', wrongPath));
+        client.lstat(name, (err, attrs) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("lstat(path)", done => {
@@ -455,7 +455,7 @@ describe("Basic Tests", function () {
         var stats = fs.statSync(Path.join(tmp, name));
         //console.log(stats);
 
-        client.lstat(name,(err, attrs) => check(err, done,() => {
+        client.lstat(name, (err, attrs) => check(err, done, () => {
             //console.log(attrs);
             equalStats(attrs, stats);
             done();
@@ -465,11 +465,11 @@ describe("Basic Tests", function () {
     it("fstat(closed-handle)", done => {
         var name = "full/file2-quite-long-name.txt";
 
-        client.open(name, "r+", {},(err, handle) => check(err, done,() => {
+        client.open(name, "r+", {}, (err, handle) => check(err, done, () => {
 
-            client.close(handle, err => check(err, done,() => {
+            client.close(handle, err => check(err, done, () => {
 
-                client.fstat(handle,(err, attrs) => error(err, done, 'EFAILURE', "Invalid handle"));
+                client.fstat(handle, (err, attrs) => error(err, done, 'EFAILURE', "Invalid handle"));
             }));
         }));
     });
@@ -477,12 +477,12 @@ describe("Basic Tests", function () {
     it("fstat(handle)", done => {
         var name = "full/file2-quite-long-name.txt";
 
-        client.open(name, "r+", {},(err, handle) => check(err, done,() => {
+        client.open(name, "r+", {}, (err, handle) => check(err, done, () => {
 
             var stats = fs.statSync(Path.join(tmp, name));
             //console.log(stats);
 
-            client.fstat(handle,(err, attrs) => check(err, done,() => {
+            client.fstat(handle, (err, attrs) => check(err, done, () => {
                 //console.log(attrs);
                 equalStats(attrs, stats);
                 client.close(handle, done);
@@ -493,7 +493,7 @@ describe("Basic Tests", function () {
     it("setstat(no-path)", done => {
         var name = "dir000/file.txt";
 
-        client.setstat(name, { size: 12 },(err) => error(err, done, 'ENOENT', wrongPath));
+        client.setstat(name, { size: 12 }, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("setstat(path)", done => {
@@ -505,7 +505,7 @@ describe("Basic Tests", function () {
         var mtime = new Date(2014, 8);
         var atime = new Date(2014, 9);
 
-        client.setstat(name, { size: 12, mtime: mtime, atime: atime }, err => check(err, done,() => {
+        client.setstat(name, { size: 12, mtime: mtime, atime: atime }, err => check(err, done, () => {
 
             var stats = fs.statSync(Path.join(tmp, name));
             //console.log(stats);
@@ -527,9 +527,9 @@ describe("Basic Tests", function () {
         var mtime = new Date(2014, 8);
         var atime = new Date(2014, 9);
 
-        client.open(name, "r+", {},(err, handle) => check(err, done,() => {
+        client.open(name, "r+", {}, (err, handle) => check(err, done, () => {
 
-            client.fsetstat(handle, { size: 12, mtime: mtime, atime: atime }, err => check(err, done,() => {
+            client.fsetstat(handle, { size: 12, mtime: mtime, atime: atime }, err => check(err, done, () => {
 
                 var stats = fs.statSync(Path.join(tmp, name));
                 //console.log(stats);
@@ -543,12 +543,12 @@ describe("Basic Tests", function () {
         }));
     });
 
-/*
-TODO: (Unix-only)
-symlink(targetpath: string, linkpath: string, callback ?: (err: Error) => any): void;
-readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
-lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
-*/
+    /*
+    TODO: (Unix-only)
+    symlink(targetpath: string, linkpath: string, callback ?: (err: Error) => any): void;
+    readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
+    lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
+    */
 
 
 });

@@ -48,7 +48,7 @@ export class SftpFlags {
         }
     }
 
-    static fromNumber(flags: number): string[]{
+    static fromNumber(flags: number): string[] {
         flags &= SftpOpenFlags.ALL;
 
         // 'truncate' does not apply when creating a new file
@@ -141,12 +141,12 @@ export class SftpOptions {
 }
 
 export const enum SftpAttributeFlags {
-    SIZE         = 0x00000001,
-    UIDGID       = 0x00000002,
-    PERMISSIONS  = 0x00000004,
-    ACMODTIME    = 0x00000008,
-    BASIC        = 0x0000000F,
-    EXTENDED     = 0x80000000,
+    SIZE        = 0x00000001,
+    UIDGID      = 0x00000002,
+    PERMISSIONS = 0x00000004,
+    ACMODTIME   = 0x00000008,
+    BASIC       = 0x0000000F,
+    EXTENDED    = 0x80000000,
 }
 
 export class SftpAttributes implements IStats {

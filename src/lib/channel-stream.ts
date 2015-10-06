@@ -16,7 +16,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
         var offset = 0;
         var packetLength = 0;
 
-        this.stream.on("end",() => {
+        this.stream.on("end", () => {
             this._close();
         });
 
@@ -100,7 +100,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
                     packetLength = 0;
                 }
             } catch (err) {
-                this._close(err);  
+                this._close(err);
             }
         });
     }
@@ -117,7 +117,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
         try {
             this.stream.write(packet);
         } catch (err) {
-            this._close(err);  
+            this._close(err);
         }
     }
 

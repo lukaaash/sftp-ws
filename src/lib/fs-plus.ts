@@ -195,7 +195,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             noglobstar: true,
             listonly: true,
         };
-        
+
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
@@ -230,7 +230,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         var task = new Task();
         callback = wrapCallback(this, task, callback);
 
-        search(this._fs, remotePath, task, options,(err, items) => {
+        search(this._fs, remotePath, task, options, (err, items) => {
             if (err) return callback(err, null);
             if (!items || items.length != 1) return callback(new Error("Unexpected result"), null);
             callback(null, items[0]);
@@ -361,7 +361,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 return callback(new Error("Target path is not a directory"));
 
             try {
-                toDataSource(fromFs, from, task,(err, src) => {
+                toDataSource(fromFs, from, task, (err, src) => {
                     if (err) return callback(err);
 
                     try {

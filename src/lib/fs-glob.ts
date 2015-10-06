@@ -109,7 +109,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
         start(path, mask);
     } else {
         // no wildcards -> determine whether this is a file or directory
-        fs.stat(path,(err, stats) => {
+        fs.stat(path, (err, stats) => {
             if (err) return callback(err, null);
 
             try {
@@ -251,7 +251,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             var fullPath = basePath.join(relativePath).normalize().path;
 
             // list directory and process its items
-            fs.opendir(fullPath,(err, handle) => {
+            fs.opendir(fullPath, (err, handle) => {
                 if (err) return callback(err, null);
 
                 emitter.emit("traversing", fullPath);
@@ -337,7 +337,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             item.relativePath = relative.path;
             results.push(item);
             emitter.emit("item", item);
-        }        
+        }
     }
 
     // convert mask pattern to regular expression

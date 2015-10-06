@@ -121,7 +121,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         //console.log("read", position, bytesToRead);
         this.requests++;
         try {
-            this.fs.read(this.handle, new Buffer(bytesToRead), 0, bytesToRead, position,(err, bytesRead, buffer) => {
+            this.fs.read(this.handle, new Buffer(bytesToRead), 0, bytesToRead, position, (err, bytesRead, buffer) => {
                 this.requests--;
                 //console.log("read result", err || position, bytesRead);
 
@@ -201,7 +201,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
 
         this.started = true;
         try {
-            this.fs.open(this.path, "r",(err, handle) => {
+            this.fs.open(this.path, "r", (err, handle) => {
                 if (err) return this._error(err);
 
                 if (this.stats) {
@@ -212,7 +212,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
 
                 // determine stats if not available yet
                 try {
-                    this.fs.fstat(handle,(err, stats) => {
+                    this.fs.fstat(handle, (err, stats) => {
                         if (err) return this._error(err);
 
                         this.handle = handle;
@@ -235,7 +235,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
 
         var handle = this.handle;
         this.handle = null;
-        try {        
+        try {
             this.fs.close(handle, err => {
                 if (err) return this._error(err);
                 this._flush();
@@ -337,7 +337,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
             chunk = null;
             this.readable = false;
         }
-        
+
         this.flush();
         return chunk;
     }
@@ -349,8 +349,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
 }
 
 export function toDataSource(fs: IFilesystem, input: any, emitter: NodeJS.EventEmitter, callback: (err: Error, sources?: IDataSource[]) => void): void {
-    try
-    {
+    try {
         toAnyDataSource(input, callback);
     } catch (err) {
         process.nextTick(() => callback(err));
@@ -423,7 +422,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeJS.EventE
     function toItemDataSource(path: string, callback: (err: Error, source?: IDataSource[]) => void): void {
         if (!fs) throw new Error("Source file system not available");
 
-        fs.stat(path,(err, stats) => {
+        fs.stat(path, (err, stats) => {
             if (err) return callback(err, null);
 
             var item = new FileDataSource(fs, path, null, stats, 0);
@@ -434,7 +433,7 @@ export function toDataSource(fs: IFilesystem, input: any, emitter: NodeJS.EventE
     function toPatternDataSource(path: string): void {
         if (!fs) throw new Error("Source file system not available");
 
-        search(fs, path, emitter, {noexpand: true},(err, items) => {
+        search(fs, path, emitter, { noexpand: true }, (err, items) => {
             if (err) return callback(err, null);
 
             var source = <IDataSource[]>[];

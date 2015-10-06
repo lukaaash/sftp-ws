@@ -94,8 +94,8 @@ export class SafeFilesystem implements IFilesystem {
         if (typeof err !== 'undefined' && err != null) {
             handle = undefined;
         } else {
-        if (typeof handle !== 'undefined' && handle != null)
-            handle = this.wrapHandle(handle);
+            if (typeof handle !== 'undefined' && handle != null)
+                handle = this.wrapHandle(handle);
         }
 
         callback(err, handle);
