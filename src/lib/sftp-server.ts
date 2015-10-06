@@ -175,7 +175,7 @@ export class SftpServerSession {
     private static MAX_HANDLE_COUNT = 512;
     private static _nextSessionId = 1;
 
-    constructor(channel: IChannel, fs: SafeFilesystem, emitter: NodeJS.EventEmitter, log: ILogWriter) {
+    constructor(channel: IChannel, fs: SafeFilesystem, emitter: NodeJS.EventEmitter, log: ILogWriter, meta: any) {
         this._id = SftpServerSession._nextSessionId++;
         this._fs = fs;
         this._channel = channel;
@@ -196,21 +196,30 @@ export class SftpServerSession {
             this._debug = false;
         }
 
+        if (!this._debug) meta = {};
+        log.info(meta, "[%d] - Session started", this._id);
+
         channel.on("message", packet => {
             try {
                 this._process(packet);
             } catch (err) {
+                log.error({ "err": err }, "[%d] - Error while accepting request", this._id);
+
                 emitter.emit("error", err, this);
                 this.end();
             }
         });
 
         channel.on("error", err => {
+            log.error({ "err": err }, "[%d] - Session failed", this._id);
+
             emitter.emit("error", err, this);
             this.end();
         });
 
         channel.on("close", err => {
+            log.info("[%d] - Session closed by the client", this._id);
+
             this._end();
             emitter.emit("closedSession", this, err);
         });
@@ -222,16 +231,19 @@ export class SftpServerSession {
         var packet = response.finish();
 
         if (this._debug) {
-            var meta = {
-                "session": this._id,
-                "req": response.id,
-                "type": SftpPacket.toString(response.type),
-                "length": packet.length,
-            }
-
+            var meta = {};
+            meta["session"] = this._id;
+            if (response.type != SftpPacketType.VERSION) meta["req"] = response.id;
+            meta["req"] = response.id;
+            meta["type"] = SftpPacket.toString(response.type);
+            meta["length"] = packet.length;
             if (this._trace) meta["raw"] = packet;
 
-            this._log.debug(meta, "[%d] #%d - Sending response", this._id, response.id);
+            if (response.type == SftpPacketType.VERSION) {
+                this._log.debug(meta, "[%d] - Sending version response", this._id);
+            } else {
+                this._log.debug(meta, "[%d] #%d - Sending response", this._id, response.id);
+            }
         }
 
         this._channel.send(packet);
@@ -270,7 +282,7 @@ export class SftpServerSession {
             if (!isFatal) {
                 this._log.debug(meta, "[%d] #%d - Request failed", this._id, response.id);
             } else {
-                this._log.error(meta, "Unexpected error while processing request #%s", response.id);
+                this._log.error(meta, "[%d] #%d - Error while processing request", this._id, response.id);
             }
         }
 
@@ -410,16 +422,18 @@ export class SftpServerSession {
         var request = new SftpPacketReader(data);
 
         if (this._debug) {
-            var meta = {
-                "session": this._id,
-                "req": request.id,
-                "type": SftpPacket.toString(request.type),
-                "length": request.length,
-            }
-
+            var meta = {};
+            meta["session"] = this._id;
+            if (request.type != SftpPacketType.INIT) meta["req"] = request.id;
+            meta["type"] = SftpPacket.toString(request.type);
+            meta["length"] = request.length;
             if (this._trace) meta["raw"] = request;
 
-            this._log.debug(meta, "[%d] #%d - Received request", this._id, request.id);
+            if (request.type == SftpPacketType.INIT) {
+                this._log.debug(meta, "[%d] - Received initialization request", this._id);
+            } else {
+                this._log.debug(meta, "[%d] #%d - Received request", this._id, request.id);
+            }
         }
 
         var response = new SftpResponse();

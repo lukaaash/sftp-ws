@@ -182,13 +182,16 @@ module SFTP {
 
             if (!noServer) {
                 this._wss = new WebSocketServer(serverOptions);
-                this._wss.on('connection', ws => this.accept(ws));
+                this._wss.on('connection', ws => this.accept(ws, (err, session) => {
+                    if (err) this._log.fatal(err, "Error while accepting connection");
+                }));
             }
         }
 
         private verifyClient(info: RequestInfo, accept: (result: boolean) => void): void {
 
-            this._log.info("Incoming session request from %s", info.req.connection.remoteAddress);
+            var con = info.req.connection;
+            this._log.debug("Incoming connection from %s:%d", con.remoteAddress, con.remotePort);
 
             var innerVerify = this._verifyClient;
 
@@ -243,27 +246,29 @@ module SFTP {
             }
         }
 
-        accept(ws: WebSocket): void {
-
-            var log = this._log;
-
-            log.info("Connection accepted.");
-
-            var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
-
-            fs.stat(".", (err, attrs) => {
-                if (err || !FileUtil.isDirectory(attrs)) {
-                    log.error({ root: this._virtualRoot }, "Unable to access file system.");
-                    ws.close(CloseReason.UNEXPECTED_CONDITION, "Unable to access file system");
-                    return;
-                }
+        accept(ws: WebSocket, callback?: (err: Error, session: SftpServerSession) => void): void {
+            try {
+                //this._log.debug(ws.upgradeReq);
+                var log = this._log;
+                var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
                 var channel = new WebSocketChannel(ws);
 
-                var session = new SftpServerSession(channel, fs, this, log);
+                var socket = ws.upgradeReq.connection;
+                var info = {
+                    "clientAddress": socket.remoteAddress,
+                    "clientPort": socket.remotePort,
+                    "clientFamily": socket.remoteFamily,
+                    "serverAddress": socket.localAddress,
+                    "serverPort": socket.localPort,
+                };
+
+                var session = new SftpServerSession(channel, fs, this, log, info);
                 this.emit("startedSession", this);
                 (<any>ws).session = session;
-            });
+            } catch (err) {
+                process.nextTick(() => callback(err, null));
+            }
         }
 
     }
