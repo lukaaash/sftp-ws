@@ -252,20 +252,36 @@ module SFTP {
                 var log = this._log;
                 var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
 
-                var channel = new WebSocketChannel(ws);
+                fs.stat(".", (err, attrs) => {
+                    try {
+                        if (!err && !FileUtil.isDirectory(attrs)) err = new Error("Not a directory");
 
-                var socket = ws.upgradeReq.connection;
-                var info = {
-                    "clientAddress": socket.remoteAddress,
-                    "clientPort": socket.remotePort,
-                    "clientFamily": socket.remoteFamily,
-                    "serverAddress": socket.localAddress,
-                    "serverPort": socket.localPort,
-                };
+                        if (err) {
+                            var message = "Unable to access file system";
+                            log.error({ root: this._virtualRoot }, message);
+                            ws.close(CloseReason.UNEXPECTED_CONDITION, message);
+                            callback(err, null);
+                            return;
+                        }
 
-                var session = new SftpServerSession(channel, fs, this, log, info);
-                this.emit("startedSession", this);
-                (<any>ws).session = session;
+                        var channel = new WebSocketChannel(ws);
+
+                        var socket = ws.upgradeReq.connection;
+                        var info = {
+                            "clientAddress": socket.remoteAddress,
+                            "clientPort": socket.remotePort,
+                            "clientFamily": socket.remoteFamily,
+                            "serverAddress": socket.localAddress,
+                            "serverPort": socket.localPort,
+                        };
+
+                        var session = new SftpServerSession(channel, fs, this, log, info);
+                        this.emit("startedSession", this);
+                        (<any>ws).session = session;
+                    } catch (err) {
+                        callback(err, null);
+                    }
+                });
             } catch (err) {
                 process.nextTick(() => callback(err, null));
             }
