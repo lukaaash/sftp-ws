@@ -210,18 +210,17 @@ export class SftpServerSession {
             }
         });
 
-        channel.on("error", err => {
-            log.error({ "err": err }, "[%d] - Session failed", this._id);
-
-            emitter.emit("error", err, this);
-            this.end();
-        });
-
         channel.on("close", err => {
-            log.info("[%d] - Session closed by the client", this._id);
+            if (err) {
+                log.error({ "err": err }, "[%d] - Session failed", this._id);
+            } else {
+                log.info("[%d] - Session closed by the client", this._id);
+            }
 
-            this._end();
-            emitter.emit("closedSession", this, err);
+            this.end();
+            if (!emitter.emit("closedSession", this, err)) {
+                if (err) emitter.emit("error", err, this);
+            }
         });
     }
 
@@ -403,9 +402,7 @@ export class SftpServerSession {
 
     end(): void {
         this._channel.close();
-    }
 
-    _end(): void {
         if (typeof this._fs === 'undefined')
             return;
 

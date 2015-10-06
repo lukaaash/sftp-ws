@@ -17,16 +17,12 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
         var packetLength = 0;
 
         this.stream.on("end",() => {
-            if (this.closed) return;
-            this.closed = true;
-            super.emit("close");
+            this._close();
         });
 
         this.stream.on("error", err => {
-            if (this.closed) return;
-            this.closed = true;
-            this.stream.end();
-            super.emit("close", err);
+            err = err || new Error("Connection failed");
+            this._close(err);
         });
 
         this.stream.on("data", d => {
@@ -104,11 +100,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
                     packetLength = 0;
                 }
             } catch (err) {
-                if (!this.closed) {
-                    this.closed = true;
-                    this.stream.end();
-                }
-                super.emit("error", err);
+                this._close(err);  
             }
         });
     }
@@ -125,8 +117,16 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
         try {
             this.stream.write(packet);
         } catch (err) {
-            process.nextTick(() => super.emit("error", err));
+            this._close(err);  
         }
+    }
+
+    private _close(err?: Error) {
+        if (this.closed) return;
+
+        this.close();
+
+        process.nextTick(() => super.emit("close", err));
     }
 
     close(reason?: number, description?: string): void {
@@ -136,7 +136,7 @@ export class StreamChannel extends events.EventEmitter implements channel.IChann
         try {
             this.stream.end();
         } catch (err) {
-            process.nextTick(() => super.emit("error", err));
+            // ignore errors
         }
     }
 }

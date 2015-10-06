@@ -198,12 +198,6 @@ class SftpClientCore implements IFilesystem {
         request.responseParser.call(this, response, request.callback);
     }
 
-    _end(): void {
-        var host = this._host;
-        if (host) this._host = null;
-        this.failRequests(SftpStatusCode.CONNECTION_LOST, "Connection lost");
-    }
-
     end(): void {
         var host = this._host;
         if (host) {
@@ -701,7 +695,7 @@ export class SftpClient extends FilesystemPlus {
             ready = true;
             sftp._init(channel, error => {
                 if (error) {
-                    sftp._end();
+                    sftp.end();
                     this._bound = false;
                     return done(error);
                 }
@@ -720,22 +714,17 @@ export class SftpClient extends FilesystemPlus {
             }
         });
 
-        channel.on("error", err => {
-            this.emit("error", err);
-            sftp.end();
-        });
-
         channel.on("close", err => {
             if (!ready) {
-                err = err || new Error("Unable to connect");
+                err = err || new Error("Connection closed");
                 done(err);
             } else {
-                sftp._end();
+                sftp.end();
                 this._bound = false;
+
                 if (!this.emit("close", err)) {
-                    // if no close handler available, raise an error
-                    err = err || new Error("Connection closed");
-                    this.emit("error", err);
+                    // if an error occured and no close handler is available, raise an error
+                    if (err) this.emit("error", err);
                 }
             }
         });

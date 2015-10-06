@@ -1,4 +1,5 @@
 ﻿import channel = require("./channel");
+import http = require("http");
 import WebSocket = require("ws");
 
 import IChannel = channel.IChannel;
@@ -6,53 +7,41 @@ import IChannel = channel.IChannel;
 export class WebSocketChannel implements IChannel {
     private ws: WebSocket;
     private options: any; //WEB: // removed
-    private wasConnected: boolean;
-    private failed: boolean;
-    private onopen: () => void;
+    private established: boolean;
+    private closed: boolean;
+    //WEB: private failed: boolean;
     private onclose: (err: Error) => void;
     private onmessage: (packet: Buffer) => void;
-    private onerror: (err: Error) => void;
 
     private open(callback: () => void): void {
         if (typeof callback !== "function")
             callback = function () { };
 
-        var reason = 0;
         var error = <string>null;
         switch (this.ws.readyState) {
             case WebSocket.CLOSED:
             case WebSocket.CLOSING:
-                reason = 999;
                 error = "WebSocket has been closed";
                 break;
             case WebSocket.OPEN:
-                this.wasConnected = true;
+                this.established = true;
                 process.nextTick(() => callback());
                 return;
             case WebSocket.CONNECTING:
                 break;
             default:
-                reason = 999;
                 error = "WebSocket state is unknown";
                 break;
         }
 
         if (error != null) {
-            process.nextTick(() => {
-                this._close(reason, error);
-            });
+            this._close(0, error);
             return;
         }
 
-        this.onopen = callback;
-
         this.ws.on("open",() => { //WEB: this.ws.onopen = () => {
-            this.wasConnected = true;
-            var onopen = this.onopen;
-            this.onopen = null;
-            if (typeof onopen === "function") {
-                onopen();
-            }
+            this.established = true;
+            callback();
         }); //WEB: };
     }
 
@@ -67,9 +56,6 @@ export class WebSocketChannel implements IChannel {
             case "close":
                 this.onclose = <any>listener;
                 break;
-            case "error":
-                this.onerror = <any>listener;
-                break;
             default:
                 break;
         }
@@ -79,8 +65,8 @@ export class WebSocketChannel implements IChannel {
     constructor(ws: WebSocket) {
         this.ws = ws;
         this.options = { binary: true }; //WEB: // removed
-        this.failed = false;
-        this.wasConnected = (ws.readyState == WebSocket.OPEN);
+        //WEB: this.failed = false;
+        this.established = (ws.readyState == WebSocket.OPEN);
 
         this.ws.on('close',(reason, description) => { //WEB: this.ws.onclose = e => {
             //WEB: var reason = e.code;
@@ -89,8 +75,34 @@ export class WebSocketChannel implements IChannel {
         }); //WEB: };
         
         this.ws.on('error', err => { //WEB: this.ws.onerror = err => {
-            this.failed = true;
-            if (!this.wasConnected) this._close(999, err.message, (<any>err).code); //WEB: // removed
+
+            // #if NODE
+            var message = err.message;
+            var code = (<any>err).code;
+            switch (code) {
+                case "ECONNREFUSED":
+                    message = "Connection refused";
+                    break;
+                case "ENOTFOUND":
+                    message = "Host not found";
+                    break;
+                case "ETIMEDOUT":
+                    message = "Connection timed out";
+                    break;
+                case "ECONNRESET":
+                    message = "Connection was reset";
+                    break;
+                case "HPE_INVALID_CONSTANT":
+                    message = "Not a HTTP or WebSocket server";
+                    break;
+                default:
+                    message = "Unable to connect";
+                    break;
+            }
+            this._close(0, message, code);
+            // #endif
+
+            //WEB: this.failed = true;
         }); //WEB: };
 
         this.ws.on('message', (data, flags) => { //WEB: this.ws.onmessage = message => {
@@ -98,7 +110,7 @@ export class WebSocketChannel implements IChannel {
             if (flags.binary) { //WEB: if (true) { //TODO: handle text messages
                 packet = <Buffer>data; //WEB: packet = new Uint8Array(message.data);
             } else {
-                this.reportError(new Error("Closed due to unsupported text packet"));
+                this._close(0, "Text packets not supported");
                 return;
             }
 
@@ -106,101 +118,82 @@ export class WebSocketChannel implements IChannel {
         }); //WEB: };
     }
 
-    private reportError(err: Error): void {
-        if (typeof this.onerror === "function") this.onerror(err);
-        else throw err;
-    }
+    private _close(reason: number, description?: string, code?: string, banner?: string): void {
+        if (this.closed) return;
+        var onclose = this.onclose;
+        this.close();
 
-    _close(reason: number, description?: string, code?: string): void {
-        if (typeof reason !== 'number')
-            reason = 1000;
-
+        reason = 0 + reason;
         description = "" + description;
         code = code || "EFAILURE";
 
-        if (this.ws != null) {
-            try {
-                this.ws.close();
-            } catch (err) {
-                this.reportError(err);
-            } finally {
-                this.ws = null;
+        //WEB: if (this.failed) reason = 1;
+
+        switch (reason) {
+            case 0:
+                break;
+            case 1000:
+                description = "Connection closed";
+                code = "ECONNRESET";
+                break;
+            case 1006:
+                description = "Connection aborted";
+                code = "ECONNABORTED";
+                break;
+            default:
+                description = "Connection failed";
+                code = "ECONNRESET";
+                break;
+        }
+
+        if (reason != 0) {
+            if (!this.established) {
+                description = "Connection refused";
+                code = "ECONNREFUSED";
+                reason = 1;
             }
         }
 
-        var onclose = this.onclose;
-        this.onopen = null;
-        this.onclose = null;
+        var err;
+        if (reason != 1000) {
+            err = <any>new Error(description);
+            if (reason >= 1000) err.reason = reason;
+            if (banner) err.banner = banner;
+            err.code = code;
+        } else {
+            err = null;
+        }
+
         if (typeof onclose === "function") {
-            var err = null;
-
-            var message: string;
-
-            switch (reason) {
-                // #if !WEB
-                case 1011:
-                // #endif
-                case 999:
-                    message = description;
-                    break;
-                case 1000:
-                    message = "Connection closed";
-                    code = "ECONNRESET";
-                    break;
-                case 1006:
-                    message = "Connection aborted";
-                    code = "ECONNABORTED";
-                    break;
-                default:
-                    message = "Connection failed";
-                    code = "ECONNRESET";
-                    break;
-            }
-            
-            if (!this.wasConnected || this.failed || reason != 1000) {
-                if (!this.wasConnected) {
-                    message = "Unable to connect";
-                    code = "ECONNREFUSED";
-                } else if (this.failed) {
-                    message = "Connection failed";
-                    code = "ECONNRESET";
-                }
-
-                err = <any>new Error(message);
-                if (reason >= 1000) err.reason = reason;
-                err.code = code;
-            }
-
-            onclose(err);
+            process.nextTick(() => onclose(err));
+        } else {
+            if (err) throw err;
         }
     }
 
-    close(reason: number, description?: string): void {
+    close(reason?: number, description?: string): void {
+        if (this.closed) return;
+        this.closed = true;
+
         this.onclose = null;
-        this.onerror = null;
         this.onmessage = null;
 
-        switch (this.ws.readyState) {
-            case WebSocket.CLOSING:
-            case WebSocket.CLOSED:
-                return;
+        try {
+            this.ws.close(reason, description);
+        } catch (err) {
+            // ignore errors - we are shuting down the socket anyway
         }
-
-        this.ws.close(reason, description);
     }
 
     send(packet: Buffer): void {
-        if (this.ws == null)
-            return;
+        if (this.closed) return;
 
         try {
             this.ws.send(packet, this.options, err => { //WEB: this.ws.send(packet);
-                if (err) this.reportError(err); //WEB: // removed
+                if (err) this._close(0, err.message); //WEB: // removed
             }); //WEB: // removed
         } catch (err) {
-            process.nextTick(() => {
-                this.reportError(err);
-            });
+            this._close(0, err.message);
         }
     }
 
