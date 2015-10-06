@@ -212,6 +212,8 @@ module SFTP {
                     var result = innerVerify(info);
                     accept(result);
                 }
+
+                return;
             }
 
             accept(true);
