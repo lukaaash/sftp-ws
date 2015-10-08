@@ -7,7 +7,7 @@ import SftpClient = client.SftpClient;
 import ISftpClientEvents = client.ISftpClientEvents;
 import IFilesystem = api.IFilesystem;
 import ILogWriter = util.ILogWriter;
-import WebSocketChannel = channel.WebSocketChannel;
+import WebSocketChannelFactory = channel.WebSocketChannelFactory;
 
 export interface IClientOptions {
     protocol?: string;
@@ -35,18 +35,10 @@ export class Client extends SftpClient implements ISftpClientEvents<Client> {
             options.protocol = 'sftp';
         }
 
-        var protocols = [];
-        if (typeof options !== 'object' || typeof options.protocol == 'undefined') {
-            protocols.push('sftp');
-        } else {
-            protocols.push(options.protocol);
-        }
-
-        var ws = new WebSocket(address, protocols);
-        ws.binaryType = "arraybuffer";
-
-        var channel = new WebSocketChannel(ws);
-
-        super.bind(channel, callback);
+        var factory = new WebSocketChannelFactory();
+        factory.connect(address, options, (err, channel) => {
+            if (err) return callback(err);
+            super.bind(channel, callback);
+        });
     }
 }

@@ -688,21 +688,19 @@ export class SftpClient extends FilesystemPlus {
         if (this._bound) throw new Error("Already bound");
         this._bound = true;
 
-        var ready = false;
-        var self = this;
-
-        channel.on("ready", () => {
-            ready = true;
-            sftp._init(channel, error => {
-                if (error) {
-                    sftp.end();
-                    this._bound = false;
-                    return done(error);
+        sftp._init(channel, err => {
+            if (err) {
+                sftp.end();
+                this._bound = false;
+                if (typeof callback === "function") {
+                    callback(err);
+                } else {
+                    this.emit("error", err);
                 }
-
-                done(null);
+            } else {
+                if (typeof callback === "function") callback(null);
                 this.emit('ready');
-            });
+            }
         });
 
         channel.on("message", packet => {
@@ -715,32 +713,14 @@ export class SftpClient extends FilesystemPlus {
         });
 
         channel.on("close", err => {
-            if (!ready) {
-                err = err || new Error("Connection closed");
-                done(err);
-            } else {
-                sftp.end();
-                this._bound = false;
+            sftp.end();
+            this._bound = false;
 
-                if (!this.emit("close", err)) {
-                    // if an error occured and no close handler is available, raise an error
-                    if (err) this.emit("error", err);
-                }
+            if (!this.emit("close", err)) {
+                // if an error occured and no close handler is available, raise an error
+                if (err) this.emit("error", err);
             }
         });
-
-        function done(error: Error): void {
-            if (typeof callback === "function") {
-                try {
-                    callback(error);
-                    error = null;
-                } catch (err) {
-                    error = err;
-                }
-            }
-
-            if (error) self.emit("error", error);
-        }
     }
 
     end(): void {

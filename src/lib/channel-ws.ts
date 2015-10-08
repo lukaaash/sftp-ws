@@ -4,83 +4,34 @@ import WebSocket = require("ws");
 
 import IChannel = channel.IChannel;
 
-export class WebSocketChannel implements IChannel {
-    private ws: WebSocket;
-    private options: any; //WEB: // removed
-    private established: boolean;
-    private closed: boolean;
-    //WEB: private failed: boolean;
-    private onclose: (err: Error) => void;
-    private onmessage: (packet: Buffer) => void;
+export class WebSocketChannelFactory {
 
-    private open(callback: () => void): void {
-        if (typeof callback !== "function")
-            callback = function () { };
-
-        var error = <string>null;
-        switch (this.ws.readyState) {
-            case WebSocket.CLOSED:
-            case WebSocket.CLOSING:
-                error = "WebSocket has been closed";
-                break;
-            case WebSocket.OPEN:
-                this.established = true;
-                process.nextTick(() => callback());
-                return;
-            case WebSocket.CONNECTING:
-                break;
-            default:
-                error = "WebSocket state is unknown";
-                break;
-        }
-
-        if (error != null) {
-            this._close(0, error);
-            return;
-        }
-
-        this.ws.on("open", () => { //WEB: this.ws.onopen = () => {
-            this.established = true;
-            callback();
-        }); //WEB: };
+    constructor() {
     }
 
-    on(event: string, listener: Function): IChannel {
-        switch (event) {
-            case "ready":
-                this.open(<any>listener);
-                break;
-            case "message":
-                this.onmessage = <any>listener;
-                break;
-            case "close":
-                this.onclose = <any>listener;
-                break;
-            default:
-                break;
-        }
-        return this;
-    }
+    connect(address: string, options: any, callback: (err: Error, channel: IChannel) => any): void {
+        options = options || {};
 
-    constructor(ws: WebSocket) {
-        this.ws = ws;
-        this.options = { binary: true }; //WEB: // removed
-        //WEB: this.failed = false;
-        this.established = (ws.readyState == WebSocket.OPEN);
+        //WEB: var protocols;
+        //WEB: if (options.protocol) protocols = [options.protocol];
+        var ws = new WebSocket(address, options); //WEB: var ws = new WebSocket(address, protocols);
+        //WEB: ws.binaryType = "arraybuffer";
 
-        this.ws.on('close', (reason, description) => { //WEB: this.ws.onclose = e => {
-            //WEB: var reason = e.code;
-            //WEB: var description = e.reason;
-            this._close(reason, description);
+        var channel = new WebSocketChannel(ws, false);
+
+        ws.on("open", () => { //WEB: ws.onopen = () => {
+            channel._init();
+
+            callback(null, channel);
         }); //WEB: };
 
         // #if NODE
-        (<Function>this.ws.on)("unexpected-response", (req: http.ClientRequest, res: http.IncomingMessage) => {
+        (<Function>ws.on)("unexpected-response", (req: http.ClientRequest, res: http.IncomingMessage) => {
             var msg = <http.IncomingMessage><any>req;
 
             // abort the request
             req.abort();
-
+    
             var banner = res.headers["x-sftp-banner"];
 
             var message: string;
@@ -98,42 +49,53 @@ export class WebSocketChannel implements IChannel {
                     break;
             }
 
-            this._close(0, message, code, banner);
+            channel._close(0, message, code, banner);
         });
         // #endif
-        
-        this.ws.on('error', err => { //WEB: this.ws.onerror = err => {
 
-            // #if NODE
-            var message = err.message;
-            var code = (<any>err).code;
-            switch (code) {
-                case "ECONNREFUSED":
-                    message = "Connection refused";
-                    break;
-                case "ENOTFOUND":
-                    message = "Host not found";
-                    break;
-                case "ETIMEDOUT":
-                    message = "Connection timed out";
-                    break;
-                case "ECONNRESET":
-                    message = "Connection was reset";
-                    break;
-                case "HPE_INVALID_CONSTANT":
-                    message = "Not a HTTP or WebSocket server";
-                    break;
-                default:
-                    message = "Unable to connect";
-                    break;
-            }
-            this._close(0, message, code);
-            // #endif
+        channel.on("close", (err) => {
+            err = err || new Error("Connection closed");
+            callback(err, null);
+        });
+    }
 
-            //WEB: this.failed = true;
-        }); //WEB: };
+    // #if NODE
+    bind(ws: WebSocket): IChannel {
+        if (ws.readyState != WebSocket.OPEN) throw new Error("WebSocket is not open");
 
-        this.ws.on('message', (data, flags) => { //WEB: this.ws.onmessage = message => {
+        return new WebSocketChannel(ws, true);
+    }
+    // #endif
+}
+
+class WebSocketChannel implements IChannel {
+    private ws: WebSocket;
+    private options: any; //WEB: // removed
+    private established: boolean;
+    private closed: boolean;
+    //WEB: private failed: boolean;
+    private onclose: (err: Error) => void;
+
+    on(event: string, listener: Function): IChannel {
+        if (typeof listener !== "function") throw new Error("Listener must be a function");
+
+        switch (event) {
+            case "message":
+                this.onmessage(<any>listener);
+                break;
+            case "close":
+                this.onclose = <any>listener;
+                break;
+            default:
+                break;
+        }
+        return this;
+    }
+
+    private onmessage(listener: (packet: Buffer) => void): void {
+        this.ws.on("message", (data, flags) => { //WEB: this.ws.onmessage = message => {
+            if (this.closed) return;
+
             var packet: Buffer;
             if (flags.binary) { //WEB: if (true) { //TODO: handle text messages
                 packet = <Buffer>data; //WEB: packet = new Uint8Array(message.data);
@@ -142,11 +104,57 @@ export class WebSocketChannel implements IChannel {
                 return;
             }
 
-            if (typeof this.onmessage === "function") this.onmessage(packet);
+            listener(packet);
         }); //WEB: };
     }
 
-    private _close(reason: number, description?: string, code?: string, banner?: string): void {
+    constructor(ws: WebSocket, established: boolean) {
+        this.ws = ws;
+        this.options = { binary: true }; //WEB: // removed
+        this.established = established;
+        //WEB: this.failed = false;
+
+        ws.on("close", (reason, description) => { //WEB: ws.onclose = e => {
+            //WEB: var reason = e.code;
+            //WEB: var description = e.reason;
+            this._close(reason, description);
+        }); //WEB: };
+        
+        ws.on("error", err => { //WEB: ws.onerror = err => {
+            //WEB: this.failed = true;
+            // #if NODE
+            var message = err.message;
+            var code = (<any>err).code;
+            switch (code) {
+                case "ECONNREFUSED":
+                    message = "Connection refused";
+                    break;
+                case "ENOTFOUND":
+                    message = "Server not found";
+                    break;
+                case "ETIMEDOUT":
+                    message = "Connection timed out";
+                    break;
+                case "ECONNRESET":
+                    message = "Connection was reset";
+                    break;
+                case "HPE_INVALID_CONSTANT":
+                    code = "EPROTOTYPE";
+                    message = "Invalid protocol";
+                    break;
+            }
+
+            this._close(0, message, code);
+            // #endif
+        }); //WEB: };
+    }
+
+    _init(): void {
+        this.onclose = null;
+        this.established = true;
+    }
+
+    _close(reason: number, description?: string, code?: string, banner?: string): void {
         if (this.closed) return;
         var onclose = this.onclose;
         this.close();
@@ -167,6 +175,9 @@ export class WebSocketChannel implements IChannel {
             case 1006:
                 description = "Connection aborted";
                 code = "ECONNABORTED";
+                break;
+            case 1011:
+                code = "ECONNRESET";
                 break;
             default:
                 description = "Connection failed";

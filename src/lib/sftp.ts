@@ -16,7 +16,7 @@ import util = require("./util");
 
 import SafeFilesystem = safe.SafeFilesystem;
 import WebSocketServer = WebSocket.Server;
-import WebSocketChannel = channel_ws.WebSocketChannel;
+import WebSocketChannelFactory = channel_ws.WebSocketChannelFactory;
 import StreamChannel = channel_stream.StreamChannel;
 import CloseReason = channel.CloseReason;
 import SftpServerSession = server.SftpServerSession
@@ -76,9 +76,11 @@ module SFTP {
                 options.protocol = 'sftp';
             }
 
-            var ws = new WebSocket(address, options);
-            var channel = new WebSocketChannel(ws);
-            super.bind(channel, callback);
+            var factory = new WebSocketChannelFactory();
+            factory.connect(address, options, (err, channel) => {
+                if (err) return callback(err);
+                super.bind(channel, callback);
+            });
         }
     }
 
@@ -91,7 +93,7 @@ module SFTP {
 
     export module Channels {
         export var StreamChannel = channel_stream.StreamChannel;
-        export var WebSocketChannel = channel_ws.WebSocketChannel;
+        export var WebSocketChannelFactory = channel_ws.WebSocketChannelFactory;
         export interface IChannel extends channel.IChannel { }
     }
 
@@ -271,7 +273,8 @@ module SFTP {
                             return;
                         }
 
-                        var channel = new WebSocketChannel(ws);
+                        var factory = new WebSocketChannelFactory();
+                        var channel = factory.bind(ws);
 
                         var socket = ws.upgradeReq.connection;
                         var info = {
