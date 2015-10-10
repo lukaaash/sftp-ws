@@ -37,6 +37,10 @@ interface SftpResponse extends SftpPacketReader {
 interface SftpCommandInfo extends Object {
     command: string;
     path?: string;
+    oldPath?: string;
+    newPath?: string;
+    targetPath?: string;
+    linkPath?: string;
     handle?: any;
 }
 
