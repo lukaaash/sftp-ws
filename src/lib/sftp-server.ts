@@ -211,15 +211,22 @@ export class SftpServerSession {
         });
 
         channel.on("close", err => {
-            if (err) {
-                log.error({ "err": err }, "[%d] - Session failed", this._id);
-            } else {
+            if (!err) {
                 log.info("[%d] - Session closed by the client", this._id);
+            } else if (err.code === "ECONNABORTED") {
+                log.info("[%d] - Session aborted by the client", this._id);
+                err = null;
+            } else {
+                log.error({ "err": err }, "[%d] - Session failed", this._id);
             }
 
             this.end();
             if (!emitter.emit("closedSession", this, err)) {
-                if (err) emitter.emit("error", err, this);
+                if (err) {
+                    // prevent channel failures from crashing the server when no error handler is registered
+                    var listeners = emitter.listeners("error");
+                    if (listeners && listeners.length > 0) emitter.emit("error", err, this);
+                }
             }
         });
     }
