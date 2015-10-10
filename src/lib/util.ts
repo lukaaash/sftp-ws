@@ -115,6 +115,47 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
     throw new TypeError("Unsupported log writer");
 }
 
+export class Options {
+
+    constructor(options: {}) {
+        if (!options) return;
+
+        for (var propertyName in options) {
+            if (options.hasOwnProperty(propertyName)) this[propertyName] = options[propertyName];
+        }
+    }
+
+    merge(options: any): any {
+        var result = {};
+
+        for (var propertyName in this) {
+            if (this.hasOwnProperty(propertyName)) result[propertyName] = this[propertyName];
+        }
+
+        if (options) for (var propertyName in options) {
+            if (options.hasOwnProperty(propertyName)) result[propertyName] = options[propertyName];
+        }
+
+        return result;
+    }
+
+    intersect(options: any): any {
+        var result = {};
+
+        for (var propertyName in this) {
+            if (!this.hasOwnProperty(propertyName)) continue;
+
+            if (options && options.hasOwnProperty(propertyName)) {
+                result[propertyName] = options[propertyName];
+            } else {
+                result[propertyName] = this[propertyName];
+            }
+        }
+
+        return result;
+    }
+}
+
 export class Task<TResult> extends EventEmitter {
     on(event: 'success', listener: (result: TResult) => void): Task<TResult>;
     on(event: 'error', listener: (err: Error) => void): Task<TResult>;

@@ -21,6 +21,7 @@ import StreamChannel = channel_stream.StreamChannel;
 import CloseReason = channel.CloseReason;
 import SftpServerSession = server.SftpServerSession
 import FileUtil = misc.FileUtil;
+import Options = util.Options;
 
 module SFTP {
 
@@ -118,6 +119,7 @@ module SFTP {
     }
 
     export interface ISessionInfo {
+        userName?: string;
         filesystem?: IFilesystem;
         virtualRoot?: string;
         readOnly?: boolean;
@@ -129,6 +131,7 @@ module SFTP {
         virtualRoot?: string;
         readOnly?: boolean;
         hideUidGid?: boolean;
+
         log?: ILogWriter|any;
 
         // options for WebSocket server
@@ -151,61 +154,69 @@ module SFTP {
     export class Server extends events.EventEmitter {
 
         private _wss: WebSocketServer;
+
+        private _sessionInfo: Options;
+        /*
         private _virtualRoot: string;
         private _fs: IFilesystem;
         private _readOnly: boolean;
         private _hideUidGid: boolean;
+        */
         private _log: ILogWriter;
         private _verifyClient: Function;
 
         constructor(options?: IServerOptions) {
             super();
 
+            options = options || {};
             var serverOptions: WebSocket.IServerOptions = {};
 
-            var noServer = false;
-            var verifyClient = null;
+            var virtualRoot = options.virtualRoot;
+            var filesystem = options.filesystem;
+            this._log = util.toLogWriter(options.log);
+            this._verifyClient = options.verifyClient;
+            var noServer = options.noServer;
 
-            if (typeof options !== 'undefined') {
-                this._virtualRoot = options.virtualRoot;
-                this._fs = options.filesystem;
-                this._log = util.toLogWriter(options.log);
-                this._verifyClient = options.verifyClient;
-                noServer = options.noServer;
+            serverOptions.handleProtocols = this.handleProtocols;
+            serverOptions.verifyClient = <any>((info, callback): void => {
+                this.verifyClient(info, callback);
+            });
 
-                serverOptions.handleProtocols = this.handleProtocols;
-                serverOptions.verifyClient = <any>((info, callback): void => {
-                    this.verifyClient(info, callback);
-                });
-
-                for (var option in options) {
-                    if ((<Object>options).hasOwnProperty(option)) {
-                        switch (option) {
-                            case "filesystem":
-                            case "virtualRoot":
-                            case "readOnly":
-                            case "hideUidGid":
-                            case "log":
-                            case "verifyClient":
-                                break;
-                            default:
-                                serverOptions[option] = options[option];
-                                break;
-                        }
+            for (var option in options) {
+                if ((<Object>options).hasOwnProperty(option)) {
+                    switch (option) {
+                        case "filesystem":
+                        case "virtualRoot":
+                        case "readOnly":
+                        case "hideUidGid":
+                        case "log":
+                        case "verifyClient":
+                            break;
+                        default:
+                            serverOptions[option] = options[option];
+                            break;
                     }
                 }
             }
 
-            if (typeof this._virtualRoot === 'undefined') {
+            if (typeof virtualRoot === 'undefined') {
                 // TODO: serve a dummy filesystem in this case to prevent revealing any files accidently
-                this._virtualRoot = process.cwd();
+                virtualRoot = process.cwd();
             } else {
-                this._virtualRoot = path.resolve(this._virtualRoot);
+                virtualRoot = path.resolve(virtualRoot);
             }
 
-            if (typeof this._fs === 'undefined') {
-                this._fs = new local.LocalFilesystem();
+            if (typeof filesystem === 'undefined') {
+                filesystem = new local.LocalFilesystem();
             }
+
+            this._sessionInfo = new Options({
+                userName: null,
+                filesystem: filesystem,
+                virtualRoot: virtualRoot,
+                readOnly: null,
+                hideUidGid: null,
+            });
 
             //TODO: when no _fs and no _virtualRoot is specified, serve a dummy filesystem as well
 
@@ -283,11 +294,16 @@ module SFTP {
         accept(ws: WebSocket, callback?: (err: Error, session: SftpServerSession) => void): void {
             try {
                 //this._log.debug(ws.upgradeReq);
+
+                // retrieve session info passed to verifyClient's accept callback
+                var sessionInfo = <ISessionInfo>(<any>ws.upgradeReq)._sftpSessionInfo;
+
+                // merge session info with default session info
+                sessionInfo = this._sessionInfo.intersect(sessionInfo);
+
                 var log = this._log;
-                var fs = new SafeFilesystem(this._fs, this._virtualRoot, {
-                    readOnly: this._readOnly,
-                    hideUidGid: this._hideUidGid,
-                });
+                var virtualRoot = sessionInfo.virtualRoot;
+                var fs = new SafeFilesystem(sessionInfo.filesystem, virtualRoot, sessionInfo);
 
                 fs.stat(".", (err, attrs) => {
                     try {
@@ -295,7 +311,7 @@ module SFTP {
 
                         if (err) {
                             var message = "Unable to access file system";
-                            log.error({ root: this._virtualRoot }, message);
+                            log.error({ root: virtualRoot }, message);
                             ws.close(CloseReason.UNEXPECTED_CONDITION, message);
                             callback(err, null);
                             return;
@@ -306,6 +322,7 @@ module SFTP {
 
                         var socket = ws.upgradeReq.connection;
                         var info = {
+                            "userName": sessionInfo.userName,
                             "clientAddress": socket.remoteAddress,
                             "clientPort": socket.remotePort,
                             "clientFamily": socket.remoteFamily,
