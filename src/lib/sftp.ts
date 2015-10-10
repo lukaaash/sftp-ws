@@ -121,12 +121,14 @@ module SFTP {
         filesystem?: IFilesystem;
         virtualRoot?: string;
         readOnly?: boolean;
+        hideUidGid?: boolean;
     }
 
     export interface IServerOptions {
         filesystem?: IFilesystem;
         virtualRoot?: string;
         readOnly?: boolean;
+        hideUidGid?: boolean;
         log?: ILogWriter|any;
 
         // options for WebSocket server
@@ -152,6 +154,7 @@ module SFTP {
         private _virtualRoot: string;
         private _fs: IFilesystem;
         private _readOnly: boolean;
+        private _hideUidGid: boolean;
         private _log: ILogWriter;
         private _verifyClient: Function;
 
@@ -181,6 +184,7 @@ module SFTP {
                             case "filesystem":
                             case "virtualRoot":
                             case "readOnly":
+                            case "hideUidGid":
                             case "log":
                             case "verifyClient":
                                 break;
@@ -280,7 +284,10 @@ module SFTP {
             try {
                 //this._log.debug(ws.upgradeReq);
                 var log = this._log;
-                var fs = new SafeFilesystem(this._fs, this._virtualRoot, this._readOnly);
+                var fs = new SafeFilesystem(this._fs, this._virtualRoot, {
+                    readOnly: this._readOnly,
+                    hideUidGid: this._hideUidGid,
+                });
 
                 fs.stat(".", (err, attrs) => {
                     try {

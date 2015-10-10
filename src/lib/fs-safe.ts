@@ -13,13 +13,16 @@ export class SafeFilesystem implements IFilesystem {
     private isWindows: boolean;
     private root: string;
     private readOnly: boolean;
+    private hideUidGid: boolean;
 
-    constructor(fs: IFilesystem, virtualRootPath: string, readOnly?: boolean) {
+    constructor(fs: IFilesystem, virtualRootPath: string, options: { readOnly?: boolean, hideUidGid?: boolean }) {
+        options = options || {};
         this.isSafe = true;
         this.fs = fs;
         this.isWindows = (fs['isWindows'] === true);
         this.root = Path.normalize(virtualRootPath);
-        this.readOnly = (readOnly == true);
+        this.readOnly = options.readOnly == true;
+        this.hideUidGid = options.hideUidGid == true;
     }
 
     private wrapHandle(handle: any): any {
@@ -101,6 +104,15 @@ export class SafeFilesystem implements IFilesystem {
         callback(err, handle);
     }
 
+    private processCallbackAttrs(err: Error, attrs: IStats, callback: (err: Error, attrs: IStats) => any) {
+        if (attrs && this.hideUidGid) {
+            attrs.uid = null;
+            attrs.gid = null;
+        }
+
+        callback(err, attrs);
+    }
+
     private reportReadOnly(callback: (err: Error, ...any) => any) {
         var err = new Error("Internal server error");
 
@@ -166,7 +178,11 @@ export class SafeFilesystem implements IFilesystem {
         path = this.toRealPath(path);
 
         try {
-            this.fs.lstat(path, callback);
+            if (!this.hideUidGid) {
+                this.fs.lstat(path, callback);
+            } else {
+                this.fs.lstat(path, (err, attrs) => this.processCallbackAttrs(err, attrs, callback));
+            }
         } catch (err) {
             callback(err, null);
         }
@@ -176,7 +192,11 @@ export class SafeFilesystem implements IFilesystem {
         handle = this.unwrapHandle(handle);
 
         try {
-            this.fs.fstat(handle, callback);
+            if (!this.hideUidGid) {
+                this.fs.fstat(handle, callback);
+            } else {
+                this.fs.fstat(handle, (err, attrs) => this.processCallbackAttrs(err, attrs, callback));
+            }
         } catch (err) {
             callback(err, null);
         }
@@ -186,6 +206,11 @@ export class SafeFilesystem implements IFilesystem {
         if (this.isReadOnly()) {
             this.reportReadOnly(callback);
             return;
+        }
+
+        if (this.hideUidGid) {
+            attrs.uid = null;
+            attrs.gid = null;
         }
 
         path = this.toRealPath(path);
@@ -203,6 +228,11 @@ export class SafeFilesystem implements IFilesystem {
         }
 
         handle = this.unwrapHandle(handle);
+
+        if (this.hideUidGid) {
+            attrs.uid = null;
+            attrs.gid = null;
+        }
 
         try {
             this.fs.fsetstat(handle, attrs, callback);
@@ -225,7 +255,15 @@ export class SafeFilesystem implements IFilesystem {
         handle = this.unwrapHandle(handle);
 
         try {
-            this.fs.readdir(handle, callback);
+            this.fs.readdir(handle, (err, items) => {
+                if (this.hideUidGid) {
+                    if (Array.isArray(items)) (<IItem[]>items).forEach(item => {
+                        item.stats.uid = null;
+                        item.stats.gid = null;
+                    });
+                }
+                callback(err, items);
+            });
         } catch (err) {
             callback(err, null);
         }
@@ -290,7 +328,11 @@ export class SafeFilesystem implements IFilesystem {
         path = this.toRealPath(path);
 
         try {
-            this.fs.stat(path, callback);
+            if (!this.hideUidGid) {
+                this.fs.stat(path, callback);
+            } else {
+                this.fs.stat(path, (err, attrs) => this.processCallbackAttrs(err, attrs, callback));
+            }
         } catch (err) {
             callback(err, null);
         }
