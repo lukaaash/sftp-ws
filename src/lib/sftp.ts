@@ -109,18 +109,27 @@ module SFTP {
         readOnly?: boolean;
     }
 
-    export interface IServerOptions extends WebSocket.IServerOptions {
+    export interface IServerOptions {
         filesystem?: IFilesystem;
         virtualRoot?: string;
         readOnly?: boolean;
-        noServer?: boolean;
         log?: ILogWriter|any;
 
-        verifyClient?: {
-            (info: RequestInfo): boolean;
-            (info: RequestInfo, accept: (result: boolean, statusCode?: number, statusMessage?: string, banner?: string) => void): void;
-            (info: RequestInfo, accept: (session: ISessionInfo) => void): void;
-        };
+        // options for WebSocket server
+        host?: string;
+        port?: number;
+        server?: http.Server;
+        handleProtocols?: any;
+        path?: string;
+        noServer?: boolean;
+        disableHixie?: boolean;
+        clientTracking?: boolean;
+
+        // client verification callback
+        verifyClient?:
+        ((info: RequestInfo) => boolean) |
+        ((info: RequestInfo, accept: (result: boolean, statusCode?: number, statusMessage?: string, banner?: string) => void) => void) |
+        ((info: RequestInfo, accept: (session: ISessionInfo) => void) => void);
     }
 
     export class Server extends events.EventEmitter {
