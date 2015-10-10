@@ -1,6 +1,7 @@
 ﻿import channel = require("./channel");
 import http = require("http");
 import WebSocket = require("ws");
+import Url = require("url");
 
 import IChannel = channel.IChannel;
 
@@ -11,6 +12,34 @@ export class WebSocketChannelFactory {
 
     connect(address: string, options: any, callback: (err: Error, channel: IChannel) => any): void {
         options = options || {};
+
+        // #if NODE
+        var url = Url.parse(address);
+        options.username = url.auth || options.username;
+        options.password = options.password || options.passphrase;
+        url.auth = null;
+        address = Url.format(url);
+        // #endif
+
+        this._connect(address, options, null, callback); // WEB: // removed
+    } // WEB: // removed
+
+    private _connect(address: string, options: any, credentials: string, callback: (err: Error, channel: IChannel) => any): void { // WEB: // removed
+        // #if NODE
+        var username = options.username;
+        var password = options.password;
+
+        if (username && password) {
+            credentials = getBasicAuthHeader(username, password);
+        }
+
+        if (credentials != null) {
+            options.headers = options.headers || {};
+            options.headers["Authorization"] = credentials;
+        }
+
+        var authenticate = null;
+        // #endif
 
         //WEB: var protocols;
         //WEB: if (options.protocol) protocols = [options.protocol];
@@ -41,7 +70,20 @@ export class WebSocketChannelFactory {
                     message = "Unable to upgrade to WebSocket protocol";
                     break;
                 case 401:
-                    message = "Authentication required";
+                    if (credentials == null) {
+                        for (var i = 0; i < res.rawHeaders.length; i += 2) {
+                            if (!res.rawHeaders[i].match(/^WWW-Authenticate$/i)) continue;
+                            if (!res.rawHeaders[i + 1].match(/^Basic realm/)) continue;
+
+                            authenticate = "Basic";
+                            break;
+                        }
+
+                        message = "Authentication required";
+                    } else {
+                        message = "Authentication failed";
+                    }
+
                     code = "X_NOAUTH";
                     break;
                 default:
@@ -51,10 +93,54 @@ export class WebSocketChannelFactory {
 
             channel._close(0, message, code, banner);
         });
+
+        function getBasicAuthHeader(username: string, password: string): string {
+            return "Basic " + new Buffer(username + ":" + password).toString("base64")
+        }
         // #endif
 
         channel.on("close", (err) => {
             err = err || new Error("Connection closed");
+
+            // #if NODE
+            if (err.code === "X_NOAUTH" && authenticate && typeof(options.authenticate) === "function") {
+
+                // prepare queries
+                var queries = [];
+                if (!username) queries.push({ name: "username", prompt: "Username:", secret: false });
+                queries.push({ name: "password", prompt: "Password:", secret: true });
+
+                var instructions = err.banner;
+                var self = this;
+
+                // invoke client authentication callback
+                var auth = options.authenticate;
+                if (auth.length >= 3) {
+                    return auth(instructions, queries, supply);
+                } else {
+                    var result = auth(instructions, queries);
+                    return supply(result);
+                }
+
+                function supply(values: { [name: string]: string }): void {
+                    values = values || {};
+                    if (!username) username = values["username"];
+                    password = values["password"];
+
+                    if (username && password) {
+                        // try authenticating with the supplied credentials
+                        credentials = getBasicAuthHeader(username, password);
+                        options.username = null;
+                        options.password = null;
+                        self._connect(address, options, credentials, callback);
+                    } else {
+                        // fail if no credentials supplied
+                        callback(err, null);
+                    }
+                }
+            }
+            // #endif
+
             callback(err, null);
         });
     }

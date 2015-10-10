@@ -36,6 +36,12 @@ module SFTP {
     export interface ILogWriter extends util.ILogWriter {
     }
 
+    export interface IClientAuthenticationQuery {
+        name: string;
+        prompt: string;
+        secret: boolean;
+    }
+
     export interface IClientOptions {
         protocol?: string;
         agent?: http.Agent;
@@ -52,6 +58,10 @@ module SFTP {
         rejectUnauthorized?: boolean;
 
         log?: ILogWriter|any;
+
+        authenticate?:
+        ((instructions: string, queries: IClientAuthenticationQuery[]) => { [name: string]: string }) |
+        ((instructions: string, queries: IClientAuthenticationQuery[], callback: (values: { [name: string]: string }) => void) => void);
     }
 
     export class Client extends client.SftpClient implements client.ISftpClientEvents<Client> {
