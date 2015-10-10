@@ -78,7 +78,11 @@ module SFTP {
 
             var factory = new WebSocketChannelFactory();
             factory.connect(address, options, (err, channel) => {
-                if (err) return callback(err);
+                if (err) {
+                    if (typeof callback === "function") return callback(err);
+                    super.emit("error", err);
+                    return;
+                }
                 super.bind(channel, callback);
             });
         }
