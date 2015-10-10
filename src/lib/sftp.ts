@@ -128,7 +128,7 @@ module SFTP {
         // client verification callback
         verifyClient?:
         ((info: RequestInfo) => boolean) |
-        ((info: RequestInfo, accept: (result: boolean, statusCode?: number, statusMessage?: string, banner?: string) => void) => void) |
+        ((info: RequestInfo, accept: (result: boolean, statusCode?: number, statusMessage?: string, headers?: string[]) => void) => void) |
         ((info: RequestInfo, accept: (session: ISessionInfo) => void) => void);
     }
 
@@ -206,13 +206,11 @@ module SFTP {
 
             var innerVerify = this._verifyClient;
 
-            var outerAccept = (result: any, code?: number, description?: string, banner?: string) => {
+            var outerAccept = (result: any, code?: number, description?: string, headers?: string[]) => {
                 if (!result) {
                     if (typeof code === 'undefined') code = 401;
                     if (typeof description === 'undefined') description = http.STATUS_CODES[code];
-                    if (typeof banner !== 'undefined') {
-                        description += "\r\nX-SFTP-Banner: " + banner;
-                    }
+                    if (typeof headers !== 'undefined') description += "\r\n" + headers.join("\r\n");
                     accept(false, code, description);
                     return;
                 }
