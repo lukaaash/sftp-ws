@@ -12,6 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{F2B32751-EDC
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "examples", "examples\examples.njsproj", "{DD495A2F-8772-4805-8FAA-32C4C42775AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,6 +24,10 @@ Global
 		{534896ED-D8EB-43E7-93E1-30E80471977E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{534896ED-D8EB-43E7-93E1-30E80471977E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{534896ED-D8EB-43E7-93E1-30E80471977E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD495A2F-8772-4805-8FAA-32C4C42775AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD495A2F-8772-4805-8FAA-32C4C42775AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD495A2F-8772-4805-8FAA-32C4C42775AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD495A2F-8772-4805-8FAA-32C4C42775AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
