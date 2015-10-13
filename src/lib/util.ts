@@ -84,26 +84,31 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
             proxy[level] = function (obj?: Object, format?: any, ...params: any[]): void {
 
                 // force actual console "log levels"
+                var func;
                 switch (level) {
                     case "trace":
                     case "debug":
-                        level = "log";
+                        func = "log";
                         break;
                     case "fatal":
-                        level = "error";
+                        func = "error";
+                        break;
+                    default:
+                        func = level;
                         break;
                 }
 
-                var array;
+                var array = params;
+                if (typeof format !== "undefined") array.unshift(format);
                 if (typeof obj === "string") {
-                    array = arguments;
+                    array.unshift(obj);
                 } else {
-                    array = params;
-                    array.unshift(format);
                     array.push(obj);
                 }
+                
+                array = [level.toUpperCase() + ":", util.format.apply(util, array)]; // WEB: array.push("(" + level.toUpperCase() + ")");
 
-                (<Function>console[level]).apply(console, array);
+                (<Function>console[func]).apply(console, array);
             };
         });
 
