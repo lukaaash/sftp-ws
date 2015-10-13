@@ -61,7 +61,7 @@ export class WebSocketChannelFactory {
             // abort the request
             req.abort();
     
-            var banner = res.headers["x-sftp-banner"];
+            var information = res.headers["sftp-authenticate-info"];
 
             var message: string;
             var code = "X_NOWS";
@@ -91,7 +91,7 @@ export class WebSocketChannelFactory {
                     break;
             }
 
-            channel._close(0, message, code, banner);
+            channel._close(0, message, code, information);
         });
 
         function getBasicAuthHeader(username: string, password: string): string {
@@ -110,7 +110,7 @@ export class WebSocketChannelFactory {
                 if (!username) queries.push({ name: "username", prompt: "Username:", secret: false });
                 queries.push({ name: "password", prompt: "Password:", secret: true });
 
-                var instructions = err.banner;
+                var instructions = err.info;
                 var self = this;
 
                 // invoke client authentication callback
@@ -240,7 +240,7 @@ class WebSocketChannel implements IChannel {
         this.established = true;
     }
 
-    _close(reason: number, description?: string, code?: string, banner?: string): void {
+    _close(reason: number, description?: string, code?: string, information?: string): void {
         if (this.closed) return;
         var onclose = this.onclose;
         this.close();
@@ -283,7 +283,7 @@ class WebSocketChannel implements IChannel {
         if (reason != 1000) {
             err = <any>new Error(description);
             if (reason >= 1000) err.reason = reason;
-            if (banner) err.banner = banner;
+            if (information) err.info = information;
             err.code = code;
         } else {
             err = null;
