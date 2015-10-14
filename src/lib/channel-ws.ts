@@ -266,11 +266,18 @@ class WebSocketChannel implements IChannel {
             var message = err.message;
             var code = (<any>err).code;
 
-            if (code == "HPE_INVALID_CONSTANT") {
-                //err.message = "Invalid protocol";
-                (<any>err).code = "EPROTOTYPE";
-                (<any>err).level = "http";
+            switch (code) {
+                case "HPE_INVALID_CONSTANT":
+                    err.message = "Server uses invalid protocol";
+                    (<any>err).level = "http";
+                    break;
+                case "UNABLE_TO_VERIFY_LEAF_SIGNATURE":
+                    err.message = "Unable to verify leaf certificate (possibly due to missing intermediate CA certificate)";
+                    (<any>err).level = "ssl";
+                    break;
             }
+
+            if (typeof (<any>err).code !== "undefined" && typeof (<any>err).errno === "undefined") (<any>err).errno = code;
 
             this._close(0, err);
             // #endif
