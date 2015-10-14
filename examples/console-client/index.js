@@ -9,6 +9,9 @@ var remotePath = "/";
 var local = new SFTP.Local();
 var localPath = process.cwd();
 
+// log writer object
+var log = null;
+
 // open command
 shell.command("open", "Connect to an SFTP over WebSockets server", function (context) {
     if (remote) return fail(context, "Already connected to a server");
@@ -16,11 +19,12 @@ shell.command("open", "Connect to an SFTP over WebSockets server", function (con
     var address = context.args[0];
     
     var client = new SFTP.Client();
-    client.connect(address, { authenticate: authenticate }, function (err) {
+    var options = { authenticate: authenticate, log: log };
+    client.connect(address, options, function (err) {
         if (err) return fail(context, err);
         
         client.on("error", function (err) {
-            shell.write("Error: ", err.message);
+            shell.write("Error:", err.message);
             remote = null;
             remotePath = "/";
         });
@@ -243,6 +247,13 @@ shell.command(["exit", "quit", "bye"], "Exit the SFTP client", function (context
     shell.exit();
 });
 
+// log command
+shell.command("log", "Turns logging on or off (only applies to new connections)", function (context) {
+    log = log ? null : console;
+    shell.write("Logging is", log ? "on" : "off");
+    context.end();
+});
+
 // help command
 shell.command(["help", "?"], "Display list of supported commands", function (context) {
     shell.write("Supported commands:");
@@ -285,7 +296,7 @@ function list(context, err, items, paths) {
 
 // authenticate the client
 function authenticate(instructions, queries, callback) {
-    shell.write(instructions);
+    if (instructions) shell.write(instructions);
     
     var credentials = {};
     next();
