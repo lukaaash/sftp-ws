@@ -91,7 +91,12 @@ export class WebSocketChannelFactory {
                     break;
             }
 
-            channel._close(0, message, code, information);
+            var err = <any>new Error(message);
+            err.code = err.errno = code;
+            err.level = "http";
+            if (information) err.info = information;
+            
+            channel._close(2, err);
         });
 
         function getBasicAuthHeader(username: string, password: string): string {
@@ -186,7 +191,10 @@ class WebSocketChannel implements IChannel {
             if (flags.binary) { //WEB: if (true) { //TODO: handle text messages
                 packet = <Buffer>data; //WEB: packet = new Uint8Array(message.data);
             } else {
-                this._close(0, "Text packets not supported");
+                var err = <any>new Error("Connection failed due to unsupported packet type");
+                err.code = err.errno = "EFAILURE";
+                err.level = "ws";
+                this._close(1, err);
                 return;
             }
 
@@ -203,7 +211,52 @@ class WebSocketChannel implements IChannel {
         ws.on("close", (reason, description) => { //WEB: ws.onclose = e => {
             //WEB: var reason = e.code;
             //WEB: var description = e.reason;
-            this._close(reason, description);
+
+            var message = "Connection failed";
+            var code = "EFAILURE";
+            switch (reason) {
+                case 1000:
+                    return this._close(reason, null);
+                case 1001:
+                    message = "Endpoint is going away";
+                    code = "X_GOINGAWAY";
+                    break;
+                case 1002:
+                    message = "Protocol error";
+                    code = "EPROTOTYPE";
+                    break;
+                case 1006:
+                    message = "Connection aborted";
+                    code = "ECONNABORTED";
+                    break;
+                case 1007:
+                    message = "Invalid message";
+                    break;
+                case 1008:
+                    message = "Prohibited message";
+                    break;
+                case 1009:
+                    message = "Message too large";
+                    break;
+                case 1010:
+                    message = "Connection terminated";
+                    code = "ECONNRESET";
+                    break;
+                case 1011:
+                    message = description; //WEB: message = "Connection reset";
+                    code = "ECONNRESET";
+                    break;
+                case 1015:
+                    message = "Unable to negotiate secure connection";
+                    break;
+            }
+
+            var err = <any>new Error(message);
+            err.code = err.errno = code;
+            err.level = "ws";
+            err.nativeCode = reason;
+
+            this._close(reason, err);
         }); //WEB: };
         
         ws.on("error", err => { //WEB: ws.onerror = err => {
@@ -212,26 +265,14 @@ class WebSocketChannel implements IChannel {
             // #if NODE
             var message = err.message;
             var code = (<any>err).code;
-            switch (code) {
-                case "ECONNREFUSED":
-                    message = "Connection refused";
-                    break;
-                case "ENOTFOUND":
-                    message = "Server not found";
-                    break;
-                case "ETIMEDOUT":
-                    message = "Connection timed out";
-                    break;
-                case "ECONNRESET":
-                    message = "Connection was reset";
-                    break;
-                case "HPE_INVALID_CONSTANT":
-                    code = "EPROTOTYPE";
-                    message = "Invalid protocol";
-                    break;
+
+            if (code == "HPE_INVALID_CONSTANT") {
+                //err.message = "Invalid protocol";
+                (<any>err).code = "EPROTOTYPE";
+                (<any>err).level = "http";
             }
 
-            this._close(0, message, code);
+            this._close(0, err);
             // #endif
         }); //WEB: };
     }
@@ -241,53 +282,14 @@ class WebSocketChannel implements IChannel {
         this.established = true;
     }
 
-    _close(reason: number, description?: string, code?: string, information?: string): void {
+    _close(kind: number, err: Error|any): void {
         if (this.closed) return;
         var onclose = this.onclose;
         this.close();
 
-        reason = 0 + reason;
-        description = "" + description;
-        code = code || "EFAILURE";
-
-        //WEB: if (this.failed) reason = 1;
-
-        switch (reason) {
-            case 0:
-                break;
-            case 1000:
-                description = "Connection closed";
-                code = "ECONNRESET";
-                break;
-            case 1006:
-                description = "Connection aborted";
-                code = "ECONNABORTED";
-                break;
-            case 1011:
-                code = "ECONNRESET";
-                break;
-            default:
-                description = "Connection failed";
-                code = "ECONNRESET";
-                break;
-        }
-
-        if (reason != 0) {
-            if (!this.established) {
-                description = "Connection refused";
-                code = "ECONNREFUSED";
-                reason = 1;
-            }
-        }
-
-        var err;
-        if (reason != 1000) {
-            err = <any>new Error(description);
-            if (reason >= 1000) err.reason = reason;
-            if (information) err.info = information;
-            err.code = code;
-        } else {
-            err = null;
+        if (!err && !this.established) { // if (!err && (!this.established || this.failed)) {
+            err = new Error("Connection refused");
+            err.code = err.errno = "ECONNREFUSED";
         }
 
         if (typeof onclose === "function") {
@@ -316,10 +318,10 @@ class WebSocketChannel implements IChannel {
 
         try {
             this.ws.send(packet, this.options, err => { //WEB: this.ws.send(packet);
-                if (err) this._close(0, err.message); //WEB: // removed
+                if (err) this._close(3, err); //WEB: // removed
             }); //WEB: // removed
         } catch (err) {
-            this._close(0, err.message);
+            this._close(2, err);
         }
     }
 
