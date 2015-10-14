@@ -150,7 +150,7 @@ module SFTP {
 
         // client verification callback
         verifyClient?:
-        ((info: RequestInfo) => boolean) |
+        ((info: RequestInfo) => boolean|ISessionInfo) |
         ((info: RequestInfo, accept: (result: boolean, statusCode?: number, statusMessage?: string, headers?: string[]) => void) => void) |
         ((info: RequestInfo, accept: (session: ISessionInfo) => void) => void);
     }
@@ -235,35 +235,44 @@ module SFTP {
         private verifyClient(info: RequestInfo, accept: (result: boolean, code?: number, description?: string) => void): void {
 
             var con = info.req.connection;
-            this._log.debug("Incoming connection from %s:%d", con.remoteAddress, con.remotePort);
+
+            var level = this._log.level();
+            if (level <= 10 || level === "trace") {
+                this._log.trace({
+                    secure: info.secure,
+                    origin: info.origin || null,
+                    clientAddress: con.remoteAddress,
+                    clientPort: con.remotePort,                    
+                }, "Incoming connection from %s:%d", con.remoteAddress, con.remotePort);
+            }
 
             var innerVerify = this._verifyClient;
 
             var outerAccept = (result: any, code?: number, description?: string, headers?: string[]) => {
                 if (!result) {
+                    if (code < 200 || code > 599) code = 500;
                     if (typeof code === 'undefined') code = 401;
                     if (typeof description === 'undefined') description = http.STATUS_CODES[code];
+                    this._log.debug("Rejected connection from %s:%d (%d %s)", con.remoteAddress, con.remotePort, code, description);
+
                     if (typeof headers !== 'undefined') description += "\r\n" + headers.join("\r\n");
                     accept(false, code, description);
                     return;
                 }
 
+                this._log.debug("Accepted connection from %s:%d rejected", con.remoteAddress, con.remotePort);
                 if (typeof result == 'object') (<any>info.req)._sftpSessionInfo = result;
                 accept(true);
             };
 
-            if (typeof innerVerify == 'function') {
-                if (innerVerify.length >= 2) {
-                    innerVerify(info, outerAccept);
-                } else {
-                    var result = false || innerVerify(info);
-                    outerAccept(result);
-                }
-
-                return;
+            if (typeof innerVerify !== 'function') {
+                return outerAccept(true);
+            } else if (innerVerify.length >= 2) {
+                innerVerify(info, outerAccept);
+            } else {
+                var result = innerVerify(info);
+                outerAccept(result);
             }
-
-            accept(true);
         }
 
         private handleProtocols(protocols: string[], callback: (result: boolean, protocol?: string) => void): void {
