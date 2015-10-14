@@ -260,7 +260,7 @@ module SFTP {
                     return;
                 }
 
-                this._log.debug("Accepted connection from %s:%d rejected", con.remoteAddress, con.remotePort);
+                this._log.debug("Accepted connection from %s:%d", con.remoteAddress, con.remotePort);
                 if (typeof result == 'object') (<any>info.req)._sftpSessionInfo = result;
                 accept(true);
             };
