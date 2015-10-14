@@ -83,7 +83,6 @@ class EventEmitter {
         }
         if (!called && event == "error") {
             var error = <Error>args[0];
-            console.error(error);
             throw error;
         }
         return called;

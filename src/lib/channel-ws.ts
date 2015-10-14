@@ -208,6 +208,7 @@ class WebSocketChannel implements IChannel {
         
         ws.on("error", err => { //WEB: ws.onerror = err => {
             //WEB: this.failed = true;
+
             // #if NODE
             var message = err.message;
             var code = (<any>err).code;
