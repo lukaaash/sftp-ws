@@ -108,10 +108,11 @@ module SFTP {
 
     export var LocalFilesystem = local.LocalFilesystem;
 
+    export interface IChannel extends channel.IChannel { }
+
     export module Internals {
         export var StreamChannel = channel_stream.StreamChannel;
         export var WebSocketChannelFactory = channel_ws.WebSocketChannelFactory;
-        export interface IChannel extends channel.IChannel { }
         export var ToLogWriter: (writer: any) => ILogWriter = util.toLogWriter;
     }
 
