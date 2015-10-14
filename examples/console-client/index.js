@@ -12,9 +12,9 @@ var localPath = process.cwd();
 // open command
 shell.command("open", "Connect to an SFTP over WebSockets server", function (context) {
     if (remote) return fail(context, "Already connected to a server");
-
+    
     var address = context.args[0];
-
+    
     var client = new SFTP.Client();
     client.connect(address, { authenticate: authenticate }, function (err) {
         if (err) return fail(context, err);
@@ -24,7 +24,7 @@ shell.command("open", "Connect to an SFTP over WebSockets server", function (con
             remote = null;
             remotePath = "/";
         });
-                
+        
         remote = client;
         context.execute("cd");
     });
@@ -33,9 +33,9 @@ shell.command("open", "Connect to an SFTP over WebSockets server", function (con
 // cd command
 shell.command("cd", "Change the current remote working directory", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     var path = remote.join(remotePath, typeof context.args[0] !== "undefined" ? context.args[0] : "~");
-
+    
     remote.realpath(path, function (err, path) {
         if (err) return fail(context, err);
         remotePath = path;
@@ -46,7 +46,7 @@ shell.command("cd", "Change the current remote working directory", function (con
 // pwd command
 shell.command("pwd", "Print the current remote working directory", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     shell.write("Remote directory is", remotePath);
     context.end();
 });
@@ -54,9 +54,9 @@ shell.command("pwd", "Print the current remote working directory", function (con
 // ls command
 shell.command(["ls", "dir"], "List remote files", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     var path = remote.join(remotePath, context.args[0]);
-
+    
     shell.write("Listing remote directory", path);
     remote.list(path, function (err, items) {
         list(context, err, items);
@@ -78,7 +78,7 @@ shell.command("search", "Search remote files (globstars allowed)", function (con
 // lcd command
 shell.command("lcd", "Change the current local working directory", function (context) {
     var path = local.join(localPath, typeof context.args[0] !== "undefined" ? context.args[0] : "~");
-
+    
     local.realpath(path, function (err, path) {
         if (err) return fail(context, err);
         localPath = path;
@@ -95,7 +95,7 @@ shell.command("lpwd", "Print the current local working directory", function (con
 // lls command
 shell.command(["lls", "ldir"], "List local files", function (context) {
     var path = local.join(localPath, context.args[0]);
-
+    
     shell.write("Listing local directory", path);
     local.list(path, function (err, items) {
         list(context, err, items);
@@ -115,15 +115,15 @@ shell.command("lsearch", "Search local files (globstars allowed)", function (con
 // mget command
 shell.command("mget", "Download multiple files", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     if (context.args.length < 1) return fail(context, "Remote path missing");
     var rp = remote.join(remotePath, context.args[0]);
     var lp = local.join(localPath, context.args[1]);
-
+    
     var task = remote.download(rp, lp, function (err) {
         done(context, err, "Finished");
     });
-
+    
     task.on("transferring", function (item) {
         shell.write("Downloading %s (%s bytes)", item.path, item.stats.size);
     });
@@ -132,15 +132,15 @@ shell.command("mget", "Download multiple files", function (context) {
 // mput command
 shell.command("mput", "Upload multiple files", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     if (context.args.length < 1) return fail(context, "Local path missing");
     var lp = local.join(localPath, context.args[0]);
     var rp = remote.join(remotePath, context.args[1]);
-
+    
     var task = remote.upload(lp, rp, function (err) {
         done(context, err, "Finished");
     });
-
+    
     task.on("transferring", function (item) {
         shell.write("Uploading %s (%s bytes)", item.path, item.stats.size);
     });
@@ -149,18 +149,18 @@ shell.command("mput", "Upload multiple files", function (context) {
 // get command
 shell.command(["get", "reget"], "Download a single file", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     // prepare source path
     if (context.args.length < 1) return fail(context, "Remote path missing");
     var rp = remote.join(remotePath, context.args[0]);
-
+    
     // prepare target path (if not specified, append "/" to instruct the function to use the original name
     var lp = context.args[1] ? local.join(localPath, context.args[1]) : localPath + "/";
-
+    
     var task = remote.getFile(rp, lp, function (err) {
         done(context, err, "Finished");
     });
-
+    
     task.on("transferring", function (item) {
         shell.write("Downloading %s (%s bytes)", item.path, item.stats.size);
     });
@@ -169,18 +169,18 @@ shell.command(["get", "reget"], "Download a single file", function (context) {
 // put command
 shell.command(["put", "reput"], "Upload a single file", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     // prepare source path
     if (context.args.length < 1) return fail(context, "Local path missing");
     var lp = local.join(localPath, context.args[0]);
-
+    
     // prepare target path (if not specified, append "/" to instruct the function to use the original name
     var rp = context.args[1] ? remote.join(remotePath, context.args[1]) : remotePath + "/";
-
+    
     var task = remote.putFile(lp, rp, function (err) {
         done(context, err, "Finished");
     });
-
+    
     task.on("transferring", function (item) {
         shell.write("Uploading %s (%s bytes)", item.path, item.stats.size);
     });
@@ -216,13 +216,13 @@ shell.command(["rmdir", "rd"], "Remove a directory", function (context) {
 // mv command
 shell.command(["mv", "ren"], "Rename or move remote items", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     // prepare paths
     if (context.args.length < 1) return fail(context, "Source path missing");
     if (context.args.length < 2) return fail(context, "Target path missing");
     var sourcePath = remote.join(remotePath, context.args[0]);
     var targetPath = remote.join(remotePath, context.args[1]);
-
+    
     remote.rename(sourcePath, targetPath, function (err) {
         done(context, err);
     });
@@ -253,7 +253,7 @@ shell.command(["help", "?"], "Display list of supported commands", function (con
 // execute a simple action on a remote path
 function execute(context, action) {
     if (!remote) return fail(context, "Not connected to a server");
-
+    
     // prepare source path
     if (context.args.length < 1) return fail(context, "Remote path missing");
     var path = remote.join(remotePath, context.args[0]);
@@ -263,11 +263,11 @@ function execute(context, action) {
 // display a list of items
 function list(context, err, items, paths) {
     if (err) return fail(context, err);
-
+    
     var long = context.options["l"];
-
+    
     if (typeof long === "undefined") long = (context.command.slice(-3) === "dir");
-
+    
     items.forEach(function (item) {
         if (item.filename == "." || item.filename == "..") return;
         
@@ -279,7 +279,7 @@ function list(context, err, items, paths) {
             shell.write(item.filename);
         }
     });
-
+    
     context.end();
 }
 
@@ -302,7 +302,7 @@ function authenticate(instructions, queries, callback) {
         } else {
             shell.question(query.prompt, reply);
         }
-
+        
         function reply(value) {
             credentials[query.name] = value;
             next();
@@ -328,7 +328,7 @@ function fail(context, err) {
             message = err;
             break;
     }
-
+    
     return context.fail(message);
 }
 

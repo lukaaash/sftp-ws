@@ -10,7 +10,7 @@ client.connect("ws://" + host + ":" + port);
 
 // handle errors
 client.on('error', function (err) {
-    console.log("Error : %s", err.message);
+    console.log("Error: %s", err.message);
 });
 
 // when connected, display a message and file listing
