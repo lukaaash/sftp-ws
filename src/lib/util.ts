@@ -100,19 +100,19 @@ export function toLogWriter(writer?: ILogWriter): ILogWriter {
 
                 var array = params;
                 if (typeof format !== "undefined") array.unshift(format);
-                if (typeof obj === "string") {
+                if (typeof obj === "string" || obj === null) {
                     array.unshift(obj);
-                } else {
-                    array.push(obj);
+                    obj = null;
                 }
                 
                 array = [level.toUpperCase() + ":", util.format.apply(util, array)]; // WEB: array.push("(" + level.toUpperCase() + ")");
 
                 (<Function>console[func]).apply(console, array);
+                if (obj !== null) (<Function>console[func]).call(console, obj);
             };
         });
 
-        proxy["level"] = () => { return "debug"; }
+        proxy["level"] = () => { return (<any>console).level || "debug"; }
 
         return <ILogWriter>proxy;
     }
