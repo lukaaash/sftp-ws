@@ -346,7 +346,7 @@ function fail(context, err) {
 // display welcome message
 shell.write("Welcome to SFTP over WebSockets client!");
 shell.write("Type 'help' to see a list of commands.")
-shell.write("Use 'open url' to connect to a server (eg. 'open wss://nuane.com').")
+shell.write("Use 'open url' to connect to a server (eg. 'open wss://nuane.com/sftp').")
 
 // on Windows, treat backspace as ordinary character
 var options = {
