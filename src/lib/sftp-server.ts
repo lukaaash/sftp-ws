@@ -431,7 +431,7 @@ export class SftpServerSession {
             if (request.type != SftpPacketType.INIT) meta["req"] = request.id;
             meta["type"] = SftpPacket.toString(request.type);
             meta["length"] = request.length;
-            if (this._trace) meta["raw"] = request;
+            if (this._trace) meta["raw"] = request.buffer;
 
             if (request.type == SftpPacketType.INIT) {
                 this._log.debug(meta, "[%d] - Received initialization request", this._id);
