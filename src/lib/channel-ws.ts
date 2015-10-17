@@ -318,6 +318,7 @@ class WebSocketChannel implements IChannel {
         this.onclose = null;
         this.onmessage = null;
 
+        if (!reason) reason = 1000;
         try {
             this.ws.close(reason, description);
         } catch (err) {
