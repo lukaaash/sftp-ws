@@ -1,0 +1,111 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>SFTP over WebSockets benchmark</title>
+	<script type="text/javascript" src="sftp.min.js"></script>
+</head>
+<body>
+
+	<div id="settings">
+		<h3>1. Specify am URL of an SFTP server</h3>
+		<input type="text" id="url" value="ws://localhost:4002" /><br />
+
+		<h3>2. Choose one or more files to upload</h3>
+		<input type="file" id="files" multiple /><br />
+
+		<h3>3. Click the button to start benchmark</h3>
+		<input type="button" id="start" value="Start" /><br />
+	</div>
+
+	<div id="benchmark" style="display:none">
+		<h3>4. Running...</h3>
+
+		<pre id="log"></pre>
+	</div>
+
+	<script type="text/javascript">
+		var files = [];
+		var totalBytes = 0;
+
+		var url = (window.location.protocol == "https") ? "wss" : "ws";
+		url += "://" + window.location.hostname + ":" + window.location.port + "/sftp";
+		document.getElementById("url").value = url;
+
+		document.getElementById("files").onchange = function (e) {
+			files = [];
+			totalBytes = 0;
+			for (var i = 0, file; file = e.target.files[i]; i++) {
+				files.push(file);
+				totalBytes += file.size;
+			}
+		}
+
+		document.getElementById("start").onclick = function (e) {
+			document.getElementById("settings").style.display = "none";
+			document.getElementById("benchmark").style.display = "";
+
+			var url = document.getElementById("url").value;
+			var log = document.getElementById("log");
+
+			var client = new SFTP.Client();
+			client.connect(url);
+			log.textContent += "Connecting to " + url + "\r\n";
+
+			var started = 0;
+
+			client.on("ready", function () {
+				log.textContent += "Ready to upload " + files.length + " files (" + totalBytes + " bytes)\r\n";
+				started = new Date().getTime();
+				upload();
+			});
+
+			client.on("error", function (err) {
+				log.textContent += "Failed :-(\r\n";
+				log.textContent += err;
+			});
+
+			client.on("close", function (err) {
+				if (err) {
+					log.textContent += "Connection closed due to an error :-(\r\n";
+					log.textContent += err;
+				} else {
+					log.textContent += "Connection closed\r\n";
+				}
+			})
+
+			function upload() {
+				var file = files.shift();
+
+				if (!file) {
+					var duration = new Date().getTime() - started;
+					var speed = totalBytes / duration;
+					speed = (speed < 2000) ? ("" + speed + " KB") : ("" + (speed / 1000) + " MB");
+
+					log.textContent += "Finished! :-)\r\n";
+					log.textContent += "Uploaded " + totalBytes + " bytes in " + (duration / 1000) + " seconds\r\n";
+					log.textContent += "Average transfer speed: " + speed + "/s\r\n";
+					client.end();
+					return;
+				}
+
+				client.upload(file, ".")
+					/*
+					.on("progress", function (path, current, length) {
+						// progress event is currently emitted too often, which negatively affects transfer speed
+						// (but don't worry, this will be fixed very soon)
+					})
+					*/
+					.on("success", function () {
+						upload();
+					});
+
+				log.textContent += "Uploading " + file.name + " (" + file.size + " bytes)\r\n";
+			}
+		}
+
+
+	</script>
+
+
+</body>
+</html>

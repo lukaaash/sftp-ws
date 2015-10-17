@@ -12,7 +12,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>dd495a2f-8772-4805-8faa-32c4c42775af</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>console-client/index.js</StartupFile>
+    <StartupFile>web-benchmark\index.js</StartupFile>
     <StartWebBrowser>False</StartWebBrowser>
     <SearchPath>
     </SearchPath>
@@ -32,6 +32,8 @@
   <ItemGroup>
     <Content Include="package.json" />
     <Content Include="README.md" />
+    <Content Include="web-benchmark\client\index.html" />
+    <Content Include="web-benchmark\files\readme.txt" />
     <Content Include="web-client\client\index.html" />
     <Content Include="web-client\client\style.css" />
     <Content Include="web-client\files\misc\sftp-over-websockets.txt" />
@@ -47,13 +49,18 @@
     <Content Include="simple-client\README.md" />
     <Compile Include="simple-server\server.js" />
     <Content Include="simple-server\README.md" />
+    <Compile Include="web-benchmark\client\sftp.min.js" />
+    <Compile Include="web-benchmark\index.js" />
     <Compile Include="web-client\client\sftp.min.js" />
     <Compile Include="web-client\server.js" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="console-client\" />
+    <Folder Include="web-benchmark\" />
     <Folder Include="simple-client\" />
     <Folder Include="simple-server\" />
+    <Folder Include="web-benchmark\client\" />
+    <Folder Include="web-benchmark\files\" />
     <Folder Include="web-client\" />
     <Folder Include="web-client\client\" />
     <Folder Include="web-client\files\" />
