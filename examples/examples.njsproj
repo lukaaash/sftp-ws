@@ -49,9 +49,7 @@
     <Content Include="simple-client\README.md" />
     <Compile Include="simple-server\server.js" />
     <Content Include="simple-server\README.md" />
-    <Compile Include="web-benchmark\client\sftp.min.js" />
     <Compile Include="web-benchmark\index.js" />
-    <Compile Include="web-client\client\sftp.min.js" />
     <Compile Include="web-client\server.js" />
   </ItemGroup>
   <ItemGroup>

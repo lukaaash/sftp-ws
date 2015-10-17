@@ -1,9 +1,9 @@
 {
   "name": "sftp-ws-samples",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Sample code for sftp-ws package",
   "dependencies": {
-    "sftp-ws": "~0.5.0",
+    "sftp-ws": "~0.6.2",
     "minish": "^0.5.2",
     "express": "4.10.x"
   },
