@@ -226,6 +226,11 @@ class WebSocketChannel implements IChannel {
                     code = "EPROTOTYPE";
                     break;
                 case 1006:
+                    //WEB: if (this.failed) {
+                    //WEB:     message = "Connection refused";
+                    //WEB:     code = "ECONNREFUSED";
+                    //WEB:     break;
+                    //WEB: }
                     message = "Connection aborted";
                     code = "ECONNABORTED";
                     break;
@@ -294,7 +299,7 @@ class WebSocketChannel implements IChannel {
         var onclose = this.onclose;
         this.close();
 
-        if (!err && !this.established) { // if (!err && (!this.established || this.failed)) {
+        if (!err && !this.established) {
             err = new Error("Connection refused");
             err.code = err.errno = "ECONNREFUSED";
         }
