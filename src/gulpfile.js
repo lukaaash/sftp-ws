@@ -79,8 +79,7 @@ gulp.task('web.js', ['web.ts'], function () {
     return gulp.src(out.lib_web + '/sftp.ts')
         .pipe(sourcemaps.init())
         .pipe(ts(tsWeb)).js
-        .pipe(replace(/^.*\n.*\n.*\n.*\n.*\n.*\nvar SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
-        .pipe(replace(/\n};.*\n.*\n.*\n.*\n.*\n.*\nvar SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
+        .pipe(replace(/^(.*\n)*var SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
         .pipe(sourcemaps.write(".", mapOptions))
         .pipe(gulp.dest(out.lib_web));
 
