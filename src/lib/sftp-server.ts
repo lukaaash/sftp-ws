@@ -213,7 +213,7 @@ export class SftpServerSession {
         channel.on("close", err => {
             if (!err) {
                 log.info("[%d] - Session closed by the client", this._id);
-            } else if (err.code === "ECONNABORTED") {
+            } else if (err.code === "ECONNABORTED" || err.code === "X_GOINGAWAY") {
                 log.info("[%d] - Session aborted by the client", this._id);
                 err = null;
             } else {
