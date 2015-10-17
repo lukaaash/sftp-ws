@@ -249,6 +249,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
     close(): void {
         this.closed = true;
         this.queue = [];
+        this.readable = false;
         this._flush();
     }
 }

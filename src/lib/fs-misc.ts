@@ -290,6 +290,8 @@ export class FileUtil {
         var eof = false;
         var done = false;
         var error = <Error>null;
+        var sourceError = <Error>null;
+        var targetError = <Error>null;
         var total = 0;
         var item = <IItem>null;
 
@@ -304,13 +306,17 @@ export class FileUtil {
         source.on("end", () => {
             //console.log("ended");
             eof = true;
+
+            if (targetError) return exit();
+
             if (empty && target.acceptsEmptyBlocks) target.write(new Buffer(0));
             target.end();
         });
 
         source.on("error", err => {
             //console.log("read error", err);
-            error = error || err || new Error("Unspecified error");
+            sourceError = sourceError || err || new Error("Unspecified error");
+            if (!error) error = sourceError;
             eof = true;
             target.end();
         });
@@ -331,7 +337,8 @@ export class FileUtil {
 
         target.on("error", err => {
             //console.log("write error", err);
-            error = error || err || new Error("Unspecified error");
+            targetError = targetError || err || new Error("Unspecified error");
+            if (!error) error = targetError;
             exit();
         });
 
