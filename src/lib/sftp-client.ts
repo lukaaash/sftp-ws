@@ -730,5 +730,6 @@ export class SftpClient extends FilesystemPlus {
     end(): void {
         var sftp = <SftpClientCore>this._fs;
         sftp.end();
+        this.emit("close", null);
     }
 }
