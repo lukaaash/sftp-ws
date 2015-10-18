@@ -353,7 +353,7 @@ describe("Basic Tests", function () {
                         assert.equal(body2, "9876543210" + "abc" + "12233445566778899" + "ABCDE", "File content mismatch");
 
                         client.read(handle, buffer, 0, 10, 1000, (err, buf, bytesRead) => check(err, done, () => {
-                            assert.equal(buf, buffer, "Buffer mismatch");
+                            assert.equal(buf.length, 0, "Unexpected buffer length");
                             assert.equal(bytesRead, 0, "Unexpected bytesRead");
 
                             client.close(handle, done);

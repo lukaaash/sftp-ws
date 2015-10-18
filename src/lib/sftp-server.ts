@@ -581,7 +581,7 @@ export class SftpServerSession {
                     var offset = response.position + 4;
                     response.check(4 + count);
 
-                    fs.read(handleInfo.handle, response.buffer, offset, count, position, (err, bytesRead, b) => {
+                    fs.read(handleInfo.handle, response.buffer, offset, count, position, (err, b, bytesRead) => {
                         if (this.sendIfError(response, err))
                             return;
 
