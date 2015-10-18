@@ -121,7 +121,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         //console.log("read", position, bytesToRead);
         this.requests++;
         try {
-            this.fs.read(this.handle, new Buffer(bytesToRead), 0, bytesToRead, position, (err, bytesRead, buffer) => {
+            this.fs.read(this.handle, null, 0, bytesToRead, position, (err, buffer, bytesRead) => {
                 this.requests--;
                 //console.log("read result", err || position, bytesRead);
 

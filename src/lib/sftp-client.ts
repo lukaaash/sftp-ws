@@ -248,9 +248,9 @@ class SftpClientCore implements IFilesystem {
         this.execute(request, callback, this.parseStatus, { command: "close", handle: handle });
     }
 
-    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void {
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): void {
         var h = this.toHandle(handle);
-        this.checkBuffer(buffer, offset, length);
+        if (buffer) this.checkBuffer(buffer, offset, length);
         this.checkPosition(position);
 
         // make sure the length is within reasonable limits
@@ -594,14 +594,16 @@ class SftpClientCore implements IFilesystem {
         callback(null, path);
     }
 
-    private parseData(response: SftpResponse, callback: (err: Error, bytesRead: number, buffer: Buffer) => any, retries: number, h: Buffer, buffer: Buffer, offset: number, length: number, position: number): void {
+    private parseData(response: SftpResponse, callback: (err: Error, buffer: Buffer, bytesRead: number) => any, retries: number, h: Buffer, buffer: Buffer, offset: number, length: number, position: number): void {
         if (response.type == SftpPacketType.STATUS) {
             var error = this.readStatus(response);
             if (error != null) {
-                if (error['nativeCode'] == SftpStatusCode.EOF)
-                    callback(null, 0, buffer);
-                else
-                    callback(error, 0, null);
+                if (error['nativeCode'] == SftpStatusCode.EOF) {
+                    buffer = buffer ? buffer.slice(offset, 0) : new Buffer(0);
+                    callback(null, buffer, 0);
+                } else {
+                    callback(error, null, 0);
+                }
                 return;
             }
         }
@@ -620,7 +622,7 @@ class SftpClientCore implements IFilesystem {
                 error['code'] = "EIO";
                 error['errno'] = 55;
 
-                callback(error, 0, null);
+                callback(error, null, 0);
                 return;
             }
 
@@ -633,9 +635,13 @@ class SftpClientCore implements IFilesystem {
             return;
         }
 
-        data.copy(buffer, offset, 0, length); //WEB: buffer.set(data, offset);
+        if (!buffer) {
+            buffer = data;
+        } else {
+            data.copy(buffer, offset, 0, length); //WEB: buffer.set(data, offset);
+        }
 
-        callback(null, length, buffer);
+        callback(null, buffer, length);
     }
 
     private parseItems(response: SftpResponse, callback?: (err: Error, items: IItem[]|boolean) => any): void {

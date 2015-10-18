@@ -78,9 +78,15 @@ export class LocalFilesystem implements IFilesystem {
         }
     }
 
-    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void {
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): void {
         var initialOffset = offset;
         var totalBytes = 0;
+
+        if (!buffer) {
+            buffer = new Buffer(length);
+            offset = 0;
+        }
+
         var read = () => {
             fs.read(handle, buffer, offset, length, position, (err, bytesRead, b) => {
                 if (typeof err === 'undefined' || err == null) {
@@ -96,7 +102,7 @@ export class LocalFilesystem implements IFilesystem {
                 }
 
                 if (typeof callback === 'function')
-                    callback(err, totalBytes, buffer);
+                    callback(err, buffer.slice(offset, offset + totalBytes), totalBytes);
             });
         };
 

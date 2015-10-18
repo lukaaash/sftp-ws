@@ -94,7 +94,7 @@ This SFTP package is built around the `IFilesystem` interface:
 interface IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
     close(handle: any, callback?: (err: Error) => any): void;
-    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, bytesRead: number, buffer: Buffer) => any): void;
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): void;
     write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void;
     lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
     fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void;
