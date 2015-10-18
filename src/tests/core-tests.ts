@@ -535,8 +535,8 @@ describe("Basic Tests", function () {
                 //console.log(stats);
 
                 assert.equal(stats.size, 12);
-                assert.equal(stats.mtime.getTime() / 1000, mtime.getTime() / 1000);
-                assert.equal(stats.atime.getTime() / 1000, atime.getTime() / 1000);
+                assert.equal((stats.mtime.getTime() / 1000) | 0, (mtime.getTime() / 1000) | 0);
+                assert.equal((stats.atime.getTime() / 1000) | 0, (atime.getTime() / 1000) | 0);
 
                 client.close(handle, done);
             }));
