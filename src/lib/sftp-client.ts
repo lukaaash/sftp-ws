@@ -718,7 +718,6 @@ export class SftpClient extends FilesystemPlus {
                 sftp._process(packet);
             } catch (err) {
                 this.emit("error", err);
-                sftp.end();
             }
         });
 
