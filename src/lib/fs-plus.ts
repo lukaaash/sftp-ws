@@ -19,12 +19,23 @@ import StringDataTarget = targets.StringDataTarget;
 import BufferDataTarget = targets.BufferDataTarget;
 import FileDataSource = sources.FileDataSource;
 import toDataSource = sources.toDataSource;
-import Task = util.Task;
-import wrapCallback = util.wrapCallback;
 import EventEmitter = events.EventEmitter;
 import search = glob.search;
 import ISearchOptionsExt = glob.ISearchOptionsExt;
 import ISearchOptions = glob.ISearchOptions;
+
+declare var Promise;
+
+export interface Promise<T> {
+    then<U>(onFulfilled?: (value: T) => U | Task<U>, onRejected?: (reason: any) => U | Task<U>): Task<U>;
+    catch<U>(onRejected: (reason: any) => U | Task<U>): Task<U>;
+    done?(): void;
+}
+
+export interface Task<T> extends Promise<T> {
+    on(event: string, listener: Function): Task<T>;
+    once(event: string, listener: Function): Task<T>;
+}
 
 export interface IFilesystemExt extends FilesystemPlus {
 }
@@ -40,137 +51,138 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         this._local = local;
     }
 
-    open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
+    open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): Task<any> {
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
             attrs = null;
         }
-        callback = wrapCallback(this, null, callback);
 
-        this._fs.open(path, flags, attrs, callback);
+        return this._task(callback, callback => {
+            this._fs.open(path, flags, attrs, callback);
+        });
     }
 
-    close(handle: any, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.close(handle, callback);
+    close(handle: any, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.close(handle, callback);
+        });
     }
 
-    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.read(handle, buffer, offset, length, position, callback);
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): Task<Buffer> {
+        return this._task(callback, callback => {
+            this._fs.read(handle, buffer, offset, length, position, callback);
+        });
     }
 
-    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.write(handle, buffer, offset, length, position, callback);
+    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.write(handle, buffer, offset, length, position, callback);
+        });
     }
 
-    lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.lstat(path, callback);
+    lstat(path: string, callback?: (err: Error, attrs: IStats) => any): Task<IStats> {
+        return this._task(callback, callback => {
+            this._fs.lstat(path, callback);
+        });
     }
 
-    fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.fstat(handle, callback);
+    fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): Task<IStats> {
+        return this._task(callback, callback => {
+            this._fs.fstat(handle, callback);
+        });
     }
 
-    setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.setstat(path, attrs, callback);
+    setstat(path: string, attrs: IStats, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.setstat(path, attrs, callback);
+        });
     }
 
-    fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.fsetstat(handle, attrs, callback);
+    fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.fsetstat(handle, attrs, callback);
+        });
     }
 
-    opendir(path: string, callback?: (err: Error, handle: any) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.opendir(path, callback);
+    opendir(path: string, callback?: (err: Error, handle: any) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.opendir(path, callback);
+        });
     }
 
-    readdir(path: string, callback?: (err: Error, items: IItem[]) => any): void
-    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void
-    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
-        if (typeof handle === 'string') {
-            var path = Path.check(<string>handle, 'path');
+    readdir(path: string, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]>
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): Task<IItem[]|boolean>
+    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): Task<IItem[]|boolean> {
+        return this._task(callback, callback => {
+            if (typeof handle === 'string') {
+                var path = Path.check(<string>handle, 'path');
 
-            var options = <ISearchOptionsExt>{
-                noglobstar: true,
-                nowildcard: true,
-                listonly: true,
-                dotdirs: true,
-            };
+                var options = <ISearchOptionsExt>{
+                    noglobstar: true,
+                    nowildcard: true,
+                    listonly: true,
+                    dotdirs: true,
+                };
 
-            search(this._fs, path, null, options, callback);
+                search(this._fs, path, null, options, callback);
+                return;
+            }
 
-            return;
-        }
-
-        callback = wrapCallback(this, null, callback);
-
-        return this._fs.readdir(handle, callback);
+            this._fs.readdir(handle, callback);
+        });
     }
 
-    unlink(path: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.unlink(path, callback);
+    unlink(path: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.unlink(path, callback);
+        });
     }
 
-    mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void {
+    mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): Task<void> {
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
             attrs = null;
         }
-        callback = wrapCallback(this, null, callback);
 
-        this._fs.mkdir(path, attrs, callback);
+        return this._task(callback, callback => {        
+            this._fs.mkdir(path, attrs, callback);
+        });
     }
 
-    rmdir(path: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.rmdir(path, callback);
+    rmdir(path: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.rmdir(path, callback);
+        });
     }
 
-    realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.realpath(path, callback);
+    realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): Task<string> {
+        return this._task(callback, callback => {
+            this._fs.realpath(path, callback);
+        });
     }
 
-    stat(path: string, callback?: (err: Error, attrs: IStats) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.stat(path, callback);
+    stat(path: string, callback?: (err: Error, attrs: IStats) => any): Task<IStats> {
+        return this._task(callback, callback => {
+            this._fs.stat(path, callback);
+        });
     }
 
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.rename(oldPath, newPath, callback);
+    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.rename(oldPath, newPath, callback);
+        });
     }
 
-    readlink(path: string, callback?: (err: Error, linkString: string) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.readlink(path, callback);
+    readlink(path: string, callback?: (err: Error, linkString: string) => any): Task<string> {
+        return this._task(callback, callback => {
+            this._fs.readlink(path, callback);
+        });
     }
 
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.symlink(targetpath, linkpath, callback);
+    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.symlink(targetpath, linkpath, callback);
+        });
     }
 
     join(...paths: string[]): string {
@@ -178,137 +190,126 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         return path.join.apply(path, arguments).normalize().path;
     }
 
-    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        callback = wrapCallback(this, null, callback);
-
-        this._fs.link(oldPath, newPath, callback);
+    link(oldPath: string, newPath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.link(oldPath, newPath, callback);
+        });
     }
 
     list(remotePath: string, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
-        var remotePath = Path.check(remotePath, 'remotePath');
+        return this._task(callback, (callback, emitter) => {
+            var remotePath = Path.check(remotePath, 'remotePath');
 
-        var options = <ISearchOptionsExt>{
-            directories: true,
-            files: true,
-            nosort: false,
-            dotdirs: false,
-            noglobstar: true,
-            listonly: true,
-        };
+            var options = <ISearchOptionsExt>{
+                directories: true,
+                files: true,
+                nosort: false,
+                dotdirs: false,
+                noglobstar: true,
+                listonly: true,
+            };
 
-        var task = new Task();
-        callback = wrapCallback(this, task, callback);
-
-        search(this._fs, remotePath, task, options, callback);
-
-        return task;
+            search(this._fs, remotePath, emitter, options, callback);
+        });
     }
 
     search(remotePath: string, options?: ISearchOptions, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
-        var remotePath = Path.check(remotePath, 'remotePath');
+        return this._task(callback, (callback, emitter) => {
+            var remotePath = Path.check(remotePath, 'remotePath');
 
-        if (typeof options === 'function' && typeof callback === 'undefined') {
-            callback = <any>options;
-            options = null;
-        }
+            if (typeof options === 'function' && typeof callback === 'undefined') {
+                callback = <any>options;
+                options = null;
+            }
 
-        var task = new Task();
-        callback = wrapCallback(this, task, callback);
-
-        search(this._fs, remotePath, task, options, callback);
-
-        return task;
+            search(this._fs, remotePath, emitter, options, callback);
+        });
     }
 
     info(remotePath: string, callback?: (err: Error, item: IItem) => any): Task<IItem> {
-        var remotePath = Path.check(remotePath, 'remotePath');
+        return this._task(callback, (callback, emitter) => {
+            var remotePath = Path.check(remotePath, 'remotePath');
 
-        var options = <ISearchOptionsExt>{
-            itemonly: true,
-        };
+            var options = <ISearchOptionsExt>{
+                itemonly: true,
+            };
 
-        var task = new Task();
-        callback = wrapCallback(this, task, callback);
-
-        search(this._fs, remotePath, task, options, (err, items) => {
-            if (err) return callback(err, null);
-            if (!items || items.length != 1) return callback(new Error("Unexpected result"), null);
-            callback(null, items[0]);
+            search(this._fs, remotePath, emitter, options, (err, items) => {
+                if (err) return callback(err, null);
+                if (!items || items.length != 1) return callback(new Error("Unexpected result"), null);
+                callback(null, items[0]);
+            });
         });
-
-        return task;
     }
 
-    readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: any) => any): Task<{}> {
-        var remote = Path.create(remotePath, this._fs, 'remotePath');
+    readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: {}) => any): Task<{}> {
+        return this._task(callback, (callback, emitter) => {
+            var remote = Path.create(remotePath, this._fs, 'remotePath');
 
-        if (typeof options === 'function' && typeof callback === 'undefined') {
-            callback = <any>options;
-            options = null;
-        }
+            if (typeof options === 'function' && typeof callback === 'undefined') {
+                callback = <any>options;
+                options = null;
+            }
 
-        var task = new Task();
-        callback = wrapCallback(this, task, callback);
+            // process options
+            options = options || {};
+            var type = options.type;
+            var encoding = options.encoding
+            if (type) {
+                type = (type + "").toLowerCase();
+                if (type == "string" || type == "text") encoding = encoding || "utf8";
+            } else {
+                type = encoding ? "string" : "buffer";
+            }
 
-        // process options
-        options = options || {};
-        var type = options.type;
-        var encoding = options.encoding
-        if (type) {
-            type = (type + "").toLowerCase();
-            if (type == "string" || type == "text") encoding = encoding || "utf8";
-        } else {
-            type = encoding ? "string" : "buffer";
-        }
-
-        // create appropriate target
-        var target: IDataTarget;
-        switch (type) {
-            case "text":
-            case "string":
-                target = new StringDataTarget(encoding);
-                break;
-            case "array":
-            case "buffer":
-                target = new BufferDataTarget();
-                break;
-            case "blob":
+            // create appropriate target
+            var target: IDataTarget;
+            switch (type) {
+                case "text":
+                case "string":
+                    target = new StringDataTarget(encoding);
+                    break;
+                case "array":
+                case "buffer":
+                    target = new BufferDataTarget();
+                    break;
+                case "blob":
                 // WEB: target = new BlobDataTarget(options.mimeType);
                 // WEB: break;
-            default:
-                throw new Error("Unsupported data kind: " + options.type);
-        }
+                default:
+                    throw new Error("Unsupported data kind: " + options.type);
+            }
 
-        // create source
-        var source = new FileDataSource(remote.fs, remote.path);
+            // create source
+            var source = new FileDataSource(remote.fs, remote.path);
 
-        // copy file data
-        FileUtil.copy(source, target, task, err => {
-            if (err) return callback(err, null);
-            callback(null, (<any>target).result());
+            // copy file data
+            FileUtil.copy(source, target, emitter, err => {
+                if (err) return callback(err, null);
+                callback(null, (<any>target).result());
+            });
         });
-
-        return task;
     }
 
-    putFile(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<{}> {
-        var local = Path.create(localPath, this._local, 'localPath');
-        var remote = Path.create(remotePath, this._fs, 'remotePath');
+    putFile(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, (callback, emitter) => {
+            var local = Path.create(localPath, this._local, 'localPath');
+            var remote = Path.create(remotePath, this._fs, 'remotePath');
 
-        return this._copyFile(local, remote, callback);
+            this._copyFile(local, remote, emitter, callback);
+        });
     }
 
-    getFile(remotePath: string, localPath: string, callback?: (err: Error) => any): Task<{}> {
-        var remote = Path.create(remotePath, this._fs, 'remotePath');
-        var local = Path.create(localPath, this._local, 'localPath');
+    getFile(remotePath: string, localPath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, (callback, emitter) => {
+            var remote = Path.create(remotePath, this._fs, 'remotePath');
+            var local = Path.create(localPath, this._local, 'localPath');
 
-        return this._copyFile(remote, local, callback);
+            this._copyFile(remote, local, emitter, callback);
+        });
     }
 
-    private _copyFile(sourcePath: Path, targetPath: Path, callback?: (err: Error) => any): Task<{}> {
-        var task = new Task();
-        callback = wrapCallback(this, task, callback);
-
+    private _copyFile(sourcePath: Path, targetPath: Path, emitter: NodeJS.EventEmitter, callback: (err: Error, ...args: any[]) => any): void {
         // append filename if target path ens with slash
         if (targetPath.endsWithSlash()) {
             var filename = sourcePath.getName();
@@ -320,29 +321,28 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         var target = new FileDataTarget(targetPath.fs, targetPath.path);
 
         // copy file data
-        FileUtil.copy(source, target, task, err => callback(err));
-
-        return task;
+        FileUtil.copy(source, target, emitter, err => callback(err));
     }
 
-    upload(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<{}>
-    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}>
-    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<{}> {
-        var remote = Path.create(remotePath, this._fs, 'remotePath');
+    upload(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<void>
+    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<void>
+    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, (callback, emitter) => {
+            var remote = Path.create(remotePath, this._fs, 'remotePath');
 
-        return this._copy(input, this._local, remote, callback);
+            this._copy(input, this._local, remote, emitter, callback);
+        });
     }
 
-    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task<{}> {
-        var local = Path.create(localPath, this._local, 'localPath');
+    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task<void> {
+        return this._task(callback, (callback, emitter) => {
+            var local = Path.create(localPath, this._local, 'localPath');
 
-        return this._copy(remotePath, this._fs, local, callback);
+            this._copy(remotePath, this._fs, local, emitter, callback);
+        });
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: Path, callback?: (err: Error) => any): Task<{}> {
-        var task = new Task();
-        callback = wrapCallback(this, task, callback);
-
+    private _copy(from: any, fromFs: IFilesystem, toPath: Path, emitter: NodeJS.EventEmitter, callback: (err: Error, ...args: any[]) => any): void {
         var sources = <IDataSource[]>null;
 
         var toFs = toPath.fs;
@@ -352,8 +352,6 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
         var directories = {};
 
-        return task;
-
         function prepare(err: Error, stats: IStats): void {
             if (err) return callback(err);
 
@@ -361,7 +359,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 return callback(new Error("Target path is not a directory"));
 
             try {
-                toDataSource(fromFs, from, task, (err, src) => {
+                toDataSource(fromFs, from, emitter, (err, src) => {
                     if (err) return callback(err);
 
                     try {
@@ -402,7 +400,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                     FileUtil.mkdir(toFs, targetPath, transferred);
                 } else {
                     var target = new FileDataTarget(toFs, targetPath);
-                    FileUtil.copy(source, target, task, transferred);
+                    FileUtil.copy(source, target, emitter, transferred);
                 }
             }
 
@@ -436,6 +434,91 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                     callback(err);
                 }
             });
+        }
+    }
+
+    protected _task<T>(callback: (err: Error, ...args: any[]) => void, action: (callback: (err: Error, ...args: any[]) => void, emitter?: NodeJS.EventEmitter) => void): any {
+        var emitter;
+        if (action.length >= 2) emitter = new EventEmitter();
+
+        if (typeof callback === 'function') {
+            action(callback, emitter);
+            return emitter;
+        }
+
+        var task = <any>new Promise(executor);
+        task.on = on;
+        task.once = once;
+        return task;
+
+        function on(event: string, listener: Function): Task<T> {
+            if (emitter) emitter.on(event, listener);
+            return task;
+        }
+
+        function once(event: string, listener: Function): Task<T> {
+            if (emitter) emitter.on(event, listener);
+            return task;
+        }
+
+        function executor(resolve: (result: T|Promise<T>) => void, reject: (error: Error) => void): void {
+            try {
+                action(finish, emitter);
+            } catch (err) {
+                process.nextTick(() => finish(err));
+            }
+
+            function finish(err: Error, ...args: any[]): void
+            function finish(): void {
+                var error = arguments[0];
+                try {
+                    if (error) {
+                        if (emitter) {
+                            var err = error;
+                            if (EventEmitter.listenerCount(task, "error")) {
+                                emitter.emit("error", err);
+                                err = null;
+                            }
+
+                            emitter.emit("finish", err);
+                        }
+
+                        reject(error);
+                    } else {
+                        if (emitter) {
+                            switch (arguments.length) {
+                                case 0:
+                                case 1:
+                                    emitter.emit("success");
+                                    emitter.emit("finish", null);
+                                    break;
+                                case 2:
+                                    emitter.emit("success", arguments[1]);
+                                    emitter.emit("finish", null, arguments[1]);
+                                    break;
+                                case 3:
+                                    emitter.emit("success", arguments[1], arguments[2]);
+                                    emitter.emit("finish", null, arguments[1], arguments[2]);
+                                    break;
+                                default:
+                                    arguments[0] = "success";
+                                    emitter.emit.apply(task, arguments);
+
+                                    if (EventEmitter.listenerCount(task, "finish") > 0) {
+                                        arguments[0] = "finish";
+                                        Array.prototype.splice.call(arguments, 1, 0, null);
+                                        emitter.emit.apply(task, arguments);
+                                    }
+                                    break;
+                            }
+                        }
+
+                        resolve(<T><any>arguments[1]);
+                    }
+                } catch (err) {
+                    this.emit("error", err);
+                }
+            }
         }
     }
 
