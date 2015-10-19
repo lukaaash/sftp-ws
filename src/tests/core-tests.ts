@@ -388,39 +388,43 @@ describe("Basic Tests", function () {
         }));
     });
 
-    it("read(no-handle)", () => {
+    it("read(no-handle)", done => {
         try {
-            client.read(123, new Buffer(10), 0, 10, 0);
+            client.read(123, new Buffer(10), 0, 10, 0, done);
             assert.fail("Call should have failed");
         } catch (error) {
             assert.equal(error.message, "Invalid handle");
+            done();
         }
     });
 
-    it("write(no-handle)", () => {
+    it("write(no-handle)", done => {
         try {
-            client.write(123, new Buffer(10), 0, 10, 0);
+            client.write(123, new Buffer(10), 0, 10, 0, done);
             assert.fail("Call should have failed");
         } catch (error) {
             assert.equal(error.message, "Invalid handle");
+            done();
         }
     });
 
-    it("close(no-handle)", () => {
+    it("close(no-handle)", done => {
         try {
-            client.close(123);
+            client.close(123, done);
             assert.fail("Call should have failed");
         } catch (error) {
             assert.equal(error.message, "Invalid handle");
+            done();
         }
     });
 
-    it("fstat(no-handle)", () => {
+    it("fstat(no-handle)", done => {
         try {
-            client.fstat(123);
+            client.fstat(123, done);
             assert.fail("Call should have failed");
         } catch (error) {
             assert.equal(error.message, "Invalid handle");
+            done();
         }
     });
 
