@@ -6,6 +6,7 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
 import Path = misc.Path;
+import IEventEmitter = misc.IEventEmitter;
 
 interface IItemExt extends IItem {
     relativePath: string;
@@ -15,10 +16,6 @@ interface IDirInfo {
     path: Path;
     pattern: number;
     depth: number;
-}
-
-export interface IEventEmitter {
-    emit(event: string, ...args: any[]): boolean;
 }
 
 export interface ISearchOptions {

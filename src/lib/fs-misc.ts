@@ -6,6 +6,10 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import FileType = api.FileType;
 
+export interface IEventEmitter {
+    emit(event: string, ...args: any[]): boolean;
+}
+
 export interface IDataTarget {
     name?: string;
 
@@ -284,7 +288,7 @@ export class FileUtil {
         });
     }
 
-    static copy(source: IDataSource, target: IDataTarget, emitter: NodeJS.EventEmitter, callback?: (err: Error) => any): void {
+    static copy(source: IDataSource, target: IDataTarget, emitter: IEventEmitter, callback?: (err: Error) => any): void {
         var empty = true;
         var writable = true;
         var eof = false;

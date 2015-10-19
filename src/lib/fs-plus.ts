@@ -13,6 +13,7 @@ import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import FileUtil = misc.FileUtil;
 import Path = misc.Path;
+import IEventEmitter = misc.IEventEmitter;
 import FileDataTarget = targets.FileDataTarget;
 import BlobDataTarget = targets.BlobDataTarget;
 import StringDataTarget = targets.StringDataTarget;
@@ -309,7 +310,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         });
     }
 
-    private _copyFile(sourcePath: Path, targetPath: Path, emitter: NodeJS.EventEmitter, callback: (err: Error, ...args: any[]) => any): void {
+    private _copyFile(sourcePath: Path, targetPath: Path, emitter: IEventEmitter, callback: (err: Error, ...args: any[]) => any): void {
         // append filename if target path ens with slash
         if (targetPath.endsWithSlash()) {
             var filename = sourcePath.getName();
@@ -342,7 +343,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         });
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: Path, emitter: NodeJS.EventEmitter, callback: (err: Error, ...args: any[]) => any): void {
+    private _copy(from: any, fromFs: IFilesystem, toPath: Path, emitter: IEventEmitter, callback: (err: Error, ...args: any[]) => any): void {
         var sources = <IDataSource[]>null;
 
         var toFs = toPath.fs;
@@ -437,7 +438,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         }
     }
 
-    protected _task<T>(callback: (err: Error, ...args: any[]) => void, action: (callback: (err: Error, ...args: any[]) => void, emitter?: NodeJS.EventEmitter) => void): any {
+    protected _task<T>(callback: (err: Error, ...args: any[]) => void, action: (callback: (err: Error, ...args: any[]) => void, emitter?: IEventEmitter) => void): any {
         var emitter;
         if (action.length >= 2) emitter = new EventEmitter();
 

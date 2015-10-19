@@ -9,6 +9,7 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = misc.FileUtil;
 import Path = misc.Path;
+import IEventEmitter = misc.IEventEmitter;
 import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import search = glob.search;
@@ -349,7 +350,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
     }
 }
 
-export function toDataSource(fs: IFilesystem, input: any, emitter: NodeJS.EventEmitter, callback: (err: Error, sources?: IDataSource[]) => void): void {
+export function toDataSource(fs: IFilesystem, input: any, emitter: IEventEmitter, callback: (err: Error, sources?: IDataSource[]) => void): void {
     try {
         toAnyDataSource(input, callback);
     } catch (err) {
