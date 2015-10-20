@@ -21,6 +21,7 @@ import StreamChannel = channel_stream.StreamChannel;
 import CloseReason = channel.CloseReason;
 import SftpServerSession = server.SftpServerSession
 import FileUtil = misc.FileUtil;
+import Task = plus.Task;
 import Options = util.Options;
 
 module SFTP {
@@ -81,23 +82,22 @@ module SFTP {
             super(localFs);
         }
 
-        connect(address: string, options?: IClientOptions, callback?: (err: Error) => void): void {
-            options = options || {};
+        connect(address: string, options?: IClientOptions, callback?: (err: Error) => void): Task<void> {
+            return super._task(callback, callback => {
+                options = options || {};
 
-            if (typeof options.protocol == 'undefined') {
-                options.protocol = 'sftp';
-            }
-
-            this._promise = options.promise;
-
-            var factory = new WebSocketChannelFactory();
-            factory.connect(address, options, (err, channel) => {
-                if (err) {
-                    if (typeof callback === "function") return callback(err);
-                    super.emit("error", err);
-                    return;
+                if (typeof options.protocol == 'undefined') {
+                    options.protocol = 'sftp';
                 }
-                super.bind(channel, callback);
+
+                this._promise = options.promise;
+
+                var factory = new WebSocketChannelFactory();
+                factory.connect(address, options, (err, channel) => {
+                    if (err) return callback(err);
+
+                    super._bind(channel, callback);
+                });
             });
         }
     }

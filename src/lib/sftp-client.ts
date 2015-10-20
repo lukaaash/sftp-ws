@@ -11,6 +11,7 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import IFilesystem = api.IFilesystem;
 import FilesystemPlus = plus.FilesystemPlus;
+import Task = plus.Task;
 import IChannel = channel.IChannel;
 import ILogWriter = util.ILogWriter;
 import SftpPacket = packet.SftpPacket;
@@ -692,7 +693,11 @@ export class SftpClient extends FilesystemPlus {
         super(sftp, local);
     }
 
-    bind(channel: IChannel, callback?: (err: Error) => void): void {
+    bind(channel: IChannel, callback?: (err: Error) => void): Task<void> {
+        return super._task(callback, callback => this._bind(channel, callback));
+    }
+
+    protected _bind(channel: IChannel, callback?: (err: Error) => void): void {
         var sftp = <SftpClientCore>this._fs;
 
         if (this._bound) throw new Error("Already bound");
