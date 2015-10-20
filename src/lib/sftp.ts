@@ -19,11 +19,14 @@ import WebSocketServer = WebSocket.Server;
 import WebSocketChannelFactory = channel_ws.WebSocketChannelFactory;
 import StreamChannel = channel_stream.StreamChannel;
 import CloseReason = channel.CloseReason;
-import SftpServerSession = server.SftpServerSession
+import SftpServerSession = server.SftpServerSession;
 import FileUtil = misc.FileUtil;
 import Task = plus.Task;
 import Options = util.Options;
+import SftpClient = client.SftpClient;
+import ISftpClientEvents = client.ISftpClientEvents;
 
+// #if NODE
 module SFTP {
 
     export interface IStats extends api.IStats {
@@ -43,9 +46,13 @@ module SFTP {
         prompt: string;
         secret: boolean;
     }
+// #endif
 
     export interface IClientOptions {
+        log?: ILogWriter|any;
         protocol?: string;
+        promise?: Function;
+// #if NODE
         agent?: http.Agent;
         headers?: { [key: string]: string };
         protocolVersion?: any;
@@ -59,15 +66,13 @@ module SFTP {
         ciphers?: string;
         rejectUnauthorized?: boolean;
 
-        promise?: Function;
-        log?: ILogWriter|any;
-
         authenticate?:
         ((instructions: string, queries: IClientAuthenticationQuery[]) => { [name: string]: string }) |
         ((instructions: string, queries: IClientAuthenticationQuery[], callback: (values: { [name: string]: string }) => void) => void);
+// #endif
     }
 
-    export class Client extends client.SftpClient implements client.ISftpClientEvents<Client> {
+    export class Client extends SftpClient implements ISftpClientEvents<Client> {
 
         on(event: string, listener: Function): Client {
             return <any>super.on(event, listener);
@@ -78,8 +83,8 @@ module SFTP {
         }
 
         constructor() {
-            var localFs = new local.LocalFilesystem();
-            super(localFs);
+            var localFs = new local.LocalFilesystem(); // WEB: // removed
+            super(localFs); // WEB: super(null);
         }
 
         connect(address: string, options?: IClientOptions, callback?: (err: Error) => void): Task<void> {
@@ -102,6 +107,7 @@ module SFTP {
         }
     }
 
+// #if NODE
     export class Local extends plus.FilesystemPlus {
         constructor() {
             var fs = new local.LocalFilesystem();
@@ -359,7 +365,7 @@ module SFTP {
         }
 
     }
-
 }
+// #endif
 
 export = SFTP;

@@ -58,7 +58,6 @@
     <TypeScriptCompile Include="lib\sftp-client.ts" />
     <TypeScriptCompile Include="lib\sftp-enums.ts" />
     <TypeScriptCompile Include="lib\fs-api.ts" />
-    <None Include="lib\sftp-web.ts" />
     <TypeScriptCompile Include="lib\sftp.ts" />
     <TypeScriptCompile Include="main.ts" />
     <Content Include="package.json" />
