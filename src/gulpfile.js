@@ -53,11 +53,8 @@ gulp.task('web.ts', function () {
         .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\n/g, ''))
         .pipe(replace(/import (.*) = (.*);.*\n/g, ''))
         .pipe(replace(/\/\/\/(.*).*\n/g, ''))
-        .pipe(replace(/export const/g, 'const'))
-        .pipe(replace(/export class/g, 'class'))
-        .pipe(replace(/export interface/g, 'interface'))
-        .pipe(replace(/export function/g, 'function'))
-        .pipe(replace(/export .*=.*\n/g, ''))
+        .pipe(replace(/export =\s*\S*\n/g, ''))
+        .pipe(replace(/export (\S+\s)/g, '$1'))
         .pipe(replace(/new Buffer\(/g, 'new Uint8Array('))
         .pipe(replace(/NodeJS\./g, ''))
         .pipe(replace(/\n?.*\/\/ #if NODE(?:(?!#endif\b)[\s\S])*\/\/ #endif.*\n/g, ''))
@@ -80,7 +77,7 @@ gulp.task('web.js', ['web.ts'], function () {
     return gulp.src(out.lib_web + '/sftp.ts')
         .pipe(sourcemaps.init())
         .pipe(ts(tsWeb)).js
-        .pipe(replace(/^(.*\n)*var SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n\r\nvar SFTP;\r\n'))
+        .pipe(replace(/^var (.*\n){5}var SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n' + 'var SFTP;\r\n'))
         .pipe(sourcemaps.write(".", mapOptions))
         .pipe(gulp.dest(out.lib_web));
 
