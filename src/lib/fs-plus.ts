@@ -201,7 +201,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
     list(remotePath: string, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
         return this._task(callback, (callback, emitter) => {
-            var remotePath = Path.check(remotePath, 'remotePath');
+            remotePath = Path.check(remotePath, 'remotePath');
 
             var options = <ISearchOptionsExt>{
                 directories: true,
@@ -218,7 +218,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
     search(remotePath: string, options?: ISearchOptions, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
         return this._task(callback, (callback, emitter) => {
-            var remotePath = Path.check(remotePath, 'remotePath');
+            remotePath = Path.check(remotePath, 'remotePath');
 
             if (typeof options === 'function' && typeof callback === 'undefined') {
                 callback = <any>options;
@@ -231,7 +231,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
     info(remotePath: string, callback?: (err: Error, item: IItem) => any): Task<IItem> {
         return this._task(callback, (callback, emitter) => {
-            var remotePath = Path.check(remotePath, 'remotePath');
+            remotePath = Path.check(remotePath, 'remotePath');
 
             var options = <ISearchOptionsExt>{
                 itemonly: true,
