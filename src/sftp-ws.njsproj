@@ -53,6 +53,7 @@
     <None Include="lib\util-web.ts" />
     <TypeScriptCompile Include="lib\fs-targets.ts" />
     <TypeScriptCompile Include="lib\fs-sources.ts" />
+    <TypeScriptCompile Include="lib\promise.ts" />
     <TypeScriptCompile Include="lib\util.ts" />
     <TypeScriptCompile Include="lib\sftp-client.ts" />
     <TypeScriptCompile Include="lib\sftp-enums.ts" />

@@ -4,6 +4,7 @@ import sources = require("./fs-sources");
 import targets = require("./fs-targets");
 import util = require("./util");
 import glob = require("./fs-glob");
+import APromise = require("./promise");
 import events = require("events");
 
 import IFilesystem = api.IFilesystem;
@@ -25,7 +26,7 @@ import search = glob.search;
 import ISearchOptionsExt = glob.ISearchOptionsExt;
 import ISearchOptions = glob.ISearchOptions;
 
-declare var Promise;
+var Promise = Promise || APromise;
 
 export interface Promise<T> {
     then<U>(onFulfilled?: (value: T) => U | Task<U>, onRejected?: (reason: any) => U | Task<U>): Task<U>;
@@ -45,6 +46,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
 
     protected _fs: IFilesystem;
     protected _local: IFilesystem;
+    protected _promise: Function;
 
     constructor(fs: IFilesystem, local: IFilesystem) {
         super();
@@ -447,7 +449,9 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             return emitter;
         }
 
-        var task = <any>new Promise(executor);
+        var promise = this._promise || Promise;
+        var task = <any>new promise(executor);
+
         task.on = on;
         task.once = once;
         return task;

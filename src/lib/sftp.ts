@@ -58,6 +58,7 @@ module SFTP {
         ciphers?: string;
         rejectUnauthorized?: boolean;
 
+        promise?: Function;
         log?: ILogWriter|any;
 
         authenticate?:
@@ -86,6 +87,8 @@ module SFTP {
             if (typeof options.protocol == 'undefined') {
                 options.protocol = 'sftp';
             }
+
+            this._promise = options.promise;
 
             var factory = new WebSocketChannelFactory();
             factory.connect(address, options, (err, channel) => {
