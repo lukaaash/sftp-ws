@@ -57,14 +57,15 @@ gulp.task('web.ts', function () {
         .pipe(replace(/export class/g, 'class'))
         .pipe(replace(/export interface/g, 'interface'))
         .pipe(replace(/export function/g, 'function'))
+        .pipe(replace(/export .*=.*\n/g, ''))
         .pipe(replace(/new Buffer\(/g, 'new Uint8Array('))
         .pipe(replace(/NodeJS\./g, ''))
-        .pipe(replace(/\n.*\/\/ #if NODE(?:(?!#endif\b)[\s\S])*\/\/ #endif.*\n/g, ''))
+        .pipe(replace(/\n?.*\/\/ #if NODE(?:(?!#endif\b)[\s\S])*\/\/ #endif.*\n/g, ''))
         .pipe(replace(/^(\s*)(.*)WEB\: /gm, '$1'))
         .pipe(concat('sftp.ts'))
         .pipe(replace(/class Client /g, 'export class Client '))
         .pipe(replace(/^/g, 'module SFTP {'))
-        .pipe(replace(/$/g, '\n}'))
+        .pipe(replace(/$/g, '\n}\n'))
         .pipe(replace(/\n/g, '\r\n'))
         .pipe(gulp.dest(out.lib_web));
 });
