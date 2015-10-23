@@ -98,7 +98,18 @@ export class SftpExtensions {
     public static HARDLINK = "hardlink@openssh.com"; // "1"
     public static FSYNC = "fsync@openssh.com"; // "1"
     public static NEWLINE = "newline@sftp.ws"; // "\n"
+    public static NEWLINE2 = "newline"; // "\n"
+    public static NEWLINE3 = "newline@vandyke.com"; // "\n"
     public static CHARSET = "charset@sftp.ws"; // "utf-8"
+    public static VERSIONS = "versions"; // "utf-8"
+    public static VENDOR = "vendor-id";
+// #if FULL
+    public static SUPPORTED = "supported";
+    public static SUPPORTED2 = "supported2";
+    public static DEFAULT_FS_ATTRIBS = "default-fs-attribs@vandyke.com";
+    public static SYMLINK_ORDER = "symlink-order@rjk.greenend.org.uk";
+    public static LINK_ORDER = "link-order@rjk.greenend.org.uk";
+// #endif
 
     private static _constructor = (() => {
         for (var name in SftpExtensions) {
@@ -110,6 +121,82 @@ export class SftpExtensions {
 
     static isKnown(name: string): boolean {
         return SftpExtensions.hasOwnProperty("_" + name);
+    }
+
+    static read(reader: SftpPacketReader, name: string): any {
+        switch (name) {
+            case SftpExtensions.VENDOR:
+                reader = reader.readStructuredData();
+                var res = {};
+                res["vendorName"] = reader.readString();
+                res["productName"] = reader.readString();
+                res["productVersion"] = reader.readString();
+                res["productBuild"] = reader.readInt64();
+                return res;
+
+            case SftpExtensions.NEWLINE3:
+                reader = reader.readStructuredData();
+                return reader.readString();
+
+// #if FULL
+            case SftpExtensions.SUPPORTED:
+            case SftpExtensions.SUPPORTED2:
+                reader = reader.readStructuredData();
+                var res = {};
+                res["supportedAttributeMask"] = reader.readUint32();
+                res["supportedAttributeBits"] = reader.readUint32();
+                res["supportedOpenFlags"] = reader.readUint32();
+                res["supportedAccessMask"] = reader.readUint32();
+                res["maxReadSize"] = reader.readUint32();
+
+                var extensionCount = -1;
+                if (name === SftpExtensions.SUPPORTED2) {
+                    res["supportedOpenBlockVector"] = reader.readUint16();
+                    res["supportedBlockVector"] = reader.readUint16();
+
+                    var attribExtensionCount = reader.readUint32();
+                    var attribExtensionNames = res["attribExtensionsNames"] = [];
+                    while (--attribExtensionCount >= 0) {
+                        attribExtensionNames.push(reader.readString());
+                    }
+
+                    extensionCount = reader.readUint32();
+                }
+
+                var extensionNames = res["extensionsNames"] = [];
+                while (extensionCount !== 0 && reader.position < reader.length) {
+                    var name = reader.readString();
+                    extensionNames.push(name);
+                    extensionCount--;
+                }
+                return res;
+            case SftpExtensions.DEFAULT_FS_ATTRIBS:
+                reader = reader.readStructuredData();
+                var res = {};
+
+                var flags = reader.readUint32();
+                res["casePreserved"] = (flags & 1) != 0;
+                res["caseSensitive"] = (flags & 2) != 0;
+
+                res["illegalCharacters"] = reader.readString();
+
+                var count = reader.readUint32();
+                var values = res["reservedNames"] = [];
+                while (count > 0) {
+                    var name = reader.readString();
+                    values.push(name);
+                    count--;
+                }
+
+                return res;
+// #endif
+        }
+
+        if (SftpExtensions.isKnown(name)) {
+            return reader.readString();
+        } else {
+            return reader.readData(true);
+        }
     }
 }
 

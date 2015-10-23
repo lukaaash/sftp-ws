@@ -66,32 +66,53 @@ export class SftpPacket {
 
 export class SftpPacketReader extends SftpPacket {
 
-    constructor(buffer: Buffer) {
+    constructor(buffer: Buffer, raw?: boolean) {
         super();
 
         this.buffer = buffer;
         this.position = 0;
         this.length = buffer.length;
 
-        var length = this.readInt32() + 4;
-        if (length != this.length)
-            throw new Error("Invalid packet received");
+        if (!raw) {
+            var length = this.readInt32() + 4;
+            if (length != this.length)
+                throw new Error("Invalid packet received");
 
-        this.type = this.readByte();
-        if (this.type == SftpPacketType.INIT || this.type == SftpPacketType.VERSION) {
-            this.id = null;
-        } else {
-            this.id = this.readInt32();
+            this.type = this.readByte();
+            if (this.type == SftpPacketType.INIT || this.type == SftpPacketType.VERSION) {
+                this.id = null;
+            } else {
+                this.id = this.readInt32();
 
-            if (this.type == SftpPacketType.EXTENDED) {
-                this.type = this.readString();
+                if (this.type == SftpPacketType.EXTENDED) {
+                    this.type = this.readString();
+                }
             }
+        } else {
+            this.type = null;
+            this.id = null;
         }
     }
 
     readByte(): number {
         this.check(1);
         var value = this.buffer.readUInt8(this.position++, true); //WEB: var value = this.buffer[this.position++] & 0xFF;
+        return value;
+    }
+
+    readInt16(): number {
+        this.check(2); //WEB: var value = this.readUint16();
+        var value = this.buffer.readInt16BE(this.position, true); //WEB: if (value & 0x8000) value -= 0x10000;
+        this.position += 2; //WEB: // removed
+        return value;
+    }
+
+    readUint16(): number {
+        this.check(2);
+        var value = this.buffer.readUInt16BE(this.position, true); //WEB: // removed
+        this.position += 2; //WEB: var value = 0;
+        //WEB: value |= (this.buffer[this.position++] & 0xFF) << 8;
+        //WEB: value |= (this.buffer[this.position++] & 0xFF);
         return value;
     }
 
@@ -153,6 +174,11 @@ export class SftpPacketReader extends SftpPacket {
         } else {
             return this.buffer.slice(start, end); //WEB: return view;
         }
+    }
+
+    readStructuredData(): SftpPacketReader {
+        var data = this.readData(false);
+        return new SftpPacketReader(data, true);
     }
 
 }

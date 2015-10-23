@@ -205,15 +205,16 @@ class SftpClientCore implements IFilesystem {
 
             while ((response.length - response.position) >= 4) {
                 var extensionName = response.readString();
-                var value: any;
-                if (SftpExtensions.isKnown(extensionName)) {
-                    value = response.readString();
-                } else {
-                    value = response.readData(true);
+                var value = SftpExtensions.read(response, extensionName);
+
+                if (extensionName.indexOf("@openssh.com") === (extensionName.length - 12)) {
+                    // OpenSSH extensions may occur multiple times
+                    var values = <any[]>this._extensions[extensionName] || [];
+                    values.push(value);
+                    value = values;
                 }
-                var values = <any[]>this._extensions[extensionName] || [];
-                values.push(value);
-                this._extensions[extensionName] = values;
+
+                this._extensions[extensionName] = value;
             }
 
             this._log.debug(this._extensions, "[%d] - Server extensions", this._sessionId);
