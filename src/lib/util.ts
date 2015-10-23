@@ -17,105 +17,143 @@ export interface ILogWriter {
     level(): string|number;
 }
 
-export function toLogWriter(writer?: ILogWriter): ILogWriter {
+export const enum LogLevel {
+    TRACE = 10,
+    DEBUG = 20,
+    INFO = 30,
+    WARN = 40,
+    ERROR = 50,
+    FATAL = 60,
+}
 
-    function check(names: string[]) {
-        if (typeof writer !== "object") return false;
+export class LogHelper {
 
-        for (var i = 0; i < names.length; i++) {
-            if (typeof writer[names[i]] !== "function") return false;
+    static getLevel(log: ILogWriter): LogLevel {
+        var value = log.level();
+        if (typeof value === "number") return value;
+        switch (("" + value).toLowerCase()) {
+            case "trace": return 10;
+            case "debug": return 20;
+            case "info": return 30;
+            case "warn": return 40;
+            case "error": return 50;
+            case "fatal": return 60;
         }
 
-        return true;
-    };
-
-    var levels = ["trace", "debug", "info", "warn", "error", "fatal"];
-
-    if (writer == null || typeof writer === "undefined") {
-        // no writer specified, create a dummy writer
-        var proxy = <ILogWriter>new Object();
-
-        levels.forEach(level => {
-            proxy[level] = (obj?: Object, format?: any, ...params: any[]): void => { };
-        });
-
-        proxy["level"] = () => { return 90; }
-
-        return <ILogWriter>proxy;
+        var level = <any>value | 0;
+        if (level <= 0 || level >= 100) level = 60;
+        return level;
     }
 
-    if (check(levels)) {
-        // looks like bunyan, great!
-        return writer;
+    static isTrace(log: ILogWriter): boolean {
+        var level = log.level();
+        return (level <= 10 || level === "trace");
     }
+    
+    static toLogWriter(writer?: ILogWriter): ILogWriter {
 
-    // #if NODE
-    if (check(["log", "debug", "info", "warn", "error", "query"])) {
-        // looks like winston, lets's create a proxy for it
-        var proxy = <ILogWriter>new Object();
+        function check(names: string[]) {
+            if (typeof writer !== "object") return false;
 
-        levels.forEach(level => {
-            proxy[level] = (obj?: Object, format?: any, ...params: any[]): void => {
-                // log(level: string, msg: string, meta: any, callback ?: (err: Error, level: string, msg: string, meta: any) => void): LoggerInstance;
-                if (typeof obj === "string") {
-                    var msg = util.format(obj, format, params);
-                    (<any>writer).log(level, msg);
-                } else {
-                    var msg = util.format(format, params);
-                    (<any>writer).log(level, msg, obj);
-                }
-            };
-        });
+            for (var i = 0; i < names.length; i++) {
+                if (typeof writer[names[i]] !== "function") return false;
+            }
 
-        proxy["level"] = () => { return (<any>writer).level; }
+            return true;
+        };
 
-        return <ILogWriter>proxy;
+        var levels = ["trace", "debug", "info", "warn", "error", "fatal"];
+
+        if (writer == null || typeof writer === "undefined") {
+            // no writer specified, create a dummy writer
+            var proxy = <ILogWriter>new Object();
+
+            levels.forEach(level => {
+                proxy[level] = (obj?: Object, format?: any, ...params: any[]): void => { };
+            });
+
+            proxy["level"] = () => { return 90; }
+
+            return <ILogWriter>proxy;
+        }
+
+        if (check(levels)) {
+            // looks like bunyan, great!
+            return writer;
+        }
+
+        // #if NODE
+        if (check(["log", "debug", "info", "warn", "error", "query"])) {
+            // looks like winston, lets's create a proxy for it
+            var proxy = <ILogWriter>new Object();
+
+            levels.forEach(level => {
+                proxy[level] = (obj?: Object, format?: any, ...params: any[]): void => {
+                    // log(level: string, msg: string, meta: any, callback ?: (err: Error, level: string, msg: string, meta: any) => void): LoggerInstance;
+                    if (typeof obj === "string") {
+                        var msg = util.format(obj, format, params);
+                        (<any>writer).log(level, msg);
+                    } else {
+                        var msg = util.format(format, params);
+                        (<any>writer).log(level, msg, obj);
+                    }
+                };
+            });
+
+            proxy["level"] = () => { return (<any>writer).level; }
+
+            return <ILogWriter>proxy;
+        }
+        // #endif
+
+        if (check(["log", "info", "warn", "error", "dir"])) {
+            // looks like console, lets's create a proxy for it
+            var proxy = <ILogWriter>new Object();
+            var console = <Console><any>writer;
+            var levelObj;
+            var levelNum = LogLevel.DEBUG;
+
+            var funcs = ["log", "log", "info", "warn", "error", "error"];
+            var names = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"];
+
+            [10, 20, 30, 40, 50, 60].forEach(level => {
+                var index = level / 10 - 1;
+
+                proxy[levels[index]] = function (obj?: Object, format?: any, ...params: any[]): void {
+
+                    // update current level if needed
+                    if (levelObj !== (<any>console).level) {
+                        levelObj = (<any>console).level;
+                        levelNum = LogHelper.getLevel(proxy);
+                    }
+
+                    // don't log if the logger log level is too high
+                    if (level < levelNum) return;
+
+                    // convert to actual console "log levels"
+                    var func = funcs[index];
+
+                    var array = params;
+                    if (typeof format !== "undefined") array.unshift(format);
+                    if (typeof obj === "string" || obj === null) {
+                        array.unshift(obj);
+                        obj = null;
+                    }
+
+                    array = [names[index] + ":", util.format.apply(util, array)]; // WEB: array.push("(" + names[index] + ")");
+
+                    (<Function>console[func]).apply(console, array);
+                    if (obj !== null) (<Function>console[func]).call(console, obj);
+                };
+            });
+
+            proxy["level"] = () => { return (<any>console).level || LogLevel.DEBUG; }
+
+            return <ILogWriter>proxy;
+        }
+
+        throw new TypeError("Unsupported log writer");
     }
-    // #endif
-
-    if (check(["log", "info", "warn", "error", "dir"])) {
-        // looks like console, lets's create a proxy for it
-        var proxy = <ILogWriter>new Object();
-        var console = <Console><any>writer;
-
-        levels.forEach(level => {
-            proxy[level] = function (obj?: Object, format?: any, ...params: any[]): void {
-
-                // force actual console "log levels"
-                var func;
-                switch (level) {
-                    case "trace":
-                    case "debug":
-                        func = "log";
-                        break;
-                    case "fatal":
-                        func = "error";
-                        break;
-                    default:
-                        func = level;
-                        break;
-                }
-
-                var array = params;
-                if (typeof format !== "undefined") array.unshift(format);
-                if (typeof obj === "string" || obj === null) {
-                    array.unshift(obj);
-                    obj = null;
-                }
-                
-                array = [level.toUpperCase() + ":", util.format.apply(util, array)]; // WEB: array.push("(" + level.toUpperCase() + ")");
-
-                (<Function>console[func]).apply(console, array);
-                if (obj !== null) (<Function>console[func]).call(console, obj);
-            };
-        });
-
-        proxy["level"] = () => { return (<any>console).level || "debug"; }
-
-        return <ILogWriter>proxy;
-    }
-
-    throw new TypeError("Unsupported log writer");
 }
 
 export class Options {

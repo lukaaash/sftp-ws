@@ -122,7 +122,7 @@ module SFTP {
     export module Internals {
         export var StreamChannel = channel_stream.StreamChannel;
         export var WebSocketChannelFactory = channel_ws.WebSocketChannelFactory;
-        export var ToLogWriter: (writer: any) => ILogWriter = util.toLogWriter;
+        export var LogHelper = util.LogHelper;
     }
 
     export class RequestInfo {
@@ -186,7 +186,7 @@ module SFTP {
 
             var virtualRoot = options.virtualRoot;
             var filesystem = options.filesystem;
-            this._log = util.toLogWriter(options.log);
+            this._log = util.LogHelper.toLogWriter(options.log);
             this._verifyClient = options.verifyClient;
             var noServer = options.noServer;
 

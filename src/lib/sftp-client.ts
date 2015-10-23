@@ -14,7 +14,8 @@ import FilesystemPlus = plus.FilesystemPlus;
 import Task = plus.Task;
 import IChannel = channel.IChannel;
 import ILogWriter = util.ILogWriter;
-import toLogWriter = util.toLogWriter;
+import LogHelper = util.LogHelper;
+import LogLevel = util.LogLevel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -175,20 +176,11 @@ class SftpClientCore implements IFilesystem {
         this._extensions = {};
 
         this._log = log;
-        
-        //TODO: refactor this (and server's) and toLogWriter to util.LogHelper class
+
         // determine the log level now to speed up logging later
-        var level = log.level();
-        if (level <= 10 || level === "trace") {
-            this._debug = true;
-            this._trace = true;
-        } else if (level <= 20 || level == "debug") {
-            this._debug = true;
-            this._trace = false;
-        } else {
-            this._trace = false;
-            this._debug = false;
-        }
+        var level = LogHelper.getLevel(log);
+        this._debug = level <= LogLevel.DEBUG;
+        this._trace = level <= LogLevel.TRACE;
 
         var request = this.getRequest(SftpPacketType.INIT);
 
@@ -761,7 +753,7 @@ export class SftpClient extends FilesystemPlus {
         if (this._bound) throw new Error("Already bound");
         this._bound = true;
 
-        var log = toLogWriter(options && options.log);
+        var log = LogHelper.toLogWriter(options && options.log);
 
         sftp._init(channel, log, err => {
             if (err) {

@@ -12,6 +12,8 @@ import IStats = api.IStats;
 import IItem = api.IItem;
 import FileUtil = fsmisc.FileUtil;
 import ILogWriter = util.ILogWriter;
+import LogHelper = util.LogHelper;
+import LogLevel = util.LogLevel;
 import IChannel = channel.IChannel;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
@@ -184,17 +186,9 @@ export class SftpServerSession {
         this.nextHandle = 1;
 
         // determine the log level now to speed up logging later
-        var level = log.level();
-        if (level <= 10 || level === "trace") {
-            this._debug = true;
-            this._trace = true;
-        } else if (level <= 20 || level == "debug") {
-            this._debug = true;
-            this._trace = false;
-        } else {
-            this._trace = false;
-            this._debug = false;
-        }
+        var level = LogHelper.getLevel(log);
+        this._debug = level <= LogLevel.DEBUG;
+        this._trace = level <= LogLevel.TRACE;
 
         if (!this._debug) meta = {};
         log.info(meta, "[%d] - Session started", this._id);
