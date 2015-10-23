@@ -14,6 +14,7 @@ import FilesystemPlus = plus.FilesystemPlus;
 import Task = plus.Task;
 import IChannel = channel.IChannel;
 import ILogWriter = util.ILogWriter;
+import toLogWriter = util.toLogWriter;
 import SftpPacket = packet.SftpPacket;
 import SftpPacketWriter = packet.SftpPacketWriter;
 import SftpPacketReader = packet.SftpPacketReader;
@@ -73,12 +74,18 @@ class SftpHandle {
 }
 
 class SftpClientCore implements IFilesystem {
+    private static _nextSessionId = 1;
+    private _sessionId: number;
 
     private _host: IChannel
     private _id: number;
     private _requests: SftpRequest[];
     private _ready: boolean;
     private _extensions: Object;
+
+    private _log: ILogWriter;
+    private _debug: boolean;
+    private _trace: boolean;
 
     private _maxReadBlockLength: number;
     private _maxWriteBlockLength: number;
@@ -108,6 +115,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     constructor() {
+        this._sessionId = SftpClientCore._nextSessionId++;
         this._host = null;
         this._id = null;
         this._ready = false;
@@ -138,16 +146,49 @@ class SftpClientCore implements IFilesystem {
             throw new Error("Duplicate request");
 
         var packet = request.finish();
+
+        if (this._debug) {
+            // logging
+            var meta = {};
+            meta["session"] = this._sessionId;
+            if (request.type != SftpPacketType.INIT) meta["req"] = request.id;
+            meta["type"] = SftpPacket.toString(request.type);
+            meta["length"] = packet.length;
+            if (this._trace) meta["raw"] = packet;
+
+            if (request.type == SftpPacketType.INIT) {
+                this._log.debug(meta, "[%d] - Sending initialization request", this._sessionId);
+            } else {
+                this._log.debug(meta, "[%d] #%d - Sending request", this._sessionId, request.id);
+            }
+        }
+
         this._host.send(packet);
 
         this._requests[request.id] = { callback: callback, responseParser: responseParser, info: info };
     }
 
-    _init(host: IChannel, callback: (err: Error) => any): void {
+    _init(host: IChannel, log: ILogWriter, callback: (err: Error) => any): void {
         if (this._host) throw new Error("Already bound");
 
         this._host = host;
         this._extensions = {};
+
+        this._log = log;
+        
+        //TODO: refactor this (and server's) and toLogWriter to util.LogHelper class
+        // determine the log level now to speed up logging later
+        var level = log.level();
+        if (level <= 10 || level === "trace") {
+            this._debug = true;
+            this._trace = true;
+        } else if (level <= 20 || level == "debug") {
+            this._debug = true;
+            this._trace = false;
+        } else {
+            this._trace = false;
+            this._debug = false;
+        }
 
         var request = this.getRequest(SftpPacketType.INIT);
 
@@ -183,6 +224,8 @@ class SftpClientCore implements IFilesystem {
                 this._extensions[extensionName] = values;
             }
 
+            this._log.debug(this._extensions, "[%d] - Server extensions", this._sessionId);
+
             this._ready = true;
             callback(null);
         }, info);
@@ -190,6 +233,21 @@ class SftpClientCore implements IFilesystem {
 
     _process(packet: Buffer): void {
         var response = <SftpResponse>new SftpPacketReader(packet);
+
+        if (this._debug) {
+            var meta = {};
+            meta["session"] = this._sessionId;
+            if (response.type != SftpPacketType.VERSION) meta["req"] = response.id;
+            meta["type"] = SftpPacket.toString(response.type);
+            meta["length"] = response.length;
+            if (this._trace) meta["raw"] = response.buffer;
+
+            if (response.type == SftpPacketType.VERSION) {
+                this._log.debug(meta, "[%d] - Received version response", this._sessionId);
+            } else {
+                this._log.debug(meta, "[%d] #%d - Received response", this._sessionId, response.id);
+            }
+        }
 
         var request = this._requests[response.id];
 
@@ -693,17 +751,19 @@ export class SftpClient extends FilesystemPlus {
         super(sftp, local);
     }
 
-    bind(channel: IChannel, callback?: (err: Error) => void): Task<void> {
+    bind(channel: IChannel, options: any, callback?: (err: Error) => void): Task<void> {
         return super._task(callback, callback => this._bind(channel, callback));
     }
 
-    protected _bind(channel: IChannel, callback?: (err: Error) => void): void {
+    protected _bind(channel: IChannel, options: any, callback?: (err: Error) => void): void {
         var sftp = <SftpClientCore>this._fs;
 
         if (this._bound) throw new Error("Already bound");
         this._bound = true;
 
-        sftp._init(channel, err => {
+        var log = toLogWriter(options && options.log);
+
+        sftp._init(channel, log, err => {
             if (err) {
                 sftp.end();
                 this._bound = false;

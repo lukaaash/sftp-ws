@@ -101,7 +101,7 @@ module SFTP {
                 factory.connect(address, options, (err, channel) => {
                     if (err) return callback(err);
 
-                    super._bind(channel, callback);
+                    super._bind(channel, options, callback);
                 });
             });
         }
