@@ -237,10 +237,10 @@ export class SftpServerSession {
         var packet = response.finish();
 
         if (this._debug) {
+            // logging
             var meta = {};
             meta["session"] = this._id;
             if (response.type != SftpPacketType.VERSION) meta["req"] = response.id;
-            meta["req"] = response.id;
             meta["type"] = SftpPacket.toString(response.type);
             meta["length"] = packet.length;
             if (this._trace) meta["raw"] = packet;

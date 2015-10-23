@@ -238,6 +238,8 @@ module SFTP {
                 this._wss.on('connection', ws => this.accept(ws, (err, session) => {
                     if (err) this._log.fatal(err, "Error while accepting connection");
                 }));
+
+                this._log.info("SFTP server started");
             }
         }
 
@@ -299,17 +301,25 @@ module SFTP {
 
         end() {
             if (typeof this._wss === 'object') {
-                // end all active sessions
-                this._wss.clients.forEach(ws => {
-                    var session = <SftpServerSession>(<any>ws).session;
-                    if (typeof session === 'object') {
-                        session.end();
-                        delete (<any>ws).session;
-                    }
-                });
+
+                var count = this._wss.clients.length;
+                if (count > 0) {
+                    this._log.debug("Stopping %d SFTP sessions ...", count);
+
+                    // end all active sessions
+                    this._wss.clients.forEach(ws => {
+                        var session = <SftpServerSession>(<any>ws).session;
+                        if (typeof session === 'object') {
+                            session.end();
+                            delete (<any>ws).session;
+                        }
+                    });
+                }
 
                 // stop accepting connections
                 this._wss.close();
+
+                this._log.info("SFTP server stopped");
             }
         }
 
