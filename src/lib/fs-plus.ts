@@ -245,7 +245,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         });
     }
 
-    readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: {}) => any): Task<{}> {
+    readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: {}) => any): Task<any> {
         return this._task(callback, (callback, emitter) => {
             var remote = Path.create(remotePath, this._fs, 'remotePath');
 
