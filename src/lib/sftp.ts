@@ -227,8 +227,8 @@ module SFTP {
                 userName: null,
                 filesystem: filesystem,
                 virtualRoot: virtualRoot,
-                readOnly: null,
-                hideUidGid: null,
+                readOnly: true && options.readOnly,
+                hideUidGid: true && options.hideUidGid,
             });
 
             //TODO: when no _fs and no _virtualRoot is specified, serve a dummy filesystem as well
