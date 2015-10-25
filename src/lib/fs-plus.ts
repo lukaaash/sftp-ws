@@ -183,9 +183,9 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         });
     }
 
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): Task<void> {
+    symlink(oldPath: string, newPath: string, callback?: (err: Error) => any): Task<void> {
         return this._task(callback, callback => {
-            this._fs.symlink(targetpath, linkpath, callback);
+            this._fs.symlink(oldPath, newPath, callback);
         });
     }
 

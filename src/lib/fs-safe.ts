@@ -364,17 +364,17 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
-    symlink(targetpath: string, linkpath: string, callback: (err: Error) => any): void {
+    symlink(oldPath: string, newPath: string, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
             this.reportReadOnly(callback);
             return;
         }
 
-        targetpath = this.toRealPath(targetpath);
-        linkpath = this.toRealPath(linkpath);
+        oldPath = this.toRealPath(oldPath);
+        newPath = this.toRealPath(newPath);
 
         try {
-            this.fs.symlink(targetpath, linkpath, callback);
+            this.fs.symlink(oldPath, newPath, callback);
         } catch (err) {
             callback(err);
         }

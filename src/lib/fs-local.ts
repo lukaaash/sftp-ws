@@ -357,13 +357,13 @@ export class LocalFilesystem implements IFilesystem {
         fs.readlink(path, callback);
     }
 
-    symlink(targetPath: string, linkPath: string, callback?: (err: Error) => any): void {
-        targetPath = this.checkPath(targetPath, 'targetPath');
-        linkPath = this.checkPath(linkPath, 'linkPath');
+    symlink(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+        oldPath = this.checkPath(oldPath, 'oldPath');
+        newPath = this.checkPath(newPath, 'newPath');
 
         //TODO: make sure the order is correct (beware - other SFTP client and server vendors are confused as well)
         //TODO: make sure this work on Windows
-        fs.symlink(linkPath, targetPath, 'file', callback);
+        fs.symlink(newPath, oldPath, 'file', callback);
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
