@@ -284,14 +284,14 @@ describe("Basic Tests", function () {
         }));
     });
 
-    it("rename(no-path, path2)", done => {
+    it("rename(no-path, no-file", done => {
         var name1 = "dir000/file.txt";
         var name2 = getFileName();
 
         client.rename(name1, name2, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
-    it("rename(path1, no-path)", done => {
+    it("rename(file1, no-path)", done => {
         var name1 = getFileName();
         var name2 = "dir000/file.txt";
         var body = "This is a file.";
@@ -301,7 +301,7 @@ describe("Basic Tests", function () {
         client.rename(name1, name2, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
-    it("rename(path1, path2)", done => {
+    it("rename(file1, no-file)", done => {
         var name1 = getFileName();
         var name2 = getFileName();
         var body = "This is a file.";
@@ -317,7 +317,7 @@ describe("Basic Tests", function () {
         }));
     });
 
-    it("rename(file, file, false)", done => {
+    it("rename(file1, file2, false)", done => {
         var name1 = getFileName();
         var name2 = getFileName();
         var body = "This is a file.";
@@ -329,7 +329,7 @@ describe("Basic Tests", function () {
         client.rename(name1, name2, (err) => error(err, done, 'EFAILURE', "File exists"));
     });
 
-    it("rename(file, file, true)", done => {
+    it("rename(file1, file2, true)", done => {
         var name1 = getFileName();
         var name2 = getFileName();
         var body = "This is a file.";
