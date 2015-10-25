@@ -443,6 +443,9 @@ export class SftpServerSession {
             response.start();
 
             response.writeInt32(3);
+
+            SftpExtensions.write(response, SftpExtensions.HARDLINK, "1");
+
             this.send(response);
             return;
         }

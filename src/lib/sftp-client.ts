@@ -83,6 +83,7 @@ class SftpClientCore implements IFilesystem {
     private _requests: SftpRequest[];
     private _ready: boolean;
     private _extensions: Object;
+    private _supported: Object;
 
     private _log: ILogWriter;
     private _debug: boolean;
@@ -122,6 +123,7 @@ class SftpClientCore implements IFilesystem {
         this._ready = false;
         this._requests = [];
         this._extensions = {};
+        this._supported = {};
 
         this._maxWriteBlockLength = 32 * 1024;
         this._maxReadBlockLength = 256 * 1024;
@@ -209,15 +211,20 @@ class SftpClientCore implements IFilesystem {
 
                 if (extensionName.indexOf("@openssh.com") === (extensionName.length - 12)) {
                     // OpenSSH extensions may occur multiple times
-                    var values = <any[]>this._extensions[extensionName] || [];
-                    values.push(value);
-                    value = values;
+                    var val = <string>this._extensions[extensionName];
+                    if (typeof val === "undefined") {
+                        val = value;
+                    } else {
+                        val += "," + value;
+                    }
                 }
 
                 this._extensions[extensionName] = value;
             }
 
             this._log.debug(this._extensions, "[%d] - Server extensions", this._sessionId);
+
+            this._supported[SftpExtensions.HARDLINK] = SftpExtensions.contains(this._extensions[SftpExtensions.HARDLINK], "1");
 
             this._ready = true;
             callback(null);
@@ -498,6 +505,11 @@ class SftpClientCore implements IFilesystem {
     }
 
     private command(command: SftpPacketType|string, args: string[], callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
+        if (typeof command !== "number" && !this._supported[command]) {
+            process.nextTick(() => callback(this.createError(SftpStatusCode.OP_UNSUPPORTED, "Operation not supported", info)));
+            return;
+        }
+
         var request = this.getRequest(command);
 
         for (var i = 0; i < args.length; i++) {

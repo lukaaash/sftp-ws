@@ -123,6 +123,16 @@ export class SftpExtensions {
         return SftpExtensions.hasOwnProperty("_" + name);
     }
 
+    static contains(values: string, value: string): boolean {
+        // not very fast, but not used often and it gets the job done
+        return ("," + values + ",").indexOf("," + value + ",") >= 0;
+    }
+
+    static write(writer: SftpPacketWriter, name: string, value: string): void {
+        writer.writeString(name);
+        writer.writeString(value);
+    }
+
     static read(reader: SftpPacketReader, name: string): any {
         switch (name) {
             case SftpExtensions.VENDOR:
