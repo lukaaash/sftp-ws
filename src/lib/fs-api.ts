@@ -32,6 +32,12 @@ export interface IItem {
     path?: string;
 }
 
+export const enum RenameFlags {
+    OVERWRITE = 1,
+    //ATOMIC = 2,
+    //NATIVE = 4,
+}
+
 export interface IFilesystem {
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
     close(handle: any, callback?: (err: Error) => any): void;
@@ -48,7 +54,7 @@ export interface IFilesystem {
     rmdir(path: string, callback?: (err: Error) => any): void;
     realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void;
     stat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
+    rename(oldPath: string, newPath: string, flags: RenameFlags, callback?: (err: Error) => any): void;
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
     symlink(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void;

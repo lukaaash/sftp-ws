@@ -10,6 +10,7 @@ import events = require("events");
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
+import RenameFlags = api.RenameFlags;
 import IDataSource = misc.IDataSource;
 import IDataTarget = misc.IDataTarget;
 import FileUtil = misc.FileUtil;
@@ -171,9 +172,19 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         });
     }
 
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): Task<void> {
+    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): Task<void>
+    rename(oldPath: string, newPath: string, overwrite: boolean, callback?: (err: Error) => any): Task<void>
+    rename(oldPath: string, newPath: string, flags: RenameFlags, callback?: (err: Error) => any): Task<void>
+    rename(oldPath: string, newPath: string, flags: any, callback?: (err: Error) => any): Task<void> {
+        if (typeof callback === 'undefined' && typeof flags === 'function') {
+            callback = flags;
+            flags = 0;
+        } else {
+            flags |= 0;
+        }
+
         return this._task(callback, callback => {
-            this._fs.rename(oldPath, newPath, callback);
+            this._fs.rename(oldPath, newPath, flags, callback);
         });
     }
 

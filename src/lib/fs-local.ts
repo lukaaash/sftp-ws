@@ -5,6 +5,7 @@ import misc = require("./fs-misc");
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
+import RenameFlags = api.RenameFlags;
 import Path = misc.Path;
 import FileUtil = misc.FileUtil;
 
@@ -12,6 +13,8 @@ class LocalError implements Error {
     name: string;
     message: string;
     isPublic: boolean;
+    code: string;
+    errno: number;
 
     constructor(message: string, isPublic?: boolean) {
         this.name = "Error";
@@ -41,6 +44,26 @@ export class LocalFilesystem implements IFilesystem {
         }
 
         return path;
+    }
+
+    private fail(code: string, callback?: (err: Error, ...args: any[]) => any): void {
+        var message;
+        var errno;
+        switch (code) {
+            case "ENOSYS":
+                message = "Operation not supported";
+                errno = 35;
+                break;
+            default:
+                message = "Failure";
+                code = "EFAILURE";
+                break;
+        }
+
+        var error = new LocalError(message, true);
+        error.code = code;
+        error.errno = errno;
+        process.nextTick(() => callback(error));
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
@@ -344,11 +367,25 @@ export class LocalFilesystem implements IFilesystem {
         fs.stat(path, callback);
     }
 
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+    rename(oldPath: string, newPath: string, flags: RenameFlags, callback?: (err: Error) => any): void {
         oldPath = this.checkPath(oldPath, 'oldPath');
         newPath = this.checkPath(newPath, 'newPath');
 
-        fs.rename(oldPath, newPath, callback);
+        if (flags === RenameFlags.OVERWRITE) {
+            // posix-style rename (with overwrite)
+            fs.rename(oldPath, newPath, callback);
+        } else if (flags === 0) {
+            // Windows-style rename (fail if destination exists)
+            fs.link(oldPath, newPath, err => {
+                if (err) return callback(err);
+
+                fs.unlink(oldPath, err => {
+                    callback(err);
+                });
+            });
+        } else {
+            this.fail("ENOSYS", callback);
+        }
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {

@@ -10,6 +10,7 @@ import util = require("./util");
 import SafeFilesystem = safe.SafeFilesystem;
 import IStats = api.IStats;
 import IItem = api.IItem;
+import RenameFlags = api.RenameFlags;
 import FileUtil = fsmisc.FileUtil;
 import ILogWriter = util.ILogWriter;
 import LogHelper = util.LogHelper;
@@ -445,6 +446,7 @@ export class SftpServerSession {
             response.writeInt32(3);
 
             SftpExtensions.write(response, SftpExtensions.HARDLINK, "1");
+            SftpExtensions.write(response, SftpExtensions.POSIX_RENAME, "1");
 
             this.send(response);
             return;
@@ -741,7 +743,7 @@ export class SftpServerSession {
                     var oldpath = request.readString();
                     var newpath = request.readString();
 
-                    fs.rename(oldpath, newpath, err => this.sendSuccess(response, err));
+                    fs.rename(oldpath, newpath, 0, err => this.sendSuccess(response, err));
                     return;
 
                 case SftpPacketType.READLINK:
@@ -762,6 +764,13 @@ export class SftpServerSession {
                     var newpath = request.readString();
 
                     fs.link(oldpath, newpath, err => this.sendSuccess(response, err));
+                    return;
+
+                case SftpExtensions.POSIX_RENAME:
+                    var oldpath = request.readString();
+                    var newpath = request.readString();
+
+                    fs.rename(oldpath, newpath, RenameFlags.OVERWRITE, err => this.sendSuccess(response, err));
                     return;
 
                 default:

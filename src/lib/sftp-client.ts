@@ -9,6 +9,7 @@ import util = require("./util");
 
 import IStats = api.IStats;
 import IItem = api.IItem;
+import RenameFlags = api.RenameFlags;
 import IFilesystem = api.IFilesystem;
 import FilesystemPlus = plus.FilesystemPlus;
 import Task = plus.Task;
@@ -225,6 +226,7 @@ class SftpClientCore implements IFilesystem {
             this._log.debug(this._extensions, "[%d] - Server extensions", this._sessionId);
 
             this._supported[SftpExtensions.HARDLINK] = SftpExtensions.contains(this._extensions[SftpExtensions.HARDLINK], "1");
+            this._supported[SftpExtensions.POSIX_RENAME] = SftpExtensions.contains(this._extensions[SftpExtensions.POSIX_RENAME], "1");
 
             this._ready = true;
             callback(null);
@@ -435,11 +437,29 @@ class SftpClientCore implements IFilesystem {
         this.command(SftpPacketType.STAT, [path], callback, this.parseAttribs, { command: "stat", path: path });
     }
 
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
+    rename(oldPath: string, newPath: string, flags?: RenameFlags, callback?: (err: Error) => any): void {
         oldPath = this.checkPath(oldPath, 'oldPath');
         newPath = this.checkPath(newPath, 'newPath');
 
-        this.command(SftpPacketType.RENAME, [oldPath, newPath], callback, this.parseStatus, { command: "rename", oldPath: oldPath, newPath: newPath });
+        if (typeof flags === 'function' && typeof callback === 'undefined') {
+            callback = <any>flags;
+            flags = 0;
+        } else {
+            flags |= 0;
+        }
+
+        var info = { command: "rename", oldPath: oldPath, newPath: newPath, flags: flags };
+        switch (flags) {
+            case RenameFlags.OVERWRITE:
+                this.command(SftpExtensions.POSIX_RENAME, [oldPath, newPath], callback, this.parseStatus, info);
+                break;
+            case 0:
+                this.command(SftpPacketType.RENAME, [oldPath, newPath], callback, this.parseStatus, info);
+                break;
+            default:
+                process.nextTick(() => callback(this.createError(SftpStatusCode.OP_UNSUPPORTED, "Unsupported rename flags", info)));
+                break;
+        }
     }
 
     readlink(path: string, callback?: (err: Error, linkString: string) => any): void {

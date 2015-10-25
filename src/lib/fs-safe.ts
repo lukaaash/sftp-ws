@@ -5,6 +5,7 @@ import api = require("./fs-api");
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
+import RenameFlags = api.RenameFlags;
 
 export class SafeFilesystem implements IFilesystem {
 
@@ -274,7 +275,7 @@ export class SafeFilesystem implements IFilesystem {
             this.reportReadOnly(callback);
             return;
         }
-
+        
         path = this.toRealPath(path);
 
         try {
@@ -338,7 +339,7 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
-    rename(oldPath: string, newPath: string, callback: (err: Error) => any): void {
+    rename(oldPath: string, newPath: string, flags: RenameFlags, callback: (err: Error) => any): void {
         if (this.isReadOnly()) {
             this.reportReadOnly(callback);
             return;
@@ -348,7 +349,7 @@ export class SafeFilesystem implements IFilesystem {
         newPath = this.toRealPath(newPath);
 
         try {
-            this.fs.rename(oldPath, newPath, callback);
+            this.fs.rename(oldPath, newPath, flags, callback);
         } catch (err) {
             callback(err);
         }
