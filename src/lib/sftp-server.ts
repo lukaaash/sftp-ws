@@ -61,6 +61,7 @@ class SftpException implements Error {
         var code = SftpStatusCode.FAILURE;
         var errno = err.errno | 0;
         // loosely based on the list from https://github.com/rvagg/node-errno/blob/master/errno.js
+        // with updates besed on http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Errors/unix_system_errors.html
 
         switch (errno) {
             default:
@@ -118,6 +119,8 @@ class SftpException implements Error {
                 message = "Function not implemented";
                 code = SftpStatusCode.OP_UNSUPPORTED;
                 break;
+            case -17: // Node >=0.12 on Linux
+            case -4075: // Node >=0.12 on Windows
             case 47: // EEXIST
                 message = "File exists";
                 break;
