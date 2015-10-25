@@ -50,8 +50,7 @@ class SftpHandleInfo {
     }
 }
 
-class SftpException implements Error {
-    name: string;
+class SftpException {
     message: string;
     code: SftpStatusCode;
     errno: number;
@@ -116,7 +115,7 @@ class SftpException implements Error {
                 code = SftpStatusCode.NO_SUCH_FILE;
                 break;
             case 35: // ENOSYS
-                message = "Function not implemented";
+                message = "Operation not supported";
                 code = SftpStatusCode.OP_UNSUPPORTED;
                 break;
             case -17: // Node >=0.12 on Linux
@@ -160,7 +159,6 @@ class SftpException implements Error {
                 break;
         }
 
-        this.name = "SftpException";
         this.message = message;
         this.code = code;
         this.errno = errno;

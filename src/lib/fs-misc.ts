@@ -275,6 +275,38 @@ export class FileUtil {
         return perms + " " + nlink + " user group " + len + " " + date + " " + filename;
     }
 
+    static fail(message: string, callback: (err: Error, ...args: any[]) => any): void
+    static fail(code: string, callback: (err: Error, ...args: any[]) => any): void
+    static fail(code: string, callback: (err: Error, ...args: any[]) => any): void {
+        var message;
+        var errno;
+        switch (code) {
+            case "ENOSYS":
+                message = "Operation not supported";
+                errno = 35;
+                break;
+            case "EROFS":
+                message = "Read-only filesystem";
+                errno = 56;
+                break;
+            default:
+                message = code;
+                break;
+        }
+
+        var error = <any>new Error(message);
+        if (errno) {
+            error.code = code;
+            error.errno = errno;
+        } else {
+            error.code = "EFAILURE";
+            error.isPublic = true;
+        }
+
+        process.nextTick(() => callback(error));
+    }
+
+
     static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {
         fs.stat(path, (err, stats) => {
             if (!err) {

@@ -1,11 +1,13 @@
 ﻿import fs = require("fs");
 import Path = require("path");
 import api = require("./fs-api");
+import misc = require("./fs-misc");
 
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
 import IStats = api.IStats;
 import RenameFlags = api.RenameFlags;
+import FileUtil = misc.FileUtil;
 
 export class SafeFilesystem implements IFilesystem {
 
@@ -114,23 +116,12 @@ export class SafeFilesystem implements IFilesystem {
         callback(err, attrs);
     }
 
-    private reportReadOnly(callback: (err: Error, ...any) => any) {
-        var err = new Error("Internal server error");
-
-        process.nextTick(() => {
-            callback(err);
-        });
-    }
-
     private isReadOnly(): boolean {
         return !(this.readOnly === false);
     }
 
     open(path: string, flags: string, attrs: IStats, callback: (err: Error, handle: any) => any): void {
-        if (this.isReadOnly() && flags != "r") {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly() && flags != "r") return FileUtil.fail("EROFS", callback);
 
         try {
             path = this.toRealPath(path);
@@ -161,10 +152,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     write(handle: any, buffer, offset, length, position, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         handle = this.unwrapHandle(handle);
 
@@ -204,10 +192,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     setstat(path: string, attrs: IStats, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         if (this.hideUidGid) {
             attrs.uid = null;
@@ -223,10 +208,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     fsetstat(handle: any, attrs: IStats, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         handle = this.unwrapHandle(handle);
 
@@ -271,10 +253,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     unlink(path: string, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
         
         path = this.toRealPath(path);
 
@@ -286,10 +265,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     mkdir(path: string, attrs: IStats, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         path = this.toRealPath(path);
 
@@ -301,10 +277,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     rmdir(path: string, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         path = this.toRealPath(path);
 
@@ -340,10 +313,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     rename(oldPath: string, newPath: string, flags: RenameFlags, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         oldPath = this.toRealPath(oldPath);
         newPath = this.toRealPath(newPath);
@@ -366,10 +336,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     symlink(oldPath: string, newPath: string, callback: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         oldPath = this.toRealPath(oldPath);
         newPath = this.toRealPath(newPath);
@@ -382,10 +349,7 @@ export class SafeFilesystem implements IFilesystem {
     }
 
     link(oldPath: string, newPath: string, callback?: (err: Error) => any): void {
-        if (this.isReadOnly()) {
-            this.reportReadOnly(callback);
-            return;
-        }
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
         oldPath = this.toRealPath(oldPath);
         newPath = this.toRealPath(newPath);

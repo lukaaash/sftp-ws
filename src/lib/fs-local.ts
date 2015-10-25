@@ -9,20 +9,6 @@ import RenameFlags = api.RenameFlags;
 import Path = misc.Path;
 import FileUtil = misc.FileUtil;
 
-class LocalError implements Error {
-    name: string;
-    message: string;
-    isPublic: boolean;
-    code: string;
-    errno: number;
-
-    constructor(message: string, isPublic?: boolean) {
-        this.name = "Error";
-        this.message = message;
-        this.isPublic = (isPublic === true);
-    }
-}
-
 export class LocalFilesystem implements IFilesystem {
 
     private isWindows: boolean;
@@ -46,26 +32,6 @@ export class LocalFilesystem implements IFilesystem {
         return path;
     }
 
-    private fail(code: string, callback?: (err: Error, ...args: any[]) => any): void {
-        var message;
-        var errno;
-        switch (code) {
-            case "ENOSYS":
-                message = "Operation not supported";
-                errno = 35;
-                break;
-            default:
-                message = "Failure";
-                code = "EFAILURE";
-                break;
-        }
-
-        var error = new LocalError(message, true);
-        error.code = code;
-        error.errno = errno;
-        process.nextTick(() => callback(error));
-    }
-
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void {
         if (typeof attrs === 'function' && typeof callback === 'undefined') {
             callback = <any>attrs;
@@ -80,25 +46,16 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     close(handle: any, callback?: (err: Error) => any): void {
-
-        var err = null;
         if (Array.isArray(handle)) {
-            if (handle.closed == true)
-                err = new LocalError("Already closed", true);
-            else
-                handle.closed = true;
-        } else if (!isNaN(handle)) {
-            fs.close(handle, callback);
+            if (handle.closed) return FileUtil.fail("Already closed", callback);
+            handle.closed = true;
+            process.nextTick(() => callback(null));
             return;
-        } else {
-            err = new LocalError("Invalid handle", true);
         }
 
-        if (typeof callback == 'function') {
-            process.nextTick(function () {
-                callback(err);
-            });
-        }
+        if (isNaN(handle)) return FileUtil.fail("Invalid handle", callback);
+
+        fs.close(handle, callback);
     }
 
     read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): void {
@@ -258,9 +215,7 @@ export class LocalFilesystem implements IFilesystem {
                 files["path"] = new Path(path, this).normalize();
                 err = null;
             } else {
-                files = null;
-                err = new LocalError("Unable to read directory", true);
-                err.path = path;
+                return FileUtil.fail("Unable to read directory", callback);
             }
 
             if (typeof callback === 'function')
@@ -270,64 +225,51 @@ export class LocalFilesystem implements IFilesystem {
     }
 
     readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void {
-        var err = null;
-        var path = <Path>null;
-        if (Array.isArray(handle)) {
-            if (handle.closed == true) {
-                err = new LocalError("Already closed", true);
-            } else {
-                path = handle.path;
-                if (typeof path !== 'object')
-                    err = new LocalError("Invalid handle", true);
-            }
-        } else {
-            err = new LocalError("Invalid handle", true);
-        }
+        if (!Array.isArray(handle) || handle.closed || typeof handle.path !== 'object') return FileUtil.fail("Invalid handle", callback);
 
         var windows = this.isWindows;
         var items = [];
-        if (err == null) {
-            var paths = (<string[]>handle).splice(0, 64);
 
-            if (paths.length > 0) {
+        var path = <Path>handle.path;
+        var paths = (<string[]>handle).splice(0, 64);
 
-                function next(): void {
-                    var name = paths.shift();
+        if (paths.length == 0) {
+            if (typeof callback == 'function') {
+                process.nextTick(function () {
+                    callback(null, false);
+                });
+            }
+            return;
+        }
 
-                    if (!name) {
-                        if (typeof callback == 'function') {
-                            callback(null, (items.length > 0) ? items : false);
-                        }
-                        return;
-                    }
+        function next(): void {
+            var name = paths.shift();
 
-                    var itemPath = path.join(name).path;
-
-                    fs.stat(itemPath, (err, stats) => {
-                        if (typeof err !== 'undefined' && err != null) {
-                            //TODO: log unsuccessful stat?
-                        } else {
-                            //
-                            items.push({
-                                filename: name,
-                                longname: FileUtil.toString(name, stats),
-                                stats: stats,
-                            });
-                        }
-                        next();
-                    });
-                };
-
-                next();
+            if (!name) {
+                if (typeof callback == 'function') {
+                    callback(null, (items.length > 0) ? items : false);
+                }
                 return;
             }
-        }
 
-        if (typeof callback == 'function') {
-            process.nextTick(function () {
-                callback(err, err == null ? false : null);
+            var itemPath = path.join(name).path;
+
+            fs.stat(itemPath, (err, stats) => {
+                if (typeof err !== 'undefined' && err != null) {
+                    //TODO: log unsuccessful stat?
+                } else {
+                    //
+                    items.push({
+                        filename: name,
+                        longname: FileUtil.toString(name, stats),
+                        stats: stats,
+                    });
+                }
+                next();
             });
-        }
+        };
+
+        next();
     }
 
     unlink(path: string, callback?: (err: Error) => any): void {
@@ -384,7 +326,7 @@ export class LocalFilesystem implements IFilesystem {
                 });
             });
         } else {
-            this.fail("ENOSYS", callback);
+            FileUtil.fail("ENOSYS", callback);
         }
     }
 
