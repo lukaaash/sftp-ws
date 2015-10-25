@@ -55,7 +55,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): Task<any> {
-        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+        if (typeof callback === 'undefined' && typeof attrs === 'function') {
             callback = <any>attrs;
             attrs = null;
         }
@@ -142,7 +142,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): Task<void> {
-        if (typeof attrs === 'function' && typeof callback === 'undefined') {
+        if (typeof callback === 'undefined' && typeof attrs === 'function') {
             callback = <any>attrs;
             attrs = null;
         }
@@ -217,13 +217,13 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     search(remotePath: string, options?: ISearchOptions, callback?: (err: Error, items: IItem[]) => any): Task<IItem[]> {
+        if (typeof callback === 'undefined' && typeof options === 'function') {
+            callback = <any>options;
+            options = null;
+        }
+
         return this._task(callback, (callback, emitter) => {
             remotePath = Path.check(remotePath, 'remotePath');
-
-            if (typeof options === 'function' && typeof callback === 'undefined') {
-                callback = <any>options;
-                options = null;
-            }
 
             search(this._fs, remotePath, emitter, options, callback);
         });
@@ -246,13 +246,13 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
     }
 
     readFile(remotePath: string, options?: { type?: string; encoding?: string; flag?: string; mimeType?: string; }, callback?: (err: Error, data: {}) => any): Task<any> {
+        if (typeof callback === 'undefined' && typeof options === 'function') {
+            callback = <any>options;
+            options = null;
+        }
+
         return this._task(callback, (callback, emitter) => {
             var remote = Path.create(remotePath, this._fs, 'remotePath');
-
-            if (typeof options === 'function' && typeof callback === 'undefined') {
-                callback = <any>options;
-                options = null;
-            }
 
             // process options
             options = options || {};
