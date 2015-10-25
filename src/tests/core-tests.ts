@@ -317,6 +317,34 @@ describe("Basic Tests", function () {
         }));
     });
 
+    it("link(path1, no-path)", done => {
+        var name1 = getFileName();
+        var name2 = "dir000/file.txt";
+        var body = "This is a file.";
+
+        fs.writeFileSync(Path.join(tmp, name1), body);
+
+        client.link(name1, name2, (err) => error(err, done, 'ENOENT', wrongPath));
+    });
+
+    it("link(path1, path2)", done => {
+        var name1 = getFileName();
+        var name2 = getFileName();
+        var body = "This is a file.";
+
+        fs.writeFileSync(Path.join(tmp, name1), body);
+        assert.ok(!fs.existsSync(Path.join(tmp, name2)), "File should not exist");
+
+        client.link(name1, name2, (err) => check(err, done, () => {
+            body = "This is a changed file.";
+            fs.writeFileSync(Path.join(tmp, name1), body, { flag: "r+" });
+
+            var body2 = fs.readFileSync(Path.join(tmp, name2), { encoding: 'utf8' });
+            assert.equal(body2, body, "File content mismatch");
+            done();
+        }));
+    });
+
     it("unlink(no-path)", done => {
         var name = getFileName();
 
