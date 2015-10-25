@@ -317,6 +317,35 @@ describe("Basic Tests", function () {
         }));
     });
 
+    it("rename(file, file, false)", done => {
+        var name1 = getFileName();
+        var name2 = getFileName();
+        var body = "This is a file.";
+        var body2 = "This is another file.";
+
+        fs.writeFileSync(Path.join(tmp, name1), body);
+        fs.writeFileSync(Path.join(tmp, name2), body2);
+
+        client.rename(name1, name2, (err) => error(err, done, 'EFAILURE', "File exists"));
+    });
+
+    it("rename(file, file, true)", done => {
+        var name1 = getFileName();
+        var name2 = getFileName();
+        var body = "This is a file.";
+        var body2 = "This is another file.";
+
+        fs.writeFileSync(Path.join(tmp, name1), body);
+        fs.writeFileSync(Path.join(tmp, name2), body2);
+
+        client.rename(name1, name2, true, (err) => check(err, done, () => {
+            assert.ok(!fs.existsSync(Path.join(tmp, name1)), "File should not exist");
+            var body3 = fs.readFileSync(Path.join(tmp, name2), { encoding: 'utf8' });
+            assert.equal(body3, body, "File content mismatch");
+            done();
+        }));
+    });
+
     it("link(path1, no-path)", done => {
         var name1 = getFileName();
         var name2 = "dir000/file.txt";
