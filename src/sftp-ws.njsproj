@@ -10,8 +10,8 @@
     </NodeExeArguments>
     <ScriptArguments>
     </ScriptArguments>
-    <ToolsVersionPromptShown>1.4</ToolsVersionPromptShown>
-    <TypeScriptToolsVersion>1.4</TypeScriptToolsVersion>
+    <ToolsVersionPromptShown>1.7</ToolsVersionPromptShown>
+    <TypeScriptToolsVersion>1.7</TypeScriptToolsVersion>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
