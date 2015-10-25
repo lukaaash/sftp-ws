@@ -27,11 +27,12 @@ export interface ISearchOptions {
     depth?: number; // maximum globmask matching depth (0 means infinite depth)
     nosort?: boolean; // don't sort the results
     dotdirs?: boolean; // include "." and ".." entries in the results
+    all?: boolean; // include all item types in the result
 }
 
 export interface ISearchOptionsExt extends ISearchOptions {
-    listonly?: boolean; // only list a single directory (wildcards only allowed in the last path segment)
-    itemonly?: boolean; // only match a single item (implies nowildcard)
+    onedir?: boolean; // only list a single directory (wildcards only allowed in the last path segment)
+    oneitem?: boolean; // only match a single item (implies nowildcard)
 }
 
 export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, options: ISearchOptionsExt, callback: (err: Error, items?: IItem[]) => void): void {
@@ -50,8 +51,9 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     var ignoreGlobstars = options.noglobstar || false;
     var maxDepth = options.depth | 0;
     var matchDotDirs = options.dotdirs || false;
-    var expectDir = options.listonly || false;
+    var expectDir = options.onedir || false;
     var expandDir = !(options.noexpand || false);
+    var all = options.all || false;
 
     // sanity checks
     if (!matchFiles && !matchDirectories) throw new Error("Not matching anything with the specified options");
@@ -87,9 +89,9 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     if (w >= 0) {
         // wildcard present -> split the path into base path and mask
 
-        if (options.nowildcard || options.itemonly) throw new Error("Wildcards not allowed");
+        if (options.nowildcard || options.oneitem) throw new Error("Wildcards not allowed");
 
-        if (options.listonly) {
+        if (options.onedir) {
             var s = path.indexOf('/', w);
             if (s > w) throw new Error("Wildcards only allowed in the last path segment");
         }
@@ -110,7 +112,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             if (err) return callback(err, null);
 
             try {
-                if (!options.itemonly) {
+                if (!options.oneitem) {
                     if (FileUtil.isDirectory(stats)) {
                         // if it's a directory, start matching
                         if (expandDir) return start(path, "*");
@@ -304,7 +306,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             var isDotDir = (item.filename == "." || item.filename == "..");
             if (isDotDir && !matchDotDirs) return;
 
-            if (!isDir && !isFile) return;
+            if (!all && !isDir && !isFile) return;
 
             var itemPath = relativePath.join(item.filename);
 

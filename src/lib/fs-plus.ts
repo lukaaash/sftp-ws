@@ -123,8 +123,9 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 var options = <ISearchOptionsExt>{
                     noglobstar: true,
                     nowildcard: true,
-                    listonly: true,
+                    onedir: true,
                     dotdirs: true,
+                    all: true,
                 };
 
                 search(this._fs, path, null, options, callback);
@@ -209,7 +210,8 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 nosort: false,
                 dotdirs: false,
                 noglobstar: true,
-                listonly: true,
+                onedir: true,
+                all: true,
             };
 
             search(this._fs, remotePath, emitter, options, callback);
@@ -234,7 +236,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             remotePath = Path.check(remotePath, 'remotePath');
 
             var options = <ISearchOptionsExt>{
-                itemonly: true,
+                oneitem: true,
             };
 
             search(this._fs, remotePath, emitter, options, (err, items) => {
