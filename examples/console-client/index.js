@@ -22,15 +22,19 @@ shell.command("open", "Connect to an SFTP over WebSockets server", function (con
     var options = { authenticate: authenticate, log: log };
     client.connect(address, options, function (err) {
         if (err) return fail(context, err);
-        
-        client.on("error", function (err) {
-            shell.write("Error:", err.message);
-            remote = null;
-            remotePath = "/";
-        });
-        
+      
         remote = client;
         context.execute("cd");
+    });
+
+    client.on("error", function (err) {
+        shell.write("Error:", err.message);
+    });
+
+    client.on("close", function () {
+        shell.write("Connection closed");
+        remote = null;
+        remotePath = "/";
     });
 });
 
@@ -236,8 +240,6 @@ shell.command(["mv", "ren"], "Rename or move remote items", function (context) {
 shell.command("close", "Exit the SFTP client", function (context) {
     if (!remote) return fail(context, "Not connected to a server");
     remote.end();
-    remote = null;
-    shell.write("Connection closed");
     context.end();
 });
 
@@ -335,8 +337,11 @@ function fail(context, err) {
         case "ENOENT":
             message = err.path + ": No such file or directory";
             break;
+        case "ENOSYS":
+            message = "Command not supported";
+            break;
         default:
-            message = err;
+            message = err["description"] || err.message;
             break;
     }
     
