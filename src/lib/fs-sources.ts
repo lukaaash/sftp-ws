@@ -202,7 +202,7 @@ export class FileDataSource extends EventEmitter implements IDataSource {
 
         this.started = true;
         try {
-            this.fs.open(this.path, "r", (err, handle) => {
+            this.fs.open(this.path, "r", null, (err, handle) => {
                 if (err) return this._error(err);
 
                 if (this.stats) {
