@@ -135,6 +135,13 @@ function equalStats(attrs: SFTP.IStats, stats: fs.Stats): void {
 
 var wrongPath = "No such file or directory";
 
+var getFileName = (function () {
+    var n = 1;
+    return function () {
+        return "file" + (n++) + ".txt";
+    }
+})();
+
 describe("Basic Tests", function () {
     this.timeout(1000 * 1000);
 
@@ -279,13 +286,13 @@ describe("Basic Tests", function () {
 
     it("rename(no-path, path2)", done => {
         var name1 = "dir000/file.txt";
-        var name2 = "file011.txt";
+        var name2 = getFileName();
 
         client.rename(name1, name2, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("rename(path1, no-path)", done => {
-        var name1 = "file010.txt";
+        var name1 = getFileName();
         var name2 = "dir000/file.txt";
         var body = "This is a file.";
 
@@ -295,8 +302,8 @@ describe("Basic Tests", function () {
     });
 
     it("rename(path1, path2)", done => {
-        var name1 = "file011.txt";
-        var name2 = "file012.txt";
+        var name1 = getFileName();
+        var name2 = getFileName();
         var body = "This is a file.";
 
         fs.writeFileSync(Path.join(tmp, name1), body);
@@ -311,13 +318,13 @@ describe("Basic Tests", function () {
     });
 
     it("unlink(no-path)", done => {
-        var name = "file013.txt";
+        var name = getFileName();
 
         client.unlink(name, (err) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("unlink(path)", done => {
-        var name = "file014.txt";
+        var name = getFileName();
         var body = "This is a file.";
 
         fs.writeFileSync(Path.join(tmp, name), body);
@@ -329,13 +336,13 @@ describe("Basic Tests", function () {
     });
 
     it("open(no-path, 'r+')", done => {
-        var name = "file015.txt";
+        var name = getFileName();
 
         client.open(name, "r+", (err, handle) => error(err, done, 'ENOENT', wrongPath));
     });
 
     it("open(path, 'r+')/read/close", done => {
-        var name = "file016.txt";
+        var name = getFileName();
 
         var body = "0123456789" + "9876543210" + "00112233445566778899" + "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         fs.writeFileSync(Path.join(tmp, name), body);
@@ -365,7 +372,7 @@ describe("Basic Tests", function () {
     });
 
     it("open(no-path, 'w+')/write/close", done => {
-        var name = "file017.txt";
+        var name = getFileName();
 
         client.open(name, "w+", {}, (err, handle) => check(err, done, () => {
             var stats = fs.statSync(Path.join(tmp, name));
@@ -501,7 +508,7 @@ describe("Basic Tests", function () {
     });
 
     it("setstat(path)", done => {
-        var name = "file017.txt";
+        var name = getFileName();
 
         var body = "0123456789" + "0123456789" + "0123456789";
         fs.writeFileSync(Path.join(tmp, name), body);
@@ -523,7 +530,7 @@ describe("Basic Tests", function () {
     });
 
     it("open(path)/fsetstat", done => {
-        var name = "file018.txt";
+        var name = getFileName();
 
         var body = "0123456789" + "0123456789" + "0123456789";
         fs.writeFileSync(Path.join(tmp, name), body);
