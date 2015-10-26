@@ -75,6 +75,11 @@ class SftpHandle {
     }
 }
 
+class SftpFeature {
+    static HARDLINK = "LINK";
+    static POSIX_RENAME = "POSIX_RENAME";
+}
+
 class SftpClientCore implements IFilesystem {
     private static _nextSessionId = 1;
     private _sessionId: number;
@@ -84,7 +89,7 @@ class SftpClientCore implements IFilesystem {
     private _requests: SftpRequest[];
     private _ready: boolean;
     private _extensions: Object;
-    private _supported: Object;
+    private _features: Object;
 
     private _log: ILogWriter;
     private _debug: boolean;
@@ -124,7 +129,7 @@ class SftpClientCore implements IFilesystem {
         this._ready = false;
         this._requests = [];
         this._extensions = {};
-        this._supported = {};
+        this._features = {};
 
         this._maxWriteBlockLength = 32 * 1024;
         this._maxReadBlockLength = 256 * 1024;
@@ -218,8 +223,13 @@ class SftpClientCore implements IFilesystem {
 
             this._log.debug(this._extensions, "[%d] - Server extensions", this._sessionId);
 
-            this._supported[SftpExtensions.HARDLINK] = SftpExtensions.contains(this._extensions[SftpExtensions.HARDLINK], "1");
-            this._supported[SftpExtensions.POSIX_RENAME] = SftpExtensions.contains(this._extensions[SftpExtensions.POSIX_RENAME], "1");
+            if (SftpExtensions.contains(this._extensions[SftpExtensions.HARDLINK], "1")) {
+                this._features[SftpFeature.HARDLINK] = SftpExtensions.HARDLINK;
+            }
+
+            if (SftpExtensions.contains(this._extensions[SftpExtensions.POSIX_RENAME], "1")) {
+                this._features[SftpFeature.POSIX_RENAME] = SftpExtensions.POSIX_RENAME;
+            }
 
             this._ready = true;
             callback(null);
@@ -441,18 +451,21 @@ class SftpClientCore implements IFilesystem {
         oldPath = this.checkPath(oldPath, 'oldPath');
         newPath = this.checkPath(newPath, 'newPath');
 
+        var command;
         var info = { command: "rename", oldPath: oldPath, newPath: newPath, flags: flags };
         switch (flags) {
             case RenameFlags.OVERWRITE:
-                this.command(SftpExtensions.POSIX_RENAME, [oldPath, newPath], callback, this.parseStatus, info);
+                command = SftpFeature.POSIX_RENAME;
                 break;
             case 0:
-                this.command(SftpPacketType.RENAME, [oldPath, newPath], callback, this.parseStatus, info);
+                command = SftpPacketType.RENAME;
                 break;
             default:
                 process.nextTick(() => callback(this.createError(SftpStatusCode.OP_UNSUPPORTED, "Unsupported rename flags", info)));
                 break;
         }
+
+        this.command(command, [oldPath, newPath], callback, this.parseStatus, info);
     }
 
     readlink(path: string, callback: (err: Error, linkString: string) => any): void {
@@ -475,7 +488,7 @@ class SftpClientCore implements IFilesystem {
         oldPath = this.checkPath(oldPath, 'oldPath');
         newPath = this.checkPath(newPath, 'newPath');
 
-        this.command(SftpExtensions.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
+        this.command(SftpFeature.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
     }
 
     private checkCallback(callback: any): void {
@@ -524,8 +537,10 @@ class SftpClientCore implements IFilesystem {
             throw new Error("Invalid position");
     }
 
-    private command(command: SftpPacketType|string, args: string[], callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
-        if (typeof command !== "number" && !this._supported[command]) {
+    private command(command: SftpPacketType | string, args: string[], callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
+        if (typeof command !== "number") command = this._features[command];
+
+        if (!command) {
             process.nextTick(() => callback(this.createError(SftpStatusCode.OP_UNSUPPORTED, "Operation not supported", info)));
             return;
         }
