@@ -410,7 +410,7 @@ class SftpClientCore implements IFilesystem {
         this.checkCallback(callback);
         path = this.checkPath(path, 'path');
 
-        this.command(SftpPacketType.REMOVE, [path], callback, this.parseStatus, { command: "unline", path: path });
+        this.command(SftpPacketType.REMOVE, [path], callback, this.parseStatus, { command: "unlink", path: path });
     }
 
     mkdir(path: string, attrs: IStats, callback: (err: Error) => any): void {
