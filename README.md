@@ -17,42 +17,104 @@ This package is currently in development and has not been sufficiently tested ye
 npm install --save sftp-ws
 ```
 
+## Changes
+
+The API has been changed slightly in v0.7:
+- SFTP client now features a dual Node.js-style and Promise-based API.
+- IFilesystem API has been slightly modified. Arguments in `read` callback have been reversed, and `rename` method has been extended.
+
 ## API
 
 The SFTP client provides a high-level API for multi-file operations, but it also aims to be compatible with SFTP client in [ssh2 module](https://github.com/mscdex/ssh2) by Brian White.
 
-Einaros [ws module](https://github.com/einaros/ws) is used to handle WebSockets and this is reflected in parts of the client and server API as well.
+Einaros [ws module](https://github.com/einaros/ws) is used to provide WebSockets connectivity.
 
-### SFTP client - connecting to a server:
+### Examples
+
+Sample code is available in [this project's GitHub repository](https://github.com/lukaaash/sftp-ws/tree/master/examples).
+
+Stand-alone [Browser-based SFTP/WS client]((https://nuane.com/sftp.js) is available as well. Check out the [web client sample](https://github.com/lukaaash/sftp-ws/tree/master/examples/web-client) to see it in action.
+
+### SFTP client - example (Node.js-style API):
 
 ```javascript
-var SFTP = require('sftp-ws');
+var SFTP = require("sftp-ws");
 
-// create an SFTP over WebSockets object
+// url, credentials and options
+var url = "ws://nuane.com/sftp";
+var options = { username: "guest", password: "none" };
+
+// connect to the server
 var client = new SFTP.Client();
-
-// connect to a server
-client.connect('ws://localhost/path');
-
-// handle errors
-client.on('error', function (err) {
-    console.log('Error: %s', err.message);
-});
-
-// when connected, display a message and file listing
-client.on('ready', function () {
-    console.log('Connected to the server.');
-
-    client.list('.').on('success', function (list) {
+client.connect(url, options, function (err) {
+    if (err) {
+        // handle error
+        console.log("Error: %s", err.message);
+        return;
+    }
+    
+    // display a message
+    console.log("Connected to the server.");
+    
+    // retrieve directory listing
+    client.list(".", function (err, list) {
+        if (err) {
+            // handle error
+            console.log("Error: %s", err.message);
+            return;
+        }
         
-		// display the listing
-		list.forEach(function (item) {
-            return console.log(item.longname);
+        // display the listing
+        list.forEach(function (item) {
+            console.log(item.longname);
         });
-
-		// close the connection
-		client.end();
+        
+        // disconnect
+        client.end();
     });
+});
+```
+
+### SFTP client - example (Promise-based API):
+
+```javascript
+var SFTP = require("sftp-ws");
+
+// url and credentials
+var url = "ws://nuane.com/sftp";
+var options = { username: "guest", password: "none" };
+
+// url, credentials and options
+var url = "ws://nuane.com/sftp";
+var options = {
+    username: "guest",
+    password: "none",
+    promise: null // you can supply a custom Promise implementation
+};
+
+// connect to the server
+var client = new SFTP.Client();
+client.connect(url, options).then(function () {
+    // display a message
+    console.log("Connected to %s", url);
+    
+    // retrieve directory listing
+    return client.list(".");
+
+}).then(function (list) {
+    // display the listing
+    list.forEach(function (item) {
+        console.log(item.longname);
+    });
+
+}).catch(function (err) {
+    // handle errors
+    console.log("Error: %s", err.message);
+
+}).then(function () {
+    // disconnect
+    client.end();
+
 });
 ```
 
@@ -80,40 +142,34 @@ var server = new SFTP.Server({
 });
 ```
 
-### Examples
-
-Sample code is available in [this project's GitHub repository](https://github.com/lukaaash/sftp-ws/tree/master/examples).
-
-This includes a proof-of-concept version of a [browser-based SFTP/WS client](https://github.com/lukaaash/sftp-ws/tree/v0.3.0/examples/web-client).
-
 ## Virtual filesystems
 
 This SFTP package is built around the `IFilesystem` interface:
 
 ```typescript
 interface IFilesystem {
-    open(path: string, flags: string, attrs?: IStats, callback?: (err: Error, handle: any) => any): void;
-    close(handle: any, callback?: (err: Error) => any): void;
-    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error, buffer: Buffer, bytesRead: number) => any): void;
-    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): void;
-    lstat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
-    fstat(handle: any, callback?: (err: Error, attrs: IStats) => any): void;
-    setstat(path: string, attrs: IStats, callback?: (err: Error) => any): void;
-    fsetstat(handle: any, attrs: IStats, callback?: (err: Error) => any): void;
-    opendir(path: string, callback?: (err: Error, handle: any) => any): void;
-    readdir(handle: any, callback?: (err: Error, items: IItem[]|boolean) => any): void;
-    unlink(path: string, callback?: (err: Error) => any): void;
-    mkdir(path: string, attrs?: IStats, callback?: (err: Error) => any): void;
-    rmdir(path: string, callback?: (err: Error) => any): void;
-    realpath(path: string, callback?: (err: Error, resolvedPath: string) => any): void;
-    stat(path: string, callback?: (err: Error, attrs: IStats) => any): void;
-    rename(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
-    readlink(path: string, callback?: (err: Error, linkString: string) => any): void;
-    symlink(targetpath: string, linkpath: string, callback?: (err: Error) => any): void;
-    link(oldPath: string, newPath: string, callback?: (err: Error) => any): void;
+    open(path: string, flags: string, attrs: IStats, callback: (err: Error, handle: any) => any): void;
+    close(handle: any, callback: (err: Error) => any): void;
+    read(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback: (err: Error, buffer: Buffer, bytesRead: number) => any): void;
+    write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback: (err: Error) => any): void;
+    lstat(path: string, callback: (err: Error, attrs: IStats) => any): void;
+    fstat(handle: any, callback: (err: Error, attrs: IStats) => any): void;
+    setstat(path: string, attrs: IStats, callback: (err: Error) => any): void;
+    fsetstat(handle: any, attrs: IStats, callback: (err: Error) => any): void;
+    opendir(path: string, callback: (err: Error, handle: any) => any): void;
+    readdir(handle: any, callback: (err: Error, items: IItem[]|boolean) => any): void;
+    unlink(path: string, callback: (err: Error) => any): void;
+    mkdir(path: string, attrs: IStats, callback: (err: Error) => any): void;
+    rmdir(path: string, callback: (err: Error) => any): void;
+    realpath(path: string, callback: (err: Error, resolvedPath: string) => any): void;
+    stat(path: string, callback: (err: Error, attrs: IStats) => any): void;
+    rename(oldPath: string, newPath: string, flags: RenameFlags, callback: (err: Error) => any): void;
+    readlink(path: string, callback: (err: Error, linkString: string) => any): void;
+    symlink(oldPath: string, newPath: string, callback: (err: Error) => any): void;
+    link(oldPath: string, newPath: string, callback: (err: Error) => any): void;
 }
 
-export interface IStats {
+interface IStats {
     mode?: number;
     uid?: number;
     gid?: number;
@@ -126,16 +182,22 @@ export interface IStats {
     isSymbolicLink? (): boolean;
 }
 
-export interface IItem {
+interface IItem {
     filename: string;
     stats: IStats;
 
     longname?: string;
     path?: string;
 }
+
+const enum RenameFlags {
+    OVERWRITE = 1,
+    //ATOMIC = 2,
+    //NATIVE = 4,
+}
 ```
 
-The functions of `IFilesystem` interface represent actual SFTP protocol commands in a way that resembles the `fs` module that comes with Node.js.
+The functions of `IFilesystem` interface represent SFTP protocol commands and resemble the `fs` module that comes with Node.js.
 The SFTP client object implements this interface (and other useful wrapper methods).
 The SFTP server object makes instances of this interface accessible by clients.
 
@@ -146,9 +208,8 @@ However, you can easily implement a custom virtual filesystem and use it instead
 
 List of things I would like to add soon:
 
+- More powerful API
 - More unit tests
+- Even more unit tests
 - Better documentation
-- Proper browser-based client
-- Client-side wrapper around `IFilesystem` to simplify common tasks
 - SFTP/WS to SFTP/SSH proxy
-- Command-line SFTP/WS client utility
