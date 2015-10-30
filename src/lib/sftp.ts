@@ -88,6 +88,11 @@ module SFTP {
         }
 
         connect(address: string, options?: IClientOptions, callback?: (err: Error) => void): Task<void> {
+            if (typeof callback === "undefined" && typeof options === "function") {
+                callback = <any>options;
+                options = null;
+            }
+
             return super._task(callback, callback => {
                 options = options || {};
 
