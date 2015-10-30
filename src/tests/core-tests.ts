@@ -35,7 +35,6 @@ if (!fs.existsSync(tmp)) {
 
 var log;
 try {
-    //var log = require("bunyan").createLogger({ name: "sftp-ws-tests" });
     log = require("bunyan").createLogger({
         name: "sftp-ws-tests",
         streams: [{
@@ -151,7 +150,7 @@ describe("Basic Tests", function () {
         client = new SFTP.Client();
 
         client.connect("ws://localhost:3022", {
-            log: console,
+            log: log,
         });
 
         client.on("error", err => {
