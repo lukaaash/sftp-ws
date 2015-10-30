@@ -12,7 +12,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>dd495a2f-8772-4805-8faa-32c4c42775af</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>web-benchmark\index.js</StartupFile>
+    <StartupFile>console-client\index.js</StartupFile>
     <StartWebBrowser>False</StartWebBrowser>
     <SearchPath>
     </SearchPath>
@@ -31,6 +31,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="package.json" />
+    <Content Include="promise-client\README.md" />
     <Content Include="README.md" />
     <Content Include="web-benchmark\client\index.html" />
     <Content Include="web-benchmark\files\readme.txt" />
@@ -45,6 +46,7 @@
     <Content Include="web-client\README.md" />
     <Compile Include="console-client\index.js" />
     <Content Include="console-client\README.md" />
+    <Compile Include="promise-client\client.js" />
     <Compile Include="simple-client\client.js" />
     <Content Include="simple-client\README.md" />
     <Compile Include="simple-server\server.js" />
@@ -54,6 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="console-client\" />
+    <Folder Include="promise-client\" />
     <Folder Include="web-benchmark\" />
     <Folder Include="simple-client\" />
     <Folder Include="simple-server\" />
