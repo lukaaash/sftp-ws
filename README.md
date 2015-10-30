@@ -80,10 +80,6 @@ client.connect(url, options, function (err) {
 ```javascript
 var SFTP = require("sftp-ws");
 
-// url and credentials
-var url = "ws://nuane.com/sftp";
-var options = { username: "guest", password: "none" };
-
 // url, credentials and options
 var url = "ws://nuane.com/sftp";
 var options = {
