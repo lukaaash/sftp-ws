@@ -309,22 +309,23 @@ class BlobDataSource extends EventEmitter implements IDataSource {
 
     private flush(): void {
         try {
-            if (this.finished) {
-                if (!this.ended) {
-                    this.ended = true;
-                    process.nextTick(() => super.emit('end'));
-                }
+            // don't do anyting if already reading data or already ended
+            if (this.busy || this.ended) return;
 
+            // if finished and no queued data, schedule the 'end' event
+            if (this.finished && this.queue.length == 0) {
+                this.ended = true;
+                process.nextTick(() => super.emit('end'));
                 return;
-            }
-
-            if (!this.busy && this.queue.length < 4) {
+            }   
+                
+            // read more data unless the queue is full
+            if (this.queue.length < 4) {
                 var slice = this.blob.slice(this.pos, this.pos + 0x8000);
                 this.pos += slice.size;
                 this.busy = true;
                 this.reader.readAsArrayBuffer(slice);
             }
-
         } catch (err) {
             this.finished = true;
             this.ended = true;
@@ -334,13 +335,17 @@ class BlobDataSource extends EventEmitter implements IDataSource {
     }
 
     read(): Buffer {
-        var chunk = this.queue.shift();
-        if (!chunk) {
-            chunk = null;
-            this.readable = false;
-        }
-
         this.flush();
+
+        // if not readable, don't return anything
+        if (!this.readable) return null;
+            
+        // get next chunk
+        var chunk = this.queue.shift();
+            
+        // if no more chunks are available, become unreadable
+        if (this.queue.length == 0) this.readable = false;
+
         return chunk;
     }
 
