@@ -309,7 +309,7 @@ class BlobDataSource extends EventEmitter implements IDataSource {
 
     private flush(): void {
         try {
-            // don't do anyting if already reading data or already ended
+            // don't do anything if already reading data or already ended
             if (this.busy || this.ended) return;
 
             // if finished and no queued data, schedule the 'end' event
