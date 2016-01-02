@@ -9,6 +9,17 @@ import IStats = api.IStats;
 import RenameFlags = api.RenameFlags;
 import FileUtil = misc.FileUtil;
 
+class HandleInfo {
+    safe: number;
+    real: any;
+    busy: boolean;
+    actions: Function[];
+}
+
+interface HandleToHandleInfoMap {
+    [handle: number]: HandleInfo;
+}
+
 export class SafeFilesystem implements IFilesystem {
 
     isSafe: boolean;
@@ -18,6 +29,10 @@ export class SafeFilesystem implements IFilesystem {
     private readOnly: boolean;
     private hideUidGid: boolean;
 
+    private _handles: HandleToHandleInfoMap;
+    private _nextHandle: number;
+    private static MAX_HANDLE_COUNT = 512;
+
     constructor(fs: IFilesystem, virtualRootPath: string, options: { readOnly?: boolean, hideUidGid?: boolean }) {
         options = options || {};
         this.isSafe = true;
@@ -26,23 +41,31 @@ export class SafeFilesystem implements IFilesystem {
         this.root = Path.normalize(virtualRootPath);
         this.readOnly = options.readOnly == true;
         this.hideUidGid = options.hideUidGid == true;
+        this._handles = [];
+        this._nextHandle = 1;
     }
 
-    private wrapHandle(handle: any): any {
-        if (handle == null || typeof handle === 'undefined')
-            throw Error("Invalid handle");
+    private createHandleInfo(): HandleInfo {
+        var count = SafeFilesystem.MAX_HANDLE_COUNT;
+        while (count-- > 0) {
+            var safeHandle = this._nextHandle;
+            this._nextHandle = (safeHandle % SafeFilesystem.MAX_HANDLE_COUNT) + 1;
+            if (typeof this._handles[safeHandle] === "undefined") {
+                var info = new HandleInfo();
+                info.real = null;
+                info.safe = safeHandle;
+                info.busy = false;
+                this._handles[safeHandle] = info;
+                return info;
+            }
+        }
 
-        return { handle: handle, owner: this };
+        return null;
     }
 
-    private unwrapHandle(handle: any): any {
-        if (typeof handle !== 'object')
-            return null;
-
-        if (handle.owner != this)
-            return null;
-
-        return handle.handle;
+    private toHandleInfo(safeHandle: number): HandleInfo {
+        if (typeof safeHandle !== 'number') return null;
+        return this._handles[safeHandle] || null;
     }
 
     private toVirtualPath(fullPath: string): string {
@@ -96,15 +119,15 @@ export class SafeFilesystem implements IFilesystem {
         callback(err, path);
     }
 
-    private processCallbackHandle(err: Error, handle: any, callback: (err: Error, handle: any) => any) {
-        if (typeof err !== 'undefined' && err != null) {
-            handle = undefined;
-        } else {
-            if (typeof handle !== 'undefined' && handle != null)
-                handle = this.wrapHandle(handle);
+    private processCallbackHandle(err: Error, handleInfo: HandleInfo, realHandle: any, callback: (err: Error, safeHandle: number) => any) {
+        var safeHandle = handleInfo.safe;
+        if (err) {
+            delete this._handles[safeHandle];
+            callback(err, null);
+            return;
         }
-
-        callback(err, handle);
+        handleInfo.real = realHandle;
+        callback(null, safeHandle);
     }
 
     private processCallbackAttrs(err: Error, attrs: IStats, callback: (err: Error, attrs: IStats) => any) {
@@ -120,47 +143,118 @@ export class SafeFilesystem implements IFilesystem {
         return !(this.readOnly === false);
     }
 
-    open(path: string, flags: string, attrs: IStats, callback: (err: Error, handle: any) => any): void {
+    end() {
+        if (!this.fs) return;
+
+        //TODO: make sure all pending operations either complete or fail gracefully
+
+        for (var handle = 1; handle <= SafeFilesystem.MAX_HANDLE_COUNT; handle++) {
+            var handleInfo = this.toHandleInfo(handle);
+            if (handleInfo && handleInfo.real !== null) {
+                try {
+                    this.fs.close(handleInfo.real, err => {
+                        //TODO: report this
+                    });
+                } catch (err) {
+                    //TODO: report this
+                }
+            }
+            delete this._handles[handle];
+        }
+
+        delete this.fs;
+    }
+
+    private _execute(safeHandle: number, action: (handle: any, callback: (err: Error, ...args) => any) => void, callback: (err: Error, ...args) => any): void {
+        var handleInfo = this.toHandleInfo(safeHandle);
+
+        if (!handleInfo) return FileUtil.fail("Invalid handle", callback);
+
+        var finished = false;
+        var asynchronous = false;
+
+        if (!handleInfo.busy) {
+            handleInfo.busy = true;
+            run();
+        } else {
+            var queue = handleInfo.actions;
+            if (!queue) {
+                queue = [];
+                handleInfo.actions = queue;
+            }
+            queue.push(run);
+        }
+
+        function run() {
+            try {
+                action(handleInfo.real, done);
+            } catch (err) {
+                done(err);
+            }
+            asynchronous = true;
+        }
+
+        function done(err: Error) {
+            if (finished) {
+                //TODO: callback called more than once - this is a fatal error and should not be ignored
+                return;
+            }
+            finished = true;
+
+            // delay this function until the next tick if action finished synchronously
+            if (!asynchronous) {
+                asynchronous = true;
+                process.nextTick(() => done(err));
+                return;
+            }
+
+            // trigger next action
+            var queue = handleInfo.actions;
+            if (!queue || queue.length == 0) {
+                handleInfo.busy = false;
+            } else {
+                var next = queue.shift();
+                next();
+            }
+
+            // invoke the callback
+            if (typeof callback !== "function") {
+                if (err) throw err;
+            } else {
+                callback.apply(null, arguments);
+            }
+        }
+    }
+
+    open(path: string, flags: string, attrs: IStats, callback: (err: Error, handle: number) => any): void {
         if (this.isReadOnly() && flags != "r") return FileUtil.fail("EROFS", callback);
+
+        var handleInfo = this.createHandleInfo();
+        if (!handleInfo) return FileUtil.fail("ENFILE", callback);
 
         try {
             path = this.toRealPath(path);
-            this.fs.open(path, flags, attrs, (err, handle) => this.processCallbackHandle(err, handle, callback));
+            this.fs.open(path, flags, attrs, (err, realHandle) => this.processCallbackHandle(err, handleInfo, realHandle, callback));
         } catch (err) {
             callback(err, null);
         }
     }
 
-    close(handle: any, callback: (err: Error) => any): void {
-        handle = this.unwrapHandle(handle);
-
-        try {
-            this.fs.close(handle, callback);
-        } catch (err) {
-            callback(err);
-        }
+    close(handle: number, callback: (err: Error) => any): void {
+        this._execute(handle, (realHandle, callback) => {
+            delete this._handles[handle];
+            this.fs.close(realHandle, callback)
+        }, callback);
     }
 
-    read(handle: any, buffer, offset, length, position, callback: (err: Error, buffer: Buffer, bytesRead: number) => any): void {
-        handle = this.unwrapHandle(handle);
-
-        try {
-            this.fs.read(handle, buffer, offset, length, position, callback);
-        } catch (err) {
-            callback(err, null, null);
-        }
+    read(handle: number, buffer, offset, length, position, callback: (err: Error, buffer: Buffer, bytesRead: number) => any): void {
+        this._execute(handle, (handle, callback) => this.fs.read(handle, buffer, offset, length, position, callback), callback);
     }
 
-    write(handle: any, buffer, offset, length, position, callback: (err: Error) => any): void {
+    write(handle: number, buffer, offset, length, position, callback: (err: Error) => any): void {
         if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
-        handle = this.unwrapHandle(handle);
-
-        try {
-            this.fs.write(handle, buffer, offset, length, position, callback);
-        } catch (err) {
-            callback(err);
-        }
+        this._execute(handle, (handle, callback) => this.fs.write(handle, buffer, offset, length, position, callback), callback);
     }
 
     lstat(path: string, callback: (err: Error, attrs: IStats) => any): void {
@@ -177,18 +271,11 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
-    fstat(handle: any, callback: (err: Error, attrs: IStats) => any): void {
-        handle = this.unwrapHandle(handle);
-
-        try {
-            if (!this.hideUidGid) {
-                this.fs.fstat(handle, callback);
-            } else {
-                this.fs.fstat(handle, (err, attrs) => this.processCallbackAttrs(err, attrs, callback));
-            }
-        } catch (err) {
-            callback(err, null);
-        }
+    fstat(handle: number, callback: (err: Error, attrs: IStats) => any): void {
+        this._execute(handle, (handle, callback) => this.fs.fstat(handle, callback), (err: Error, attrs: IStats) => {
+            if (this.hideUidGid) return this.processCallbackAttrs(err, attrs, callback);
+            callback(err, attrs);
+        });
     }
 
     setstat(path: string, attrs: IStats, callback: (err: Error) => any): void {
@@ -207,49 +294,40 @@ export class SafeFilesystem implements IFilesystem {
         }
     }
 
-    fsetstat(handle: any, attrs: IStats, callback: (err: Error) => any): void {
+    fsetstat(handle: number, attrs: IStats, callback: (err: Error) => any): void {
         if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
 
-        handle = this.unwrapHandle(handle);
-
-        if (this.hideUidGid) {
+        if (attrs && this.hideUidGid) {
             attrs.uid = null;
             attrs.gid = null;
         }
 
-        try {
-            this.fs.fsetstat(handle, attrs, callback);
-        } catch (err) {
-            callback(err);
-        }
+        this._execute(handle, (handle, callback) => this.fs.fsetstat(handle, attrs, callback), callback);
     }
 
-    opendir(path: string, callback: (err: Error, handle: any) => any): void {
+    opendir(path: string, callback: (err: Error, handle: number) => any): void {
         path = this.toRealPath(path);
 
+        var handleInfo = this.createHandleInfo();
+        if (!handleInfo) return FileUtil.fail("ENFILE", callback);
+
         try {
-            this.fs.opendir(path, (err, handle) => this.processCallbackHandle(err, handle, callback));
+            this.fs.opendir(path, (err, realHandle) => this.processCallbackHandle(err, handleInfo, realHandle, callback));
         } catch (err) {
             callback(err, null);
         }
     }
 
-    readdir(handle: any, callback: (err: Error, items: IItem[]|boolean) => any): void {
-        handle = this.unwrapHandle(handle);
-
-        try {
-            this.fs.readdir(handle, (err, items) => {
-                if (this.hideUidGid) {
-                    if (Array.isArray(items)) (<IItem[]>items).forEach(item => {
-                        item.stats.uid = null;
-                        item.stats.gid = null;
-                    });
-                }
-                callback(err, items);
-            });
-        } catch (err) {
-            callback(err, null);
-        }
+    readdir(handle: number, callback: (err: Error, items: IItem[]|boolean) => any): void {
+        this._execute(handle, (handle, callback) => this.fs.readdir(handle, callback), (err: Error, items: IItem[] | boolean) => {
+            if (this.hideUidGid) {
+                if (Array.isArray(items)) (<IItem[]>items).forEach(item => {
+                    item.stats.uid = null;
+                    item.stats.gid = null;
+                });
+            }
+            callback(err, items);
+        });
     }
 
     unlink(path: string, callback: (err: Error) => any): void {

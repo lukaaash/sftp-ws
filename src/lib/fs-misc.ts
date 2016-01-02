@@ -281,6 +281,10 @@ export class FileUtil {
         var message;
         var errno;
         switch (code) {
+            case "EOF":
+                message = "End of file";
+                errno = 1;
+                break;
             case "ENOSYS":
                 message = "Operation not supported";
                 errno = 35;
@@ -288,6 +292,10 @@ export class FileUtil {
             case "EROFS":
                 message = "Read-only filesystem";
                 errno = 56;
+                break;
+            case "EMFILE":
+                message = "Too many open files";
+                errno = 20;
                 break;
             default:
                 message = code;
@@ -303,7 +311,10 @@ export class FileUtil {
             error.isPublic = true;
         }
 
-        process.nextTick(() => callback(error));
+        process.nextTick(() => {
+            if (typeof callback !== "function") throw error;
+            callback(error);
+        });
     }
 
 
