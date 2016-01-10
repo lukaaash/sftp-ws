@@ -31,6 +31,7 @@ export class SftpPacket {
     }
 
     static toString(packetType: SftpPacketType|string): string {
+        if (typeof packetType === "string") return packetType;
         switch (packetType) {
             case SftpPacketType.INIT: return "INIT";
             case SftpPacketType.VERSION: return "VERSION";
