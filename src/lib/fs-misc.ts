@@ -391,6 +391,38 @@ export class FileUtil {
         }
     }
 
+    static purge(fs: IFilesystem, path: string, callback: (err: Error) => any): void {
+
+        FileUtil.list(fs, path, false, (err, items) => {
+            if (err) {
+                if (err["code"] === "ENOENT") err = null;
+                return callback(err);
+            }
+
+            next(null);
+
+            function next(err: Error): void {
+                if (err && err["code"] !== "ENOENT") return callback(err);
+
+                var item = items.shift();
+                if (!item) {
+                    fs.rmdir(path, err => {
+                        if (err && err["code"] === "ENOENT") err = null;
+                        callback(err);
+                    });
+                    return;
+                }
+
+                var itemPath = new Path(path, fs).join(item.filename).path;
+                if (FileUtil.isDirectory(item.stats)) {
+                    FileUtil.purge(fs, itemPath, next);
+                } else {
+                    fs.unlink(itemPath, next);
+                }
+            }
+        });
+    }
+
     static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {
         fs.stat(path, (err, stats) => {
             if (!err) {
