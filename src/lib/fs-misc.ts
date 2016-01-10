@@ -354,7 +354,7 @@ export class FileUtil {
                             error = error || err;
                             if (err) return callback(error);
 
-                            emitter.emit("traversed", path);
+                            if (emitter) emitter.emit("traversed", path);
 
                             // done
                             callback(null);
