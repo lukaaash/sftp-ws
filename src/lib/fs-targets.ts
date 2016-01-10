@@ -38,10 +38,6 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 
     acceptsEmptyBlocks: boolean;
 
-    on(event: string, listener: Function): NodeJS.EventEmitter {
-        return super.on(event, listener);
-    }
-
     constructor(fs: IFilesystem, path: string) {
         super();
 
@@ -208,10 +204,6 @@ export class FileDataTarget extends EventEmitter implements IDataTarget {
 export class DataTarget extends EventEmitter implements IDataTarget {
     constructor() {
         super();
-    }
-
-    on(event: string, listener: Function): NodeJS.EventEmitter {
-        return super.on(event, listener);
     }
 
     protected _data(chunk: Buffer): void {

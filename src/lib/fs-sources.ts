@@ -73,6 +73,11 @@ export class FileDataSource extends EventEmitter implements IDataSource {
         return super.on(event, listener);
     }
 
+    once(event: string, listener: Function): NodeJS.EventEmitter {
+        this._flush();
+        return super.once(event, listener);
+    }
+
     private _flush(): void {
         try {
             if (this.closed || this.eof) {
@@ -305,6 +310,11 @@ class BlobDataSource extends EventEmitter implements IDataSource {
     on(event: string, listener: Function): NodeJS.EventEmitter {
         this.flush();
         return super.on(event, listener);
+    }
+
+    once(event: string, listener: Function): NodeJS.EventEmitter {
+        this.flush();
+        return super.once(event, listener);
     }
 
     private flush(): void {
