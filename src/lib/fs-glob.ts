@@ -62,16 +62,6 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     var windows = (<any>fs).isWindows == true;
     path = new Path(path, null).normalize().path;
 
-    // append a wildcard to slash-ended paths, or make sure they refer to a directory
-    if (path[path.length - 1] == '/') {
-        if (expandDir) {
-            path += "*";
-        } else {
-            path = path.substr(0, path.length - 1);
-            expectDir = true;
-        }
-    }
-
     // resulting item list
     var results = <IItemExt[]>[];
 
@@ -80,6 +70,19 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
     var glob: RegExp;
     var queue = <IDirInfo[]>[];
     var patterns = <RegExp[]>[];
+
+    if (path == "/") {
+        if (expandDir) return start("", "*");
+        expectDir = true;
+    } else if (path[path.length - 1] == '/') {
+        // append a wildcard to slash-ended paths, or make sure they refer to a directory
+        if (expandDir) {
+            path += "*";
+        } else {
+            path = path.substr(0, path.length - 1);
+            expectDir = true;
+        }
+    }
 
     // search for the first wildcard
     var w1 = path.indexOf('*');
