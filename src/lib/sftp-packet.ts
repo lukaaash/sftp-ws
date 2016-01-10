@@ -26,6 +26,15 @@ export class SftpPacket {
         this.position += count;
     }
 
+// #if FULL
+    resize(size: number): void {
+        var buffer = new Buffer(size);
+        this.buffer.copy(buffer);
+        this.buffer = buffer;
+        this.length = buffer.length;
+    }
+// #endif
+
     static isBuffer(obj: any): boolean {
         return Buffer.isBuffer(obj); //WEB: return obj && obj.buffer instanceof ArrayBuffer && typeof obj.byteLength !== "undefined";
     }

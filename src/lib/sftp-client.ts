@@ -46,6 +46,8 @@ interface SftpCommandInfo extends Object {
     targetPath?: string;
     linkPath?: string;
     handle?: any;
+    fromHandle?: any;
+    toHandle?: any;
 }
 
 class SftpItem implements IItem {
@@ -78,6 +80,10 @@ class SftpHandle {
 class SftpFeature {
     static HARDLINK = "LINK";
     static POSIX_RENAME = "POSIX_RENAME";
+    static COPY_FILE = "COPY_FILE";
+    static COPY_DATA = "COPY_DATA";
+    static CHECK_FILE_HANDLE = "CHECK_FILE_HANDLE";
+    static CHECK_FILE_NAME = "CHECK_FILE_NAME";
 }
 
 class SftpClientCore implements IFilesystem {
@@ -244,6 +250,11 @@ class SftpClientCore implements IFilesystem {
             if (SftpExtensions.contains(this._extensions[SftpExtensions.POSIX_RENAME], "1")) {
                 this._features[SftpFeature.POSIX_RENAME] = SftpExtensions.POSIX_RENAME;
             }
+
+// #if FULL
+            this._features[SftpFeature.CHECK_FILE_HANDLE] = SftpExtensions.CHECK_FILE_HANDLE;
+            this._features[SftpFeature.COPY_DATA] = SftpExtensions.COPY_DATA;
+// #endif
 
             this._ready = true;
             callback(null);
@@ -505,6 +516,44 @@ class SftpClientCore implements IFilesystem {
 
         this.command(SftpFeature.HARDLINK, [oldPath, newPath], callback, this.parseStatus, { command: "link", oldPath: oldPath, newPath: newPath });
     }
+
+// #if FULL
+    fcopy(fromHandle: any, fromPosition: number, length: number, toHandle: any, toPosition: number, callback: (err: Error) => any): void {
+        this.checkCallback(callback);
+        var fh = this.toHandle(fromHandle);
+        var th = this.toHandle(toHandle);
+        this.checkPosition(fromPosition);
+        this.checkPosition(toPosition);
+
+        var request = this.getRequest(SftpExtensions.COPY_DATA);
+
+        request.writeData(fh);
+        request.writeInt64(fromPosition);
+        request.writeInt64(length);
+        request.writeData(th);
+        request.writeInt64(toPosition);
+
+        this.execute(request, callback, this.parseStatus, { command: "fcopy", fromHandle: fromHandle, toHandle: toHandle });
+    }
+
+    fhash(handle: any, alg: string, position: number, length: number, blockSize: number, callback: (err: Error, hashes: Buffer, alg: string) => any): void {
+        this.checkCallback(callback);
+        var h = this.toHandle(handle);
+        this.checkPosition(position);
+
+        //TODO: reject requests with oversize response
+
+        var request = this.getRequest(SftpExtensions.CHECK_FILE_HANDLE);
+
+        request.writeData(h);
+        request.writeString(alg);
+        request.writeInt64(position);
+        request.writeInt64(length);
+        request.writeInt32(blockSize);
+
+        this.execute(request, callback, this.parseHash, { command: "fhash", handle: handle });
+    }
+// #endif
 
     private checkCallback(callback: any): void {
         if (typeof callback !== "function") throw new Error("Callback must be a function");
@@ -783,6 +832,19 @@ class SftpClientCore implements IFilesystem {
 
         callback(null, items);
     }
+
+// #if FULL
+    private parseHash(response: SftpResponse, callback: (err: Error, hashes: Buffer, alg: string) => any): void {
+        if (!this.checkResponse(response, SftpPacketType.EXTENDED_REPLY, callback))
+            return;
+
+        var alg = response.readString();
+        var hashes = response.readData(false);
+
+        callback(null, hashes, alg);
+    }
+// #endif
+    
 }
 
 export interface ISftpClientEvents<T> {

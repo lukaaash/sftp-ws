@@ -78,6 +78,18 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         });
     }
 
+    fhash(handle: any, alg: string, position: number, length: number, blockSize: number, callback?: (err: Error, hashes: Buffer, alg: string) => any): Task<Buffer> {
+        return this._task(callback, callback => {
+            this._fs.fhash(handle, alg, position, length, blockSize, callback);
+        });
+    }
+
+    fcopy(fromHandle: any, fromPosition: number, length: number, toHandle: any, toPosition: number, callback: (err: Error) => any): Task<void> {
+        return this._task(callback, callback => {
+            this._fs.fcopy(fromHandle, fromPosition, length, toHandle, toPosition, callback);
+        });
+    }
+
     write(handle: any, buffer: Buffer, offset: number, length: number, position: number, callback?: (err: Error) => any): Task<void> {
         return this._task(callback, callback => {
             this._fs.write(handle, buffer, offset, length, position, callback);

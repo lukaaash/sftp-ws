@@ -2,6 +2,7 @@
 import Path = require("path");
 import api = require("./fs-api");
 import misc = require("./fs-misc");
+import crypto = require("crypto");
 
 import IFilesystem = api.IFilesystem;
 import IItem = api.IItem;
@@ -19,6 +20,12 @@ class HandleInfo {
 interface HandleToHandleInfoMap {
     [handle: number]: HandleInfo;
 }
+
+interface HashAlgToHashSizeMap {
+    [alg: string]: number;
+}
+
+var _hashSizes = <HashAlgToHashSizeMap>{};
 
 export class SafeFilesystem implements IFilesystem {
 
@@ -437,5 +444,180 @@ export class SafeFilesystem implements IFilesystem {
         } catch (err) {
             callback(err);
         }
+    }
+
+    fcopy(fromHandle: number, fromPosition: number, length: number, toHandle: number, toPosition: number, callback: (err: Error) => any): void {
+        if (this.isReadOnly()) return FileUtil.fail("EROFS", callback);
+
+        var fs = this.fs;
+        var same = fromHandle === toHandle;
+        var blockSize = 32 * 1024;
+        length = (length > 0) ? length : -1;
+
+        var fh: any;
+        var th: any;
+        var fc: Function;
+        var tc: Function;
+        var fr = false;
+        var tr = false;
+
+        //TODO: add argument checks
+        //TODO: fail on overlapping ranges in a single file
+
+        this._execute(fromHandle, (handle, callback) => {
+            fh = handle;
+            fc = callback;
+            fr = true;
+
+            if (same) {
+                th = handle;
+                tc = null;
+                tr = true;
+            }
+
+            if (tr) start();
+        }, null);
+
+        if (!same) {
+            this._execute(toHandle, (handle, callback) => {
+                th = handle;
+                tc = callback;
+                tr = true;
+                if (fr) start();
+            }, null);
+        }
+
+        function done(err: Error) {
+            fc();
+            if (tc) tc();
+            callback(err);
+        }
+
+        function start() {
+            if (typeof fs.fcopy === "function") {
+                fs.fcopy(fh, fromPosition, length, th, toPosition, done);
+                return;
+            }
+
+            copy();
+        }
+
+        function copy() {
+            var bytesToRead = (length >= 0) ? Math.min(blockSize, length) : blockSize;
+            if (bytesToRead == 0) return done(null);
+
+            fs.read(fh, null, 0, bytesToRead, fromPosition, (err, buffer, bytesRead) => {
+                if (err) return done(err);
+
+                if (bytesRead == 0) {
+                    if (length == 0) return done(null);
+                    return FileUtil.fail("EOF", done);
+                }
+
+                if (length >= 0) length -= bytesRead;
+                fromPosition += bytesRead;
+
+                fs.write(th, buffer, 0, bytesRead, toPosition, err => {
+                    if (err) return done(err);
+
+                    toPosition += bytesRead;
+                    copy();
+                });
+            });
+        }
+    }
+
+    fhash(handle: number, alg: string, position: number, length: number, blockSize: number, callback: (err: Error, hashes: Buffer, alg: string) => any): void {
+        //TODO: add argument checks
+        //TODO: make sure the behavior (such as optional length or multiple algs) follows the spec
+        //TODO: handle very long block sizes properly
+
+        if (/@sftp.ws$/.test(alg)) {
+            // specify "alg@sftp.ws" to request non-standard algorithms
+            alg = alg.substring(0, alg.length - 8);
+        } else {
+            switch (alg) {
+                case "md5":
+                case "sha1":
+                case "sha224":
+                case "sha256":
+                case "sha384":
+                case "sha512":
+                case "crc32":
+                    // defined by draft-ietf-secsh-filexfer-extensions-00
+                    break;
+                default:
+                    // unknown algorithm
+                    alg = null;
+                    break;
+            }
+        }
+
+        // determine hash size
+        var hashSize = alg ? _hashSizes[alg] : 0;
+        if (typeof hashSize === "undefined" && alg) {
+            var hasher;
+            try {
+                hasher = crypto.createHash(alg);
+            } catch (err) {
+                hasher = null;
+            }
+            if (hasher == null) {
+                hashSize = 0;
+            } else {
+                hashSize = hasher.digest().length + 0;
+            }
+            _hashSizes[alg] = hashSize;
+        }
+
+        if (hashSize <= 0 || hashSize > 64) {
+            return FileUtil.fail("Unsupported hash algorithm", callback);
+        }
+
+        // calculate block count
+        var count = ((length + blockSize - 1) / blockSize) | 0;
+
+        // prepare buffers
+        var block = new Buffer(blockSize);
+        var hashes = new Buffer(count * hashSize);
+        var hashesOffset = 0;
+
+        this._execute(handle, (handle, callback) => {
+            next();
+
+            function next() {
+                var bytesToRead = Math.min(blockSize, length);
+
+                if (bytesToRead == 0) {
+                    return callback(null, hashes.slice(0, hashesOffset), alg);
+                }
+
+                fs.read(handle, block, 0, bytesToRead, position, (err, bytesRead, b) => {
+                    if (err) {
+                        console.log(err);
+                        return callback(err, null, alg);
+                    }
+
+                    //TODO: when we got incomplete data, read again (the functionality is already in fs-local and should be moved to fs-safe)
+
+                    // make sure we got the requested data
+                    if (bytesRead != bytesToRead) return callback(new Error("Unable to read data"), null, alg);
+
+                    position += bytesRead;
+                    length -= bytesRead;
+
+                    // calculate hash
+                    var hasher = crypto.createHash(alg);
+                    hasher.update(block.slice(0, bytesRead));
+                    var hash = hasher.digest();
+
+                    // copy hash to results
+                    hash.copy(hashes, hashesOffset);
+                    hashesOffset += hashSize;
+
+                    next();
+                });
+            }
+        }, callback);
     }
 }

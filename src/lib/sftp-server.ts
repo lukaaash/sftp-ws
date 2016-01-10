@@ -651,6 +651,37 @@ export class SftpServerSession {
                     fs.rename(oldpath, newpath, RenameFlags.OVERWRITE, err => this.sendSuccess(response, err));
                     return;
 
+                case SftpExtensions.COPY_DATA:
+                    var fromHandle = request.readHandle();
+                    var fromPosition = request.readInt64();
+                    var length = request.readInt64();
+                    var toHandle = request.readHandle();
+                    var toPosition = request.readInt64();
+
+                    fs.fcopy(fromHandle, fromPosition, length, toHandle, toPosition, err => this.sendSuccess(response, err));
+                    return;
+
+                case SftpExtensions.CHECK_FILE_HANDLE:
+                    var handle = request.readHandle();
+                    var alg = request.readString();
+                    var position = request.readInt64();
+                    var length = request.readInt64();
+                    var blockSize = request.readInt32();
+
+                    fs.fhash(handle, alg, position, length, blockSize, (err, hashes, alg) => {
+                        if (this.sendIfError(response, err))
+                            return;
+
+                        response.type = SftpPacketType.EXTENDED_REPLY;
+                        response.start();
+                        response.resize(hashes.length + 1024);
+
+                        response.writeString(alg);
+                        response.writeData(hashes);
+                        this.send(response);
+                    });
+                    return;
+
                 default:
                     this.sendStatus(response, SftpStatusCode.OP_UNSUPPORTED, "Not supported");
             }

@@ -104,6 +104,11 @@ export class SftpExtensions {
     public static VERSIONS = "versions"; // "utf-8"
     public static VENDOR = "vendor-id";
 // #if FULL
+    public static COPY_FILE = "copy-file";
+    public static COPY_DATA = "copy-data";
+    public static CHECK_FILE = "check-file";
+    public static CHECK_FILE_HANDLE = "check-file-handle";
+    public static CHECK_FILE_NAME = "check-file-name";
     public static SUPPORTED = "supported";
     public static SUPPORTED2 = "supported2";
     public static DEFAULT_FS_ATTRIBS = "default-fs-attribs@vandyke.com";

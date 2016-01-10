@@ -58,4 +58,7 @@ export interface IFilesystem {
     readlink(path: string, callback: (err: Error, linkString: string) => any): void;
     symlink(oldPath: string, newPath: string, callback: (err: Error) => any): void;
     link(oldPath: string, newPath: string, callback: (err: Error) => any): void;
+
+    fcopy?(fromHandle: any, fromPosition: number, length: number, toHandle: any, toPosition: number, callback: (err: Error) => any): void;
+    fhash?(handle: any, alg: string, position: number, length: number, blockSize: number, callback: (err: Error, hashes: Buffer, alg: string) => any): void;
 }
