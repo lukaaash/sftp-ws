@@ -71,14 +71,16 @@ export class LocalFilesystem implements IFilesystem {
             offset = 0;
         }
 
+        var offset2 = offset;
+
         var read = () => {
-            fs.read(handle, buffer, offset, length, position, (err, bytesRead, b) => {
+            fs.read(handle, buffer, offset2, length, position, (err, bytesRead, b) => {
                 if (typeof err === 'undefined' || err == null) {
                     length -= bytesRead;
                     totalBytes += bytesRead;
 
                     if (length > 0 && bytesRead > 0) {
-                        offset += bytesRead;
+                        offset2 += bytesRead;
                         position += bytesRead;
                         read();
                         return;
