@@ -98,6 +98,9 @@ class SftpClientCore implements IFilesystem {
     private _maxReadBlockLength: number;
     private _maxWriteBlockLength: number;
 
+    private _bytesReceived: number;
+    private _bytesSent: number;
+
     private getRequest(type: SftpPacketType|string): SftpPacketWriter {
         var request = new SftpPacketWriter(this._maxWriteBlockLength + 1024);
 
@@ -133,6 +136,16 @@ class SftpClientCore implements IFilesystem {
 
         this._maxWriteBlockLength = 32 * 1024;
         this._maxReadBlockLength = 256 * 1024;
+
+        this._bytesReceived = 0;
+        this._bytesSent = 0;
+    }
+
+    getChannelStats(): {} {
+        return {
+            bytesReceived: this._bytesReceived,
+            bytesSent: this._bytesSent,
+        };
     }
 
     private execute(request: SftpPacketWriter, callback: Function, responseParser: (response: SftpResponse, callback: Function) => void, info: SftpCommandInfo): void {
@@ -166,6 +179,7 @@ class SftpClientCore implements IFilesystem {
         }
 
         this._host.send(packet);
+        this._bytesSent += packet.length;
 
         this._requests[request.id] = { callback: callback, responseParser: responseParser, info: info };
     }
@@ -237,6 +251,7 @@ class SftpClientCore implements IFilesystem {
     }
 
     _process(packet: Buffer): void {
+        this._bytesReceived += packet.length;
         var response = <SftpResponse>new SftpPacketReader(packet);
 
         if (this._debug) {
@@ -789,6 +804,10 @@ export class SftpClient extends FilesystemPlus {
     constructor(local: IFilesystem) {
         var sftp = new SftpClientCore();
         super(sftp, local);
+    }
+
+    getChannelStats(): {} {
+        return (<SftpClientCore>this._fs).getChannelStats();
     }
 
     bind(channel: IChannel, options?: any, callback?: (err: Error) => void): Task<void> {
