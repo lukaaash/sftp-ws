@@ -123,6 +123,7 @@ class SftpException {
                 message = "File name too long";
                 break;
             case 50: // EPERM
+            case -4048: // EPERM on Windows with Node >=0.12
                 message = "Operation not permitted";
                 break;
             case 51: // ELOOP
@@ -147,8 +148,9 @@ class SftpException {
                 message = "No such device";
                 code = SftpStatusCode.NO_SUCH_FILE;
                 break;
+            case -29: // Node >=0.12 on Linux
             case 58: // ESPIPE
-                message = "Illegal seek";
+                message = "Invalid seek";
                 break;
             case 59: // ECANCELED
                 message = "Operation canceled";
