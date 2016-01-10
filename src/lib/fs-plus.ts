@@ -121,15 +121,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
             if (typeof handle === 'string') {
                 var path = Path.check(<string>handle, 'path');
 
-                var options = <ISearchOptionsExt>{
-                    noglobstar: true,
-                    nowildcard: true,
-                    onedir: true,
-                    dotdirs: true,
-                    all: true,
-                };
-
-                search(this._fs, path, null, options, callback);
+                FileUtil.list(this._fs, path, true, callback);
                 return;
             }
 

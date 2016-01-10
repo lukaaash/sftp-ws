@@ -189,11 +189,13 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
 
         // add path to queue and process it
         queue.push({ path: new Path("", null), pattern: 0, depth: 0 });
-        next();
+        next(null);
     }
 
     // process next directory in the queue
-    function next() {
+    function next(err: Error) {
+        if (err) return callback(err);
+
         // get next directory to traverse
         var current = queue.shift();
 
@@ -249,51 +251,8 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             // prepare full path
             var fullPath = basePath.join(relativePath).normalize().path;
 
-            // list directory and process its items
-            fs.opendir(fullPath, (err, handle) => {
-                if (err) return callback(err, null);
-
-                emitter.emit("traversing", fullPath);
-
-                // send 1 read request
-                var error = null;
-                var requests = 1;
-                fs.readdir(handle, read);
-
-                function read(err: Error, items: IItem[]|boolean): void {
-                    try {
-                        requests--;
-                        error = error || err;
-                        if (error || !items) {
-                            if (requests > 0) return;
-
-                            // when done, close the handle
-                            fs.close(handle, err => {
-                                error = error || err;
-                                if (err) return callback(error, null);
-
-                                emitter.emit("traversed", fullPath);
-
-                                // process next directory
-                                next();
-                            });
-                            return;
-                        }
-
-                        // process items
-                        (<IItemExt[]>items).forEach(process);
-
-                        // read next items using several parallel readdir requests
-                        while (requests < 2) {
-                            fs.readdir(handle, read);
-                            requests++;
-                        }
-                    } catch (err) {
-                        error = error || err;
-                        return callback(error, null);
-                    }
-                }
-            });
+            // list items and proceed to directory
+            FileUtil.listItems(fs, fullPath, emitter, process, next);
         } catch (err) {
             return callback(err, null);
         }
