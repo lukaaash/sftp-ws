@@ -317,6 +317,18 @@ export class FileUtil {
         });
     }
 
+    static toItemInfo(source: IDataSource, target: IDataTarget): IItem {
+        var name = source.name;
+        if (typeof name === "undefined") name = "" + target.name;
+        var path = source.relativePath;
+        if (typeof path === "undefined") path = name;
+
+        return {
+            filename: name,
+            stats: source.stats || { size: source.length },
+            path: path,
+        };
+    }
 
     static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {
         fs.stat(path, (err, stats) => {
@@ -390,17 +402,7 @@ export class FileUtil {
         });
 
         function transferring(): void {
-            var name = source.name;
-            if (typeof name === "undefined") name = "" + target.name;
-            var path = source.relativePath;
-            if (typeof path === "undefined") path = name;
-
-            item = {
-                filename: name,
-                stats: source.stats || { size: source.length },
-                path: path,
-            };
-
+            item = FileUtil.toItemInfo(source, target);
             emitter.emit("transferring", item);
         }
 
