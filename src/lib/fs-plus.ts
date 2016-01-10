@@ -427,7 +427,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 if (err) return callback(err);
 
                 if (FileUtil.isDirectory(source.stats)) {
-                    FileUtil.mkdir(toFs, targetPath, transferred);
+                    FileUtil.mkdir(toFs, targetPath, false, (err, created) => transferred(err));
                 } else {
                     var target = new FileDataTarget(toFs, targetPath);
                     FileUtil.copy(source, target, emitter, transferred);
@@ -455,7 +455,7 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
                 try {
                     var targetPath = toPath.join(parent).path;
 
-                    FileUtil.mkdir(toFs, targetPath, err => {
+                    FileUtil.mkdir(toFs, targetPath, false, (err, created) => {
                         if (err) return callback(err);
                         directories[<any>parent] = true;
                         callback(null);

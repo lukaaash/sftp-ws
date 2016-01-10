@@ -423,16 +423,26 @@ export class FileUtil {
         });
     }
 
-    static mkdir(fs: IFilesystem, path: string, callback?: (err: Error) => any): void {
+    static mkdir(fs: IFilesystem, path: string, overwrite: boolean, callback: (err: Error, created: boolean) => any): void {
         fs.stat(path, (err, stats) => {
             if (!err) {
-                if (FileUtil.isDirectory(stats)) return callback(null);
-                return callback(new Error("Path is not a directory")); //TODO: better error
+                if (FileUtil.isDirectory(stats)) return callback(null, false);
+
+                if (overwrite) {
+                    // delete non-directory item
+                    fs.unlink(path, err => {
+                        if (err) return callback(err, false);
+                        fs.mkdir(path, null, err => callback(err, !err));
+                    });
+                    return;
+                }
+
+                return callback(new Error("Path is not a directory"), false); //TODO: better error
             }
 
-            if ((<any>err).code != "ENOENT") return callback(err);
+            if ((<any>err).code != "ENOENT") return callback(err, false);
 
-            fs.mkdir(path, null, callback);
+            fs.mkdir(path, null, err => callback(err, !err));
         });
     }
 
