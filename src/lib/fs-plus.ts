@@ -332,25 +332,35 @@ export class FilesystemPlus extends EventEmitter implements IFilesystem {
         FileUtil.copy(source, target, emitter, err => callback(err));
     }
 
-    upload(localPath: string, remotePath: string, callback?: (err: Error) => any): Task<void>
-    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<void>
-    upload(input: any, remotePath: string, callback?: (err: Error) => any): Task<void> {
+    upload(localPath: string, remotePath: string, options?: any, callback?: (err: Error) => any): Task<void>
+    upload(input: any, remotePath: string, options?: any, callback?: (err: Error) => any): Task<void>
+    upload(input: any, remotePath: string, options?: any, callback?: (err: Error) => any): Task<void> {
+        if (typeof options === "function" && typeof callback === "undefined") {
+            callback = <any>options;
+            options = null;
+        }
+
         return this._task(callback, (callback, emitter) => {
             var remote = Path.create(remotePath, this._fs, 'remotePath');
 
-            this._copy(input, this._local, remote, emitter, callback);
+            this._copy(input, this._local, remote, options, emitter, callback);
         });
     }
 
-    download(remotePath: string|string[], localPath: string, callback?: (err: Error) => any): Task<void> {
+    download(remotePath: string|string[], localPath: string, options?: any, callback?: (err: Error) => any): Task<void> {
+        if (typeof options === "function" && typeof callback === "undefined") {
+            callback = <any>options;
+            options = null;
+        }
+
         return this._task(callback, (callback, emitter) => {
             var local = Path.create(localPath, this._local, 'localPath');
 
-            this._copy(remotePath, this._fs, local, emitter, callback);
+            this._copy(remotePath, this._fs, local, options, emitter, callback);
         });
     }
 
-    private _copy(from: any, fromFs: IFilesystem, toPath: Path, emitter: IEventEmitter, callback: (err: Error, ...args: any[]) => any): void {
+    private _copy(from: any, fromFs: IFilesystem, toPath: Path, options: any, emitter: IEventEmitter, callback: (err: Error, ...args: any[]) => any): void {
         var sources = <IDataSource[]>null;
 
         var toFs = toPath.fs;
