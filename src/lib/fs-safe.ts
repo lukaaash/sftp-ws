@@ -592,11 +592,8 @@ export class SafeFilesystem implements IFilesystem {
                     return callback(null, hashes.slice(0, hashesOffset), alg);
                 }
 
-                fs.read(handle, block, 0, bytesToRead, position, (err, bytesRead, b) => {
-                    if (err) {
-                        console.log(err);
-                        return callback(err, null, alg);
-                    }
+                this.fs.read(handle, block, 0, bytesToRead, position, (err, b, bytesRead) => {
+                    if (err) return callback(err, null, alg);
 
                     //TODO: when we got incomplete data, read again (the functionality is already in fs-local and should be moved to fs-safe)
 
