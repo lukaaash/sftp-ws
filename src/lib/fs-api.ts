@@ -18,6 +18,7 @@ export interface IStats {
     size?: number;
     atime?: Date;
     mtime?: Date;
+    metadata?: { [key: string]: string; };
 
     isFile?(): boolean;
     isDirectory?(): boolean;

@@ -101,7 +101,8 @@ export class SftpExtensions {
     public static NEWLINE2 = "newline"; // "\n"
     public static NEWLINE3 = "newline@vandyke.com"; // "\n"
     public static CHARSET = "charset@sftp.ws"; // "utf-8"
-    public static VERSIONS = "versions"; // "utf-8"
+    public static METADATA = "meta@sftp.ws";
+    public static VERSIONS = "versions";
     public static VENDOR = "vendor-id";
 // #if FULL
     public static COPY_FILE = "copy-file";
@@ -242,6 +243,69 @@ export class SftpOptions {
     autoClose: boolean;
 }
 
+//#if FULL
+interface IMetadata {
+    [key: string]: any;
+}
+
+function writeMetadata(writer: SftpPacketWriter, metadata: IMetadata): void {
+    var data = new SftpPacketWriter(0x4000);
+    for (var key in metadata) {
+        var value = metadata[key];
+        data.writeString(key);
+        if (value === "null") {
+            data.writeByte(0);
+        } else if (typeof value === "boolean") {
+            data.writeByte(1);
+            data.writeByte(value ? 1 : 0);
+        } else if (typeof value == "number") {
+            data.writeByte(2);
+            data.writeInt64(value);
+        } else if (typeof value == "string") {
+            data.writeByte(3);
+            data.writeString(value);
+        } else {
+            data.writeByte(4);
+            data.writeString(JSON.stringify(value));
+        }
+    }
+}
+
+function readMetadata(reader: SftpPacketReader): IMetadata {
+    var data = reader.readStructuredData();
+    var metadata = {};
+    while (data.position < data.length) {
+        var key = data.readString();
+        if (key.length == 0) return metadata;
+        var type = data.readByte();
+        var value;
+        switch (type) {
+            case 0:
+                value = null;
+                data.skipString();
+                break;
+            case 1:
+                value = (data.readByte() != 0);
+                break;
+            case 2:
+                value = data.readInt64();
+                break;
+            case 3:
+                value = data.readString();
+                break;
+            case 4:
+                value = data.readData(false);
+                value = JSON.parse(value);
+                break;
+            default:
+                data.skipString();
+                continue;
+        }
+        metadata[key] = value;
+    }
+}
+//#endif
+
 export const enum SftpAttributeFlags {
     SIZE        = 0x00000001,
     UIDGID      = 0x00000002,
@@ -274,6 +338,9 @@ export class SftpAttributes implements IStats {
     atime: Date;
     mtime: Date;
     nlink: number;
+//#if FULL
+    metadata: IMetadata;
+//#endif
 
     isDirectory(): boolean {
         return (this.mode & FileType.ALL) == FileType.DIRECTORY;
@@ -313,14 +380,20 @@ export class SftpAttributes implements IStats {
             this.mtime = new Date(1000 * reader.readUint32());
         }
 
+//#if FULL
         if (flags & SftpAttributeFlags.EXTENDED) {
             this.flags &= ~SftpAttributeFlags.EXTENDED;
-            this.size = reader.readInt64();
-            for (var i = 0; i < this.size; i++) {
-                reader.skipString();
-                reader.skipString();
+            var count = reader.readInt32();
+            for (var i = 0; i < count; i++) {
+                var name = reader.readString();
+                if (name == SftpExtensions.METADATA) {
+                    this.metadata = readMetadata(reader);
+                } else {
+                    reader.skipString();
+                }
             }
         }
+//#endif
     }
 
     write(response: SftpPacketWriter): void {
@@ -346,6 +419,14 @@ export class SftpAttributes implements IStats {
         }
 
         if (flags & SftpAttributeFlags.EXTENDED) {
+//#if FULL
+            if (this.metadata) {
+                response.writeInt32(1);
+                response.writeString(SftpExtensions.METADATA);
+                writeMetadata(response, this.metadata);
+                return;
+            }
+//#endif
             response.writeInt32(0);
         }
     }
@@ -381,6 +462,12 @@ export class SftpAttributes implements IStats {
             if (typeof (<any>stats).nlink !== 'undefined') {
                 this.nlink = (<any>stats).nlink;
             }
+
+//#if FULL
+            if (typeof stats.metadata !== 'undefined') {
+                this.metadata = stats.metadata;
+            }
+//#endif
 
             this.flags = flags;
         }
