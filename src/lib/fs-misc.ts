@@ -330,58 +330,62 @@ export class FileUtil {
         };
     }
 
-    static listItems(fs: IFilesystem, path: string, emitter: IEventEmitter, process: (item: IItem) => any, callback: (err: Error) => any): void {
+    static listHandle(fs: IFilesystem, handle: any, process: (item: IItem) => any, callback: (err: Error) => any): void {
+        // send first read request
+        var error = null;
+        var requests = 1;
+        fs.readdir(handle, read);
+
+        function read(err: Error, items: IItem[] | boolean): void {
+            try {
+                requests--;
+                error = error || err;
+                if (error || !items) {
+                    if (requests == 0) callback(error);
+                    return;
+                }
+
+                // process items
+                (<IItem[]>items).forEach(process);
+
+                // read next items using several parallel readdir requests
+                while (requests < 4) {
+                    fs.readdir(handle, read);
+                    requests++;
+                }
+            } catch (err) {
+                error = error || err;
+                return callback(error);
+            }
+        }
+    }
+
+    static listPath(fs: IFilesystem, path: string, emitter: IEventEmitter, process: (item: IItem) => any, callback: (err: Error) => any): void {
         // list directory and process its items
         fs.opendir(path, (err, handle) => {
             if (err) return callback(err);
 
             if (emitter) emitter.emit("traversing", path);
 
-            // send first read request
-            var error = null;
-            var requests = 1;
-            fs.readdir(handle, read);
-
-            function read(err: Error, items: IItem[] | boolean): void {
-                try {
-                    requests--;
+            FileUtil.listHandle(fs, handle, process, (error) => {
+                // when done, close the handle
+                fs.close(handle, err => {
                     error = error || err;
-                    if (error || !items) {
-                        if (requests > 0) return;
+                    if (err) return callback(error);
 
-                        // when done, close the handle
-                        fs.close(handle, err => {
-                            error = error || err;
-                            if (err) return callback(error);
+                    if (emitter) emitter.emit("traversed", path);
 
-                            if (emitter) emitter.emit("traversed", path);
-
-                            // done
-                            callback(null);
-                        });
-                        return;
-                    }
-
-                    // process items
-                    (<IItem[]>items).forEach(process);
-
-                    // read next items using several parallel readdir requests
-                    while (requests < 4) {
-                        fs.readdir(handle, read);
-                        requests++;
-                    }
-                } catch (err) {
-                    error = error || err;
-                    return callback(error);
-                }
-            }
+                    // done
+                    callback(null);
+                });
+            });
         });
     }
 
     static list(fs: IFilesystem, path: string, dotdirs: boolean, callback: (err: Error, items?: IItem[]) => any): void {
         var items = <IItem[]>[];
 
-        FileUtil.listItems(fs, path, null, process, err => {
+        FileUtil.listPath(fs, path, null, process, err => {
             if (err) return callback(err);
             callback(null, items);
         });

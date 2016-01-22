@@ -255,7 +255,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
             var fullPath = basePath.join(relativePath).normalize().path;
 
             // list items and proceed to directory
-            FileUtil.listItems(fs, fullPath, emitter, process, next);
+            FileUtil.listPath(fs, fullPath, emitter, process, next);
         } catch (err) {
             return callback(err, null);
         }
