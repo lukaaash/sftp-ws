@@ -122,7 +122,7 @@ export function search(fs: IFilesystem, path: string, emitter: IEventEmitter, op
                     } else {
                         if (expectDir) return callback(new Error("The specified path is not a directory"), null);
 
-                        if (!FileUtil.isFile(stats)) {
+                        if (!all && !FileUtil.isFile(stats)) {
                             // if it's not a file, we are done
                             return callback(null, results);
                         }

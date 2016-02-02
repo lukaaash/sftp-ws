@@ -213,6 +213,10 @@ export class FileUtil {
         return stats ? (stats.mode & FileType.ALL) == FileType.REGULAR_FILE : false; // regular file
     }
 
+    static isSymbolicLink(stats: IStats): boolean {
+        return stats ? (stats.mode & FileType.ALL) == FileType.SYMLINK : false; // symlink
+    }
+
     static toString(filename: string, stats: IStats): string {
         var attrs = stats.mode;
 

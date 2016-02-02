@@ -253,7 +253,7 @@ export class LocalFilesystem implements IFilesystem {
 
             var itemPath = path.join(name).path;
 
-            fs.stat(itemPath, (err, stats) => {
+            fs.lstat(itemPath, (err, stats) => {
                 if (typeof err !== 'undefined' && err != null) {
                     //TODO: log unsuccessful stat?
                 } else {
