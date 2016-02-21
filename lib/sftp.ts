@@ -41,6 +41,10 @@ module SFTP {
     export interface ILogWriter extends util.ILogWriter {
     }
 
+    export enum RenameFlags {
+        OVERWRITE = <number>api.RenameFlags.OVERWRITE,
+    }
+
     export interface IClientAuthenticationQuery {
         name: string;
         prompt: string;
