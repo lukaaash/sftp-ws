@@ -1,54 +1,76 @@
 var gulp = require('gulp');
-
 var replace = require('gulp-replace');
-var ts = require('gulp-typescript');
+var typescript = require('gulp-typescript');
 var concat = require('gulp-concat');
 var jeditor = require("gulp-json-editor");
 var sourcemaps = require('gulp-sourcemaps');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 
-var tsLib = ts.createProject({
-    "declarationFiles": false,
-    "noExternalResolve": true,
-    "module": "commonjs",
-});
-
-var tsWeb = ts.createProject({
-    "declarationFiles": false,
-    "noExternalResolve": true,
-    "sortOutput": true,
-});
+var ts = {
+    lib: typescript.createProject({
+        "declarationFiles": false,
+        "noExternalResolve": true,
+        "module": "commonjs",
+    }),
+    web: typescript.createProject({
+        "declarationFiles": false,
+        "noExternalResolve": true,
+        "sortOutput": true,
+    }),
+    tests: typescript.createProject({
+        "declarationFiles": false,
+        "noExternalResolve": false,
+        "module": "commonjs",
+    }),
+};
 
 var src = {
-    lib: ['lib/*.ts', 'tests/*.ts', '!lib/*-web.ts', '!lib/*.d.ts', 'typings/*/*.d.ts'],
-    lib_web: ['lib/util-web.ts', 'lib/promise.ts', 'lib/util.ts', 'lib/charsets.ts', 'lib/fs-api.ts', 'lib/fs-misc.ts', 'lib/fs-glob.ts', 'lib/fs-sources.ts', 'lib/fs-targets.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/channel-ws.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp.ts'],
+    lib: ['lib/*.ts', 'tests/*.ts', '!lib/*-web.ts', 'typings/*/*.d.ts'],
+    tests: ['tests/*.ts', 'typings/*/*.d.ts'],
+    web: ['lib/util-web.ts', 'lib/promise.ts', 'lib/util.ts', 'lib/charsets.ts', 'lib/fs-api.ts', 'lib/fs-misc.ts', 'lib/fs-glob.ts', 'lib/fs-sources.ts', 'lib/fs-targets.ts', 'lib/fs-plus.ts', 'lib/channel.ts', 'lib/channel-ws.ts', 'lib/sftp-enums.ts', 'lib/sftp-packet.ts', 'lib/sftp-misc.ts', 'lib/sftp-client.ts', 'lib/sftp.ts'],
     pkg: ['package.json'],
-    npm: ['.npmignore', '../README.md', '../LICENSE'],
+    npm: ['README.md', 'LICENSE'],
 };
 
 var out = {
-    lib: '../build',
-    lib_web: '../build/web',
+    lib: 'lib',
+    tests: 'tests',
+    web: 'build/web',
+    npm: 'build/npm',
+    npm_lib: 'build/npm/lib',
 };
 
 gulp.task('lib', function () {
+    var result = gulp.src(src.lib)
+        .pipe(sourcemaps.init())
+        .pipe(typescript(ts.lib));
 
-    var tsResult = gulp.src(src.lib).pipe(ts(tsLib));
-
-    return tsResult.js
-        .pipe(rename(function (path) {
-            if (path.basename.substr(path.basename.length - 6) == "-tests")
-                path.dirname = "./tests";
-            else
-                path.dirname = "./lib";
-        }))
+    return result.js
+        .pipe(sourcemaps.write())
         .pipe(gulp.dest(out.lib));
 });
 
-gulp.task('web.ts', function () {
+gulp.task('tests', function () {
+    var result = gulp.src(src.tests)
+        .pipe(sourcemaps.init())
+        .pipe(typescript(ts.tests));
 
-    return gulp.src(src.lib_web)
+    return result.js
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(out.tests));
+});
+
+gulp.task('npm.lib', function () {
+    var result = gulp.src(src.lib)
+        .pipe(typescript(ts.lib));
+
+    return result.js
+        .pipe(gulp.dest(out.npm_lib));
+});
+
+gulp.task('web.ts', function () {
+    return gulp.src(src.web)
         .pipe(replace(/\r/g, ''))
         .pipe(replace(/import (.*) = require\(\"(.*)\"\);.*\n/g, ''))
         .pipe(replace(/import (.*) = (.*);.*\n/g, ''))
@@ -65,27 +87,25 @@ gulp.task('web.ts', function () {
         .pipe(replace(/^/g, 'module SFTP {'))
         .pipe(replace(/$/g, '\n}\n'))
         .pipe(replace(/\n/g, '\r\n'))
-        .pipe(gulp.dest(out.lib_web));
+        .pipe(gulp.dest(out.web));
 });
 
 gulp.task('web.js', ['web.ts'], function () {
-
     var mapOptions = {
         includeContent: false,
         sourceRoot: "./",
     };
 
-    return gulp.src(out.lib_web + '/sftp.ts')
+    return gulp.src(out.web + '/sftp.ts')
         .pipe(sourcemaps.init())
-        .pipe(ts(tsWeb)).js
+        .pipe(typescript(ts.web)).js
         .pipe(replace(/^var (.*\n){5}var SFTP;\n/g, '//\r\n//\r\n//\r\n//\r\n//\r\n' + 'var SFTP;\r\n'))
         .pipe(sourcemaps.write(".", mapOptions))
-        .pipe(gulp.dest(out.lib_web));
+        .pipe(gulp.dest(out.web));
 
 });
 
 gulp.task('web', ['web.js'], function () {
-
     var uglifyOptions = {
         mangle: {
             except: ['SftpItem'],
@@ -108,30 +128,32 @@ gulp.task('web', ['web.js'], function () {
         }
     };
 
-    return gulp.src(out.lib_web + '/sftp.js')
+    return gulp.src(out.web + '/sftp.js')
         .pipe(rename(function (path) { return path.basename = "sftp.min"; }))
         .pipe(uglify(uglifyOptions))
-        .pipe(gulp.dest(out.lib_web));
+        .pipe(gulp.dest(out.web));
 });
 
-gulp.task('package', function () {
-
+gulp.task('npm.pkg', function () {
     return gulp.src(src.pkg)
-        .pipe(jeditor({ 'devDependencies': undefined }))
-        .pipe(gulp.dest(out.lib));
+        .pipe(jeditor(function (json) {
+            delete json.devDependencies;
+            delete json.scripts;
+            return json;
+        }))
+        .pipe(gulp.dest(out.npm));
 });
 
-gulp.task('npm', function () {
+gulp.task('npm', ['npm.lib', 'npm.pkg'], function () {
     return gulp.src(src.npm)
-        .pipe(gulp.dest(out.lib));
+        .pipe(gulp.dest(out.npm));
 });
 
-gulp.task('build', ['lib', 'web', 'package', 'npm'], function () {
+gulp.task('build', ['lib', 'tests', 'npm', 'web'], function () {
 
 });
 
 gulp.task('default', ['build'], function () {
 
 });
-
 
