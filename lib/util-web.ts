@@ -141,7 +141,7 @@ class EventEmitter {
         }
 
         if (!called && event == "error") {
-            var error = <Error>args[0];
+            var error = <Error>arguments[1];
             throw error;
         }
 
