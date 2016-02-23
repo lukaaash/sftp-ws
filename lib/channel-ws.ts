@@ -46,7 +46,7 @@ export class WebSocketChannelFactory {
         var ws = new WebSocket(address, options); //WEB: var ws = new WebSocket(address, protocols);
         //WEB: ws.binaryType = "arraybuffer";
 
-        var channel = new WebSocketChannel(ws, false);
+        var channel = new WebSocketChannel(ws, true, false);
 
         ws.on("open", () => { //WEB: ws.onopen = () => {
             channel._init();
@@ -154,14 +154,14 @@ export class WebSocketChannelFactory {
     bind(ws: WebSocket): IChannel {
         if (ws.readyState != WebSocket.OPEN) throw new Error("WebSocket is not open");
 
-        return new WebSocketChannel(ws, true);
+        return new WebSocketChannel(ws, true, true);
     }
     // #endif
 }
 
 class WebSocketChannel implements IChannel {
     private ws: WebSocket;
-    private options: any; //WEB: // removed
+    private options: any; //WEB: private binary: boolean;
     private established: boolean;
     private closed: boolean;
     //WEB: private failed: boolean;
@@ -188,7 +188,7 @@ class WebSocketChannel implements IChannel {
             if (this.closed) return;
 
             var packet: Buffer;
-            if (flags.binary) { //WEB: if (true) { //TODO: handle text messages
+            if (flags.binary) { //WEB: if (this.binary) { //TODO: handle text messages
                 packet = <Buffer>data; //WEB: packet = new Uint8Array(message.data);
             } else {
                 var err = <any>new Error("Connection failed due to unsupported packet type");
@@ -202,9 +202,9 @@ class WebSocketChannel implements IChannel {
         }); //WEB: };
     }
 
-    constructor(ws: WebSocket, established: boolean) {
+    constructor(ws: WebSocket, binary: boolean, established: boolean) {
         this.ws = ws;
-        this.options = { binary: true }; //WEB: // removed
+        this.options = { binary: binary }; //WEB: this.binary = binary;
         this.established = established;
         //WEB: this.failed = false;
 
