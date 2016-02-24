@@ -1,4 +1,4 @@
-﻿import assert = require('assert');
+import assert = require('assert');
 import util = require("../lib/charsets");
 
 import Encoding = util.Encoding;

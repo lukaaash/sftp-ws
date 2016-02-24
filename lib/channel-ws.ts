@@ -1,4 +1,4 @@
-﻿import channel = require("./channel");
+import channel = require("./channel");
 import http = require("http");
 import WebSocket = require("ws");
 import Url = require("url");

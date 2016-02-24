@@ -1,4 +1,4 @@
-﻿import WebSocket = require("ws");
+import WebSocket = require("ws");
 import http = require("http");
 import path = require("path");
 import events = require("events");

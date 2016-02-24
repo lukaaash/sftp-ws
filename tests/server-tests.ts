@@ -1,4 +1,4 @@
-﻿import assert = require('assert');
+import assert = require('assert');
 import SFTP = require('../lib/sftp');
 
 function startServer(): SFTP.Server {

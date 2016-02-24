@@ -1,4 +1,4 @@
-﻿import packet = require("./sftp-packet");
+import packet = require("./sftp-packet");
 import misc = require("./sftp-misc");
 import enums = require("./sftp-enums");
 import api = require("./fs-api");

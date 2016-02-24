@@ -1,4 +1,4 @@
-﻿
+
 export const enum FileType {
     FIFO = 0x1000,
     CHARACTER_DEVICE = 0x2000,

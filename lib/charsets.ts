@@ -1,4 +1,4 @@
-﻿
+
 export interface IStringEncoder extends StringEncoder {
 }
 

@@ -1,4 +1,4 @@
-﻿import api = require("./fs-api");
+import api = require("./fs-api");
 import misc = require("./fs-misc");
 import glob = require("./fs-glob");
 import util = require("./util");

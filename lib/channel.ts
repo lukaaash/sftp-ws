@@ -1,4 +1,4 @@
-﻿export interface IChannel {
+export interface IChannel {
     on(event: string, listener: Function): IChannel;
     send(packet: Buffer): void;
     close(reason?: CloseReason|number, description?: string): void;

@@ -1,4 +1,4 @@
-﻿import fs = require("fs");
+import fs = require("fs");
 import api = require("./fs-api");
 import misc = require("./fs-misc");
 

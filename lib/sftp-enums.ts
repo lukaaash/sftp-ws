@@ -1,4 +1,4 @@
-﻿export const enum SftpPacketType {
+export const enum SftpPacketType {
 
     // initialization
     INIT = 1,

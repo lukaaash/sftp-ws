@@ -1,4 +1,4 @@
-﻿import api = require("./fs-api");
+import api = require("./fs-api");
 import util = require("./util");
 
 import IFilesystem = api.IFilesystem;

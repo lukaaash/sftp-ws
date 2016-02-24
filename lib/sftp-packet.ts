@@ -1,4 +1,4 @@
-﻿import enums = require("./sftp-enums");
+import enums = require("./sftp-enums");
 import charsets = require("./charsets");
 
 import SftpPacketType = enums.SftpPacketType;

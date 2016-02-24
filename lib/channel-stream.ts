@@ -1,4 +1,4 @@
-﻿import channel = require("./channel");
+import channel = require("./channel");
 import events = require("events");
 
 export class StreamChannel extends events.EventEmitter implements channel.IChannel {
