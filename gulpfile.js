@@ -7,7 +7,6 @@ var sourcemaps = require('gulp-sourcemaps');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var merge = require('merge-stream');
-var clip = require('gulp-clip-empty-files');
 
 var ts = {
     lib: typescript.createProject({
@@ -55,9 +54,7 @@ gulp.task('lib', function () {
 
 gulp.task('package', function () {
     var sources = gulp.src(input.sources, { base: "." })
-        .pipe(typescript(ts.lib)).js
-        .pipe(replace(/^\"use strict\";\n$/g, ""))  // clear de-facto empty files
-        .pipe(clip());                              // remove empty files
+        .pipe(typescript(ts.lib)).js;
 
     var metadata = gulp.src(input.metadata)
         .pipe(jeditor(function (json) {
