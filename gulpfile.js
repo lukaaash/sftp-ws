@@ -10,17 +10,17 @@ var merge = require('merge-stream');
 
 var ts = {
     lib: typescript.createProject({
-        "declarationFiles": false,
+        "declaration": false,
         "noExternalResolve": true,
         "module": "commonjs",
     }),
     web: typescript.createProject({
-        "declarationFiles": false,
+        "declaration": false,
         "noExternalResolve": true,
         "sortOutput": true,
     }),
     tests: typescript.createProject({
-        "declarationFiles": false,
+        "declaration": false,
         "noExternalResolve": false,
         "module": "commonjs",
     }),
@@ -46,13 +46,15 @@ gulp.task('lib', function () {
     var tests = gulp.src(input.tests, { base: "." });
 
     return merge(sources, tests)
-        .pipe(sourcemaps.init())
-        .pipe(typescript(ts.lib)).js
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: ".." }))
+        //.pipe(sourcemaps.init())
+        .pipe(typescript(ts.lib))
+        //.pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: ".." }))
         .pipe(gulp.dest(output.lib));
 });
 
-gulp.task('package', function () {
+gulp.task('package', ['lib'], function () {
+    // this task doesn't really depend on 'lib', but gulp-typescript silently fails when both are run at the same time
+
     var sources = gulp.src(input.sources, { base: "." })
         .pipe(typescript(ts.lib)).js;
 
