@@ -126,22 +126,22 @@ export class WebSocketChannelFactory {
                     var result = auth(instructions, queries);
                     return supply(result);
                 }
+            }
 
-                function supply(values: { [name: string]: string }): void {
-                    values = values || {};
-                    if (!username) username = values["username"];
-                    password = values["password"];
+            function supply(values: { [name: string]: string }): void {
+                values = values || {};
+                if (!username) username = values["username"];
+                password = values["password"];
 
-                    if (username && password) {
-                        // try authenticating with the supplied credentials
-                        credentials = getBasicAuthHeader(username, password);
-                        options.username = null;
-                        options.password = null;
-                        self._connect(address, options, credentials, callback);
-                    } else {
-                        // fail if no credentials supplied
-                        callback(err, null);
-                    }
+                if (username && password) {
+                    // try authenticating with the supplied credentials
+                    credentials = getBasicAuthHeader(username, password);
+                    options.username = null;
+                    options.password = null;
+                    self._connect(address, options, credentials, callback);
+                } else {
+                    // fail if no credentials supplied
+                    callback(err, null);
                 }
             }
             // #endif
